@@ -1,5 +1,8 @@
 name: Build and Release
 
+permissions:
+  contents: write
+
 # Triggers on pushes to main, but ONLY when application code changes.
 # Pushing a games.json-only change will not trigger this workflow.
 on:
