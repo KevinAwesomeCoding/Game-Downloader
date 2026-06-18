@@ -827,6 +827,11 @@ class InstallWorker(QObject):
         try:
             self._start_time = time.monotonic()
             self.elapsed_text.emit("0s")
+            _log.debug(
+                "run START  id=%r  name=%r  zip_url=%r  fix_url=%r  dest=%r",
+                self.game.id, self.game.name,
+                self.game.zip_url, self.game.fix_url, self.dest_path,
+            )
 
             if not self.game.zip_url:
                 self.error.emit("This game has no download URL configured.")
@@ -878,9 +883,8 @@ class InstallWorker(QObject):
             # --- 2) Optional fix / repair patch -----------------------------
             if self.game.has_fix:
                 _log.debug(
-                    "run FIX BRANCH  has_fix=%s  fix_url=%r  fix_archive will be=%r",
-                    self.game.has_fix, self.game.fix_url,
-                    self._new_temp_archive.__doc__,  # just forces evaluation; path logged below
+                    "run FIX BRANCH  id=%r  name=%r  fix_url=%r",
+                    self.game.id, self.game.name, self.game.fix_url,
                 )
                 fix_archive = self._new_temp_archive(self.game.fix_url)
                 _log.debug("run FIX ARCHIVE  path=%s", fix_archive)
@@ -2153,6 +2157,10 @@ class MainWindow(QMainWindow):
             self.cards_layout.addWidget(GameCard(game, self._open_install))
 
     def _open_install(self, game: Game):
+        _log.debug(
+            "_open_install  id=%r  name=%r  zip_url=%r  fix_url=%r",
+            game.id, game.name, game.zip_url, game.fix_url,
+        )
         InstallDialog(game, self).exec()
 
 
