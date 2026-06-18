@@ -711,10 +711,11 @@ class InstallWorker(QObject):
     error = pyqtSignal(str)
     canceled = pyqtSignal()
 
-    def __init__(self, game: Game, dest_path: str):
+    def __init__(self, game: Game, dest_path: str, fix_only: bool = False):
         super().__init__()
         self.game = game
         self.dest_path = dest_path
+        self._fix_only = fix_only
         self._cancel = threading.Event()
         self._temp_files = []
         self._temp_dirs = []
@@ -723,7 +724,9 @@ class InstallWorker(QObject):
         self._stage_start = None  # per-stage start time
         # Overall progress weights: (DL, EX, FIX_DL, FIX_AP)
         self._has_fix = game.has_fix
-        if self._has_fix:
+        if fix_only:
+            self._weights = (0.0, 0.0, 0.5, 0.5)
+        elif self._has_fix:
             self._weights = (0.35, 0.25, 0.20, 0.20)
         else:
             self._weights = (0.50, 0.50, 0.00, 0.00)
@@ -832,6 +835,38 @@ class InstallWorker(QObject):
                 self.game.id, self.game.name,
                 self.game.zip_url, self.game.fix_url, self.dest_path,
             )
+
+            # --- Fix-only fast path (skip main archive entirely) ---------------
+            if self._fix_only:
+                if not self.game.has_fix:
+                    self.error.emit(f"{self.game.name} has no repair patch configured.")
+                    return
+                _log.debug(
+                    "run FIX_ONLY  id=%r  name=%r  fix_url=%r  dest=%r",
+                    self.game.id, self.game.name, self.game.fix_url, self.dest_path,
+                )
+                fix_archive = self._new_temp_archive(self.game.fix_url)
+                self._stage_start = time.monotonic()
+                if not self._download(self.game.fix_url, fix_archive,
+                                      "Downloading fix", self.fix_download_progress,
+                                      stage_idx=2):
+                    return
+                if self._cancelled():
+                    return
+                self._stage_start = time.monotonic()
+                if not self._apply_fix(fix_archive, self.dest_path,
+                                       self.game.fix_url, stage_idx=3):
+                    return
+                self._remove_file(fix_archive)
+                if self._cancelled():
+                    return
+                self._cleanup_temp()
+                elapsed = time.monotonic() - self._start_time
+                self.elapsed_text.emit(self._fmt_time(elapsed))
+                self.status.emit(f"Fix applied in {self._fmt_time(elapsed)}")
+                self.overall_progress.emit(100)
+                self.success.emit(self.dest_path)
+                return
 
             if not self.game.zip_url:
                 self.error.emit("This game has no download URL configured.")
@@ -1589,9 +1624,21 @@ class InstallDialog(QDialog):
         root.setContentsMargins(24, 24, 24, 24)
         root.setSpacing(13)
 
+        title_row = QHBoxLayout()
         title = QLabel(game.name)
         title.setObjectName("DialogTitle")
-        root.addWidget(title)
+        title_row.addWidget(title)
+        title_row.addStretch()
+        self.fix_only_btn = QPushButton("Download Just Fix")
+        self.fix_only_btn.setObjectName("FixOnlyButton")
+        self.fix_only_btn.setVisible(game.has_fix)
+        self.fix_only_btn.clicked.connect(self._start_fix_only)
+        _log.debug(
+            "InstallDialog.__init__  id=%r  name=%r  has_fix=%s  fix_url=%r",
+            game.id, game.name, game.has_fix, game.fix_url,
+        )
+        title_row.addWidget(self.fix_only_btn)
+        root.addLayout(title_row)
 
         desc = QLabel(game.description)
         desc.setObjectName("CardDesc")
@@ -1742,6 +1789,7 @@ class InstallDialog(QDialog):
         self._install_target = target
         self._installing = True
         self.install_btn.setEnabled(False)
+        self.fix_only_btn.setEnabled(False)
         self.browse_btn.setEnabled(False)
         self.dest_edit.setEnabled(False)
         self.defender_check.setEnabled(False)
@@ -1792,6 +1840,68 @@ class InstallDialog(QDialog):
         self.worker.error.connect(self._on_error)
         self.worker.canceled.connect(self._on_canceled)
         self.thread.start()
+
+    # -- fix-only flow -------------------------------------------------------
+    def _start_fix_only(self):
+        base = self.dest_edit.text().strip()
+        if not base:
+            QMessageBox.warning(self, "No destination",
+                                "Please enter the folder where the game is already installed.")
+            return
+
+        target = self._target_path()
+        _log.debug(
+            "_start_fix_only  id=%r  name=%r  fix_url=%r  target=%r",
+            self.game.id, self.game.name, self.game.fix_url, target,
+        )
+
+        self._installing = True
+        self.install_btn.setEnabled(False)
+        self.fix_only_btn.setEnabled(False)
+        self.browse_btn.setEnabled(False)
+        self.dest_edit.setEnabled(False)
+        self.defender_check.setEnabled(False)
+        self.cancel_btn.setText("Cancel")
+        for bar in (self.dl_bar, self.ex_bar, self.fix_dl_bar, self.fix_ap_bar,
+                    self.overall_bar):
+            bar.setRange(0, 100)
+            bar.setValue(0)
+
+        self._launch_fix_only_worker(target)
+
+    def _launch_fix_only_worker(self, target: str):
+        self.thread = QThread()
+        self.worker = InstallWorker(self.game, target, fix_only=True)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.fix_download_progress.connect(
+            lambda v: self._set_bar(self.fix_dl_bar, v))
+        self.worker.fix_apply_progress.connect(
+            lambda v: self._set_bar(self.fix_ap_bar, v))
+        self.worker.status.connect(self.status_label.setText)
+        self.worker.speed_text.connect(self.speed_label.setText)
+        self.worker.eta_text.connect(self.eta_label.setText)
+        self.worker.elapsed_text.connect(self.elapsed_label.setText)
+        self.worker.overall_progress.connect(
+            lambda v: self._set_bar(self.overall_bar, v))
+        self.worker.success.connect(self._on_fix_only_success)
+        self.worker.error.connect(self._on_error)
+        self.worker.canceled.connect(self._on_canceled)
+        self.thread.start()
+
+    @pyqtSlot(str)
+    def _on_fix_only_success(self, path):
+        for bar in (self.fix_dl_bar, self.fix_ap_bar):
+            bar.setRange(0, 100)
+            bar.setValue(100)
+        self._teardown_thread()
+        self._reset_controls()
+        self.status_label.setText("Fix applied successfully.")
+        QMessageBox.information(
+            self, "Fix applied",
+            f"The repair patch for {self.game.name} was applied successfully.\n\n"
+            f"Location:\n{path}",
+        )
 
     def _on_cancel_clicked(self):
         if self._installing and self.worker is not None:
@@ -1896,6 +2006,7 @@ class InstallDialog(QDialog):
 
     def _reset_controls(self):
         self.install_btn.setEnabled(self.game.is_available)
+        self.fix_only_btn.setEnabled(True)  # visibility already gates usage
         self.browse_btn.setEnabled(True)
         self.dest_edit.setEnabled(True)
         self.cancel_btn.setEnabled(True)
