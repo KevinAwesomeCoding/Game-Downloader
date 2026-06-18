@@ -48,5 +48,15 @@
     "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4704690/163e2a742e5fb8e1f5d1e3a890da98f04ab809d4/header.jpg?t=1781108224",
     "zipUrl": "https://archive.org/download/meccha-chameleon/MECCHA-CHAMELEON-SteamRIP.com.rar",
     "fixZipUrl": ""
-  }
+  },
+  {
+  "id": "among-us",
+  "name": "Among Us",
+  "description": "A multiplayer party game of teamwork and betrayal in space.",
+  "version": "17.3I",
+  "size": "711 MB",
+  "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/945360/header.jpg",
+  "zipUrl": "https://archive.org/download/among-us-to-u-mod/Among%20Us%20ToU%20Mod.zip",
+  "fixZipUrl": ""
+}
 ]
