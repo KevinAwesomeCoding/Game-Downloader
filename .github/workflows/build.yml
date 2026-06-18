@@ -3,8 +3,6 @@ name: Build and Release
 permissions:
   contents: write
 
-# Triggers on pushes to main, but ONLY when application code changes.
-# Pushing a games.json-only change will not trigger this workflow.
 on:
   push:
     branches: [main]
@@ -54,17 +52,6 @@ jobs:
           --name "GameInstaller"
           main.py
 
-      - name: Copy games.json next to executable
-        shell: pwsh
-        run: Copy-Item games.json dist\games.json
-
-      - name: Package release zip
-        shell: pwsh
-        run: |
-          $zip = "GameInstaller-${{ steps.tag.outputs.tag }}.zip"
-          Compress-Archive -Path dist\GameInstaller.exe, dist\games.json `
-            -DestinationPath $zip
-
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -72,15 +59,16 @@ jobs:
           name: Game Installer ${{ steps.tag.outputs.tag }}
           draft: false
           prerelease: false
-          files: GameInstaller-${{ steps.tag.outputs.tag }}.zip
+          files: dist/GameInstaller.exe
           body: |
             **Version:** ${{ steps.tag.outputs.version }}
             **Commit:** `${{ github.sha }}`
             **Trigger:** ${{ github.event_name }}
 
             ### How to install
-            1. Download and extract the zip.
-            2. Run `GameInstaller.exe`.
-            3. Keep `games.json` in the same folder as the exe — the app reads it from there.
+            1. Download `GameInstaller.exe`.
+            2. Run it.
+            3. On launch, the app will try to download the latest `games.json`.
+            4. If the download fails, the app will use its local fallback behavior.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
