@@ -843,10 +843,35 @@ class InstallWorker(QObject):
             if self._cancelled():
                 return
             self._stage_start = time.monotonic()
-            if not self._extract_archive(main_archive, self.dest_path,
+            # Extract to staging so wrapper-folder detection can run before
+            # any files land in the install folder.
+            main_staging = self._new_temp_dir()
+            if not self._extract_archive(main_archive, main_staging,
                                          self.game.zip_url, self.extract_progress, stage_idx=1):
                 return
             self._remove_file(main_archive)
+            if self._cancelled():
+                return
+            # Detect and skip a single outer wrapper folder (e.g. archive
+            # contains GangBeasts/ → install to dest_path, not dest_path/GangBeasts/).
+            content_root = self._find_content_root(main_staging)
+            _log.debug("run  content_root=%s  dest=%s", content_root, self.dest_path)
+            try:
+                if not self._merge_tree(content_root, self.dest_path,
+                                        self.extract_progress, stage_idx=1,
+                                        status_text="Installing"):
+                    return
+            except PermissionError:
+                self._cleanup_temp()
+                self.error.emit(
+                    "Permission denied while installing game files.\n"
+                    "Choose a different destination folder."
+                )
+                return
+            except OSError as exc:
+                self._cleanup_temp()
+                self.error.emit(f"Installation failed:\n{exc}")
+                return
             if self._cancelled():
                 return
 
@@ -1311,29 +1336,91 @@ class InstallWorker(QObject):
 
     @staticmethod
     def _resolve_patch_root(staging, dest_dir):
-        """Smart wrapper-folder detection.
+        """Depth-first search for the correct merge root.
 
-        If the staging dir holds exactly one top-level folder F:
-          * If F already exists in the installed game -> F is a real target
-            folder (e.g. '<Game>_Data'); merge `staging` as-is so dest/F/...
-            lines up.  Do NOT step inside.
-          * Otherwise F is just a wrapper (e.g. 'GameName-Fix'); step inside
-            it so its contents land directly in the game folder.
-        Anything else -> merge `staging` directly.
+        Descends through pure wrapper folders (a level that has exactly one
+        child and that child is a directory) until a level is reached where
+        at least one entry also exists in dest_dir.  That matching level is
+        the correct source root for _merge_tree.
+
+        This handles arbitrarily nested wrappers such as:
+            gamble_difference/gamble_difference/GameName_Data/...
+        where the old one-shot logic would stop one level too early.
+
+        A pure wrapper is defined as: exactly one child, and that child is a
+        directory (no loose files at this level).  If the current level has
+        multiple entries or any files, the loop stops — either a match was
+        already found, or we fall back to the deepest level we reached.
         """
-        entries = os.listdir(staging)
-        if len(entries) == 1:
-            only = os.path.join(staging, entries[0])
-            if os.path.isdir(only):
-                if os.path.exists(os.path.join(dest_dir, entries[0])):
-                    return staging          # real target folder -> keep it
-                return only                 # wrapper -> step inside
+        current = staging
+        visited: set = set()
+        while True:
+            real = os.path.realpath(current)
+            if real in visited:            # symlink cycle guard
+                break
+            visited.add(real)
+
+            try:
+                entries = os.listdir(current)
+            except OSError:
+                break
+
+            if not entries:
+                break
+
+            # Found the right level: at least one entry exists in dest_dir.
+            if any(os.path.exists(os.path.join(dest_dir, e)) for e in entries):
+                _log.debug("_resolve_patch_root  match at %s", current)
+                return current
+
+            # Not a match yet. Only descend if this is an unambiguous wrapper:
+            # exactly one child, and it is a directory (no loose files here).
+            if len(entries) == 1 and os.path.isdir(os.path.join(current, entries[0])):
+                _log.debug("_resolve_patch_root  step into %r", entries[0])
+                current = os.path.join(current, entries[0])
+            else:
+                break
+
+        _log.debug("_resolve_patch_root  fallback at %s", current)
+        return current
+
+    @staticmethod
+    def _find_content_root(staging: str) -> str:
+        """Detect and skip a single-folder wrapper in a freshly extracted
+        main-game archive.
+
+        If the staging directory contains exactly one entry and that entry is
+        a directory, the archive was packed with a wrapper folder (e.g.
+        ``GangBeasts/...`` inside ``Gang.Beasts.zip``).  Return that inner
+        directory so the caller can merge its contents directly into the
+        install folder, avoiding a ``GangBeasts/GangBeasts/...`` result.
+
+        If the staging directory has multiple entries (files or folders at the
+        root level) they already belong directly in the install folder, so
+        staging itself is returned unchanged.
+        """
+        try:
+            entries = os.listdir(staging)
+        except OSError:
+            return staging
+        if len(entries) == 1 and os.path.isdir(os.path.join(staging, entries[0])):
+            _log.debug("_find_content_root  unwrap wrapper %r", entries[0])
+            return os.path.join(staging, entries[0])
+        _log.debug("_find_content_root  direct root  entries=%d", len(entries))
         return staging
 
-    def _merge_tree(self, source_root, dest_dir) -> bool:
+    def _merge_tree(self, source_root, dest_dir,
+                    progress_signal=None, stage_idx=3,
+                    status_text="Applying fix") -> bool:
         """Recursively merge source_root into dest_dir: overwrite matching
         files, merge folders, copy new content, never delete existing files.
-        Reports per-file progress via fix_apply_progress."""
+
+        progress_signal / stage_idx / status_text default to the fix-apply
+        values so existing _apply_fix callers need no change.  Pass
+        self.extract_progress / 1 / "Installing" for the main archive path.
+        """
+        _sig = progress_signal if progress_signal is not None else self.fix_apply_progress
+
         file_list = []
         for root, _dirs, files in os.walk(source_root):
             for name in files:
@@ -1341,8 +1428,8 @@ class InstallWorker(QObject):
 
         total = len(file_list)
         if total == 0:
-            self.fix_apply_progress.emit(100)
-            self._stage_progress[3] = 100
+            _sig.emit(100)
+            self._stage_progress[stage_idx] = 100
             self._update_overall_progress()
             return True
 
@@ -1355,14 +1442,14 @@ class InstallWorker(QObject):
             os.makedirs(os.path.dirname(target), exist_ok=True)
             shutil.copy2(src, target)  # overwrites if it already exists
             pct = int(index * 100 / total)
-            self.fix_apply_progress.emit(pct)
-            self._stage_progress[3] = pct
+            _sig.emit(pct)
+            self._stage_progress[stage_idx] = pct
             if index % max(1, total // 20) == 0:  # Update 20 times
-                self._emit_status("Applying fix", pct, f"{index} / {total} files")
+                self._emit_status(status_text, pct, f"{index} / {total} files")
                 self._update_overall_progress()
 
-        self.fix_apply_progress.emit(100)
-        self._stage_progress[3] = 100
+        _sig.emit(100)
+        self._stage_progress[stage_idx] = 100
         self._update_overall_progress()
         return True
 
@@ -1488,6 +1575,7 @@ class InstallDialog(QDialog):
         self.defender_thread = None
         self.defender_worker = None
         self._installed_path = None
+        self._install_target = None
 
         self.setWindowTitle(f"Install — {game.name}")
         self.setMinimumWidth(540)
@@ -1647,6 +1735,7 @@ class InstallDialog(QDialog):
             return
 
         target = self._target_path()
+        self._install_target = target
         self._installing = True
         self.install_btn.setEnabled(False)
         self.browse_btn.setEnabled(False)
@@ -1657,10 +1746,29 @@ class InstallDialog(QDialog):
             bar.setRange(0, 100)
             bar.setValue(0)
 
+        if self.defender_check.isChecked():
+            # Create the folder now so Defender has a real path to exclude,
+            # then add the exclusion before any game files are written.
+            try:
+                os.makedirs(target, exist_ok=True)
+            except OSError as exc:
+                self._installing = False
+                self._reset_controls()
+                QMessageBox.critical(
+                    self, "Cannot create folder",
+                    f"Could not create the install folder:\n{exc}",
+                )
+                return
+            self.status_label.setText("Adding Defender exclusion…")
+            self.cancel_btn.setEnabled(False)
+            self._start_pre_defender(target)
+        else:
+            self._launch_install_worker(target)
+
+    def _launch_install_worker(self, target: str):
         self.thread = QThread()
         self.worker = InstallWorker(self.game, target)
         self.worker.moveToThread(self.thread)
-
         self.thread.started.connect(self.worker.run)
         self.worker.download_progress.connect(
             lambda v: self._set_bar(self.dl_bar, v))
@@ -1679,7 +1787,6 @@ class InstallDialog(QDialog):
         self.worker.success.connect(self._on_success)
         self.worker.error.connect(self._on_error)
         self.worker.canceled.connect(self._on_canceled)
-
         self.thread.start()
 
     def _on_cancel_clicked(self):
@@ -1718,22 +1825,15 @@ class InstallDialog(QDialog):
                 bar.setRange(0, 100)
                 bar.setValue(100)
         self._teardown_thread()
-        self._installed_path = path
+        self._finish(path, None)
 
-        if self.defender_check.isChecked():
-            self.status_label.setText("Adding Defender exclusion…")
-            self.cancel_btn.setEnabled(False)
-            self._start_defender(path)
-        else:
-            self._finish(path, None)
-
-    # -- Defender exclusion (post-install) ------------------------------------
-    def _start_defender(self, path: str):
+    # -- Defender exclusion (pre-install) -------------------------------------
+    def _start_pre_defender(self, path: str):
         self.defender_thread = QThread()
         self.defender_worker = DefenderWorker(path)
         self.defender_worker.moveToThread(self.defender_thread)
         self.defender_thread.started.connect(self.defender_worker.run)
-        self.defender_worker.finished.connect(self._on_defender_done)
+        self.defender_worker.finished.connect(self._on_pre_install_defender_done)
         self.defender_thread.start()
 
     def _teardown_defender_thread(self):
@@ -1746,9 +1846,19 @@ class InstallDialog(QDialog):
             self.defender_thread = None
 
     @pyqtSlot(bool, str)
-    def _on_defender_done(self, success, message):
+    def _on_pre_install_defender_done(self, success: bool, message: str):
         self._teardown_defender_thread()
-        self._finish(self._installed_path, (success, message))
+        if success:
+            self.status_label.setText("Exclusion added. Starting download…")
+            self._launch_install_worker(self._install_target)
+        else:
+            self._installing = False
+            self._reset_controls()
+            QMessageBox.critical(
+                self, "Defender exclusion failed",
+                f"Could not add the Defender exclusion:\n{message}\n\n"
+                "The installation was not started.",
+            )
 
     def _finish(self, path: str, defender_result):
         """Show the final completion dialog and close the install dialog."""
