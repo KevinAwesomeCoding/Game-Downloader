@@ -24,6 +24,7 @@ extraction/merge loops — the thread is never force-killed.
 """
 
 import ctypes
+import logging
 import os
 import sys
 import json
@@ -70,6 +71,19 @@ DOWNLOAD_CHUNK = 64 * 1024  # 64 KiB
 
 SPACEWAR_APP_ID = 480
 SETTINGS_FILE = "settings.json"
+
+# ---------------------------------------------------------------------------
+# DEBUG — temporary instrumentation to diagnose fixZipUrl download failures.
+# Remove this block and all _log.* calls once the root cause is confirmed.
+# Log file: %TEMP%\gameinstaller_debug.log  (overwritten on each launch)
+# ---------------------------------------------------------------------------
+_DEBUG_LOG = os.path.join(tempfile.gettempdir(), "gameinstaller_debug.log")
+_log = logging.getLogger("GameInstaller")
+_log.setLevel(logging.DEBUG)
+if not _log.handlers:
+    _fh = logging.FileHandler(_DEBUG_LOG, mode="w", encoding="utf-8")
+    _fh.setFormatter(logging.Formatter("%(asctime)s  %(message)s"))
+    _log.addHandler(_fh)
 
 
 def app_dir() -> str:
@@ -738,7 +752,13 @@ class InstallWorker(QObject):
 
             # --- 2) Optional fix / repair patch -----------------------------
             if self.game.has_fix:
+                _log.debug(
+                    "run FIX BRANCH  has_fix=%s  fix_url=%r  fix_archive will be=%r",
+                    self.game.has_fix, self.game.fix_url,
+                    self._new_temp_archive.__doc__,  # just forces evaluation; path logged below
+                )
                 fix_archive = self._new_temp_archive(self.game.fix_url)
+                _log.debug("run FIX ARCHIVE  path=%s", fix_archive)
                 self._stage_start = time.monotonic()
                 if not self._download(self.game.fix_url, fix_archive,
                                       "Downloading fix", self.fix_download_progress, stage_idx=2):
@@ -785,12 +805,22 @@ class InstallWorker(QObject):
 
     # -- download -----------------------------------------------------------
     def _download(self, url, dest_file, status_text, progress_signal, stage_idx=0) -> bool:
+        _log.debug("_download ENTER  stage=%d  url=%s", stage_idx, url)
         progress_signal.emit(0)
         self._stage_progress[stage_idx] = 0
         self._update_overall_progress()
         self._emit_status(status_text, -1)
         try:
-            with requests.get(url, stream=True, timeout=REQUEST_TIMEOUT) as resp:
+            with requests.get(url, stream=True, timeout=REQUEST_TIMEOUT,
+                              headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}) as resp:
+                _log.debug(
+                    "_download RESPONSE  status=%d  content-type=%r  "
+                    "content-length=%r  url-after-redirects=%s",
+                    resp.status_code,
+                    resp.headers.get("Content-Type"),
+                    resp.headers.get("Content-Length"),
+                    resp.url,
+                )
                 resp.raise_for_status()
                 total = resp.headers.get("Content-Length")
                 total = int(total) if total and total.isdigit() else 0
@@ -837,36 +867,52 @@ class InstallWorker(QObject):
             progress_signal.emit(100)
             self._stage_progress[stage_idx] = 100
             self._update_overall_progress()
+            try:
+                with open(dest_file, "rb") as _probe:
+                    _first16 = _probe.read(16)
+                _log.debug(
+                    "_download DONE  stage=%d  bytes=%d  first16=%s  (%r)",
+                    stage_idx, done, _first16.hex(), _first16[:16],
+                )
+            except OSError:
+                pass
             return True
 
         except requests.exceptions.MissingSchema:
+            _log.debug("_download ERROR  stage=%d  MissingSchema  url=%s", stage_idx, url)
             self._cleanup_temp()
             self.error.emit("The download URL is invalid.")
             return False
         except requests.exceptions.InvalidURL:
+            _log.debug("_download ERROR  stage=%d  InvalidURL  url=%s", stage_idx, url)
             self._cleanup_temp()
             self.error.emit("The download URL is invalid.")
             return False
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.ConnectionError as exc:
+            _log.debug("_download ERROR  stage=%d  ConnectionError  %s", stage_idx, exc)
             self._cleanup_temp()
             self.error.emit(
                 "Network error: could not reach the download server.\n"
                 "Check your connection and try again."
             )
             return False
-        except requests.exceptions.Timeout:
+        except requests.exceptions.Timeout as exc:
+            _log.debug("_download ERROR  stage=%d  Timeout  %s", stage_idx, exc)
             self._cleanup_temp()
             self.error.emit("The download timed out. Please try again.")
             return False
         except requests.exceptions.HTTPError as exc:
+            _log.debug("_download ERROR  stage=%d  HTTPError  %s", stage_idx, exc)
             self._cleanup_temp()
             self.error.emit(f"Download failed (server returned an error):\n{exc}")
             return False
         except requests.exceptions.RequestException as exc:
+            _log.debug("_download ERROR  stage=%d  RequestException  %s", stage_idx, exc)
             self._cleanup_temp()
             self.error.emit(f"Download failed:\n{exc}")
             return False
         except OSError as exc:
+            _log.debug("_download ERROR  stage=%d  OSError  %s", stage_idx, exc)
             self._cleanup_temp()
             self.error.emit(f"Could not write the downloaded file:\n{exc}")
             return False
@@ -880,16 +926,25 @@ class InstallWorker(QObject):
                 sig = fh.read(8)
         except OSError:
             sig = b""
-        if sig.startswith(b"PK"):            # PK\x03\x04 / PK\x05\x06 / PK\x07\x08
-            return "zip"
-        if sig.startswith(b"Rar!"):          # RAR4 and RAR5
-            return "rar"
-        low = url.lower().split("?")[0]
-        if low.endswith(".zip"):
-            return "zip"
-        if low.endswith(".rar"):
-            return "rar"
-        return None
+
+        if sig.startswith(b"PK"):
+            kind = "zip"           # PK\x03\x04 / PK\x05\x06 / PK\x07\x08
+        elif sig.startswith(b"Rar!"):
+            kind = "rar"           # RAR4 and RAR5
+        else:
+            low = url.lower().split("?")[0]
+            if low.endswith(".zip"):
+                kind = "zip"
+            elif low.endswith(".rar"):
+                kind = "rar"
+            else:
+                kind = None
+
+        _log.debug(
+            "_archive_kind  sig=%s (%r)  url=%s  →  %s",
+            sig.hex(), sig[:8], url, kind,
+        )
+        return kind
 
     def _extract_archive(self, archive_path, dest_dir, url, progress_signal, stage_idx=1) -> bool:
         """Dispatch extraction by archive type. Caller emits the status text."""
@@ -1053,6 +1108,14 @@ class InstallWorker(QObject):
         """Extract the fix archive (zip or rar) to a staging dir, resolve the
         correct patch root (smart wrapper-folder detection), then recursively
         merge it into the installed game, overwriting matching files."""
+        try:
+            _archive_size = os.path.getsize(archive_path)
+        except OSError:
+            _archive_size = -1
+        _log.debug(
+            "_apply_fix ENTER  archive_path=%s  size=%d  url=%s  dest_dir=%s",
+            archive_path, _archive_size, url, dest_dir,
+        )
         # 1) Extract the fix archive into an isolated staging directory. The
         #    same zip/rar dispatch is used as for the main game.
         staging = self._new_temp_dir()
@@ -1065,6 +1128,7 @@ class InstallWorker(QObject):
 
         # 2) Resolve the real patch root.
         source_root = self._resolve_patch_root(staging, dest_dir)
+        _log.debug("_apply_fix  staging=%s  source_root=%s", staging, source_root)
 
         # 3) Recursively merge into the installed game (overwrite, never delete).
         try:
