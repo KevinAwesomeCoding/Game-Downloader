@@ -34,6 +34,7 @@ import tempfile
 import threading
 import time
 import traceback
+import urllib.request
 import winreg
 import zipfile
 from datetime import datetime
@@ -55,7 +56,7 @@ from PyQt6.QtWidgets import (
 # CONFIG
 # ---------------------------------------------------------------------------
 CONFIG = {
-    "manifest_url": "",
+    "manifest_url": "https://raw.githubusercontent.com/KevinAwesomeCoding/Game-Downloader/main/games.json",
     "window_title": "Game Installer",
     "default_install_subfolder": True
 }
@@ -519,21 +520,32 @@ class ManifestLoader(QObject):
 
     @pyqtSlot()
     def run(self):
-        # 1) Try the remote manifest if one is configured.
+        local_path = os.path.join(app_dir(), LOCAL_MANIFEST)
+
+        # 1) Try the remote manifest URL.
         if self.manifest_url:
             try:
-                resp = requests.get(self.manifest_url, timeout=REQUEST_TIMEOUT)
-                resp.raise_for_status()
-                games = parse_manifest(resp.text)
+                req = urllib.request.Request(
+                    self.manifest_url,
+                    headers={"User-Agent": "GameInstaller/1.0"},
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    raw = resp.read().decode("utf-8")
+                games = parse_manifest(raw)
+                # Persist to disk so the next offline launch uses the latest list.
+                try:
+                    with open(local_path, "w", encoding="utf-8") as fh:
+                        fh.write(raw)
+                except OSError:
+                    pass  # write failure is non-fatal; we already have the data
                 self.loaded.emit(games, "remote manifest")
                 return
             except Exception:
-                pass  # fall through to the local fallback
+                pass  # network or parse error — fall through to local copy
 
-        # 2) Local games.json fallback.
-        path = os.path.join(app_dir(), LOCAL_MANIFEST)
+        # 2) Local games.json fallback (bundled copy or last successful download).
         try:
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(local_path, "r", encoding="utf-8") as fh:
                 games = parse_manifest(fh.read())
             label = "local games.json"
             if self.manifest_url:
@@ -541,8 +553,9 @@ class ManifestLoader(QObject):
             self.loaded.emit(games, label)
         except FileNotFoundError:
             self.failed.emit(
-                "Could not find games.json next to the application, and no "
-                "remote manifest is available."
+                "Could not reach the game list server and no local copy was found.\n\n"
+                "Check your internet connection and try Refresh, or re-download "
+                "the installer to restore the bundled game list."
             )
         except json.JSONDecodeError as exc:
             self.failed.emit(f"games.json is not valid JSON:\n{exc}")
