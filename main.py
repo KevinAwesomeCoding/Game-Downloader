@@ -401,6 +401,110 @@ def add_defender_exclusion(folder: str) -> tuple:
     return (False, detail or "Unknown error from the elevated process.")
 
 
+def add_defender_exclusions(folders: list) -> tuple:
+    """Add multiple folders to Defender exclusions in a single PowerShell call.
+
+    Filters out already-excluded paths first so it only touches what's needed.
+    Falls back to a single UAC-elevated script if the non-elevated attempt is
+    denied — the user sees at most one UAC prompt regardless of how many folders
+    are being added.
+
+    Returns (success: bool, message: str).
+    """
+    to_add = [f for f in folders if not defender_exclusion_exists(f)]
+    if not to_add:
+        return (True, "All folders are already excluded — no changes needed.")
+
+    # PowerShell accepts a comma-separated array: -ExclusionPath 'a','b'
+    paths_ps = ",".join(f"'{_ps_escape(f)}'" for f in to_add)
+    command = f"Add-MpPreference -ExclusionPath {paths_ps}"
+
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", command],
+            capture_output=True, text=True, timeout=15,
+            creationflags=_NO_WINDOW,
+        )
+        if result.returncode == 0:
+            return (True, "Defender exclusions added successfully.")
+        stderr = (result.stderr or result.stdout or "").strip()
+        access_keywords = (
+            "0x80070005", "Access", "privilege", "administrator",
+            "Unauthorized", "UnauthorizedAccess",
+        )
+        if not any(kw in stderr for kw in access_keywords):
+            return (False, stderr or "PowerShell returned a non-zero exit code.")
+    except subprocess.TimeoutExpired:
+        return (False, "PowerShell timed out while adding exclusions.")
+    except FileNotFoundError:
+        return (False, "PowerShell was not found on this system.")
+
+    # Elevated attempt — one UAC prompt covers all folders.
+    result_path = os.path.join(
+        tempfile.gettempdir(), f"defex_result_{os.getpid()}.txt"
+    )
+    rp_esc = _ps_escape(result_path)
+    script = (
+        f"try {{\n"
+        f"    Add-MpPreference -ExclusionPath {paths_ps}\n"
+        f"    Set-Content -LiteralPath '{rp_esc}' -Value 'OK'\n"
+        f"}} catch {{\n"
+        f"    Set-Content -LiteralPath '{rp_esc}' -Value \"FAIL: $_\"\n"
+        f"}}\n"
+    )
+
+    exit_code = _run_elevated_ps(script)
+    if exit_code == -1:
+        return (False, "Administrator access was denied or the UAC prompt was cancelled.")
+
+    try:
+        with open(result_path, "r", encoding="utf-8") as fh:
+            text = fh.read().strip()
+        os.unlink(result_path)
+    except FileNotFoundError:
+        return (False, "The elevated process produced no result (it may have been blocked by policy).")
+    except OSError as exc:
+        return (False, f"Could not read the result file: {exc}")
+
+    if text == "OK":
+        return (True, "Defender exclusions added successfully.")
+    prefix = "FAIL: "
+    detail = text[len(prefix):].strip() if text.startswith(prefix) else text
+    return (False, detail or "Unknown error from the elevated process.")
+
+
+def remove_defender_exclusion(folder: str) -> tuple:
+    """Remove *folder* from Defender's ExclusionPath.
+
+    No UAC fallback — the app already runs elevated via --uac-admin so the
+    PowerShell subprocess inherits that and can call Remove-MpPreference
+    directly.  Failure is non-fatal; the exclusion simply stays in place.
+
+    Returns (success: bool, message: str).
+    """
+    if not defender_exclusion_exists(folder):
+        return (True, "Folder was not in the exclusion list.")
+
+    ps_path = _ps_escape(folder)
+    command = f"Remove-MpPreference -ExclusionPath '{ps_path}'"
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", command],
+            capture_output=True, text=True, timeout=15,
+            creationflags=_NO_WINDOW,
+        )
+        if result.returncode == 0:
+            _log.debug("remove_defender_exclusion  OK  folder=%r", folder)
+            return (True, "Defender exclusion removed successfully.")
+        stderr = (result.stderr or result.stdout or "").strip()
+        _log.debug("remove_defender_exclusion  FAIL  folder=%r  stderr=%r", folder, stderr)
+        return (False, stderr or "PowerShell returned a non-zero exit code.")
+    except subprocess.TimeoutExpired:
+        return (False, "PowerShell timed out while removing the exclusion.")
+    except FileNotFoundError:
+        return (False, "PowerShell was not found on this system.")
+
+
 # ---------------------------------------------------------------------------
 # Data model
 # ---------------------------------------------------------------------------
@@ -614,13 +718,14 @@ class ManifestLoader(QObject):
 class DefenderWorker(QObject):
     finished = pyqtSignal(bool, str)  # success, message
 
-    def __init__(self, folder: str):
+    def __init__(self, folders):
         super().__init__()
-        self.folder = folder
+        # Accept a single path string or a list of paths.
+        self.folders = [folders] if isinstance(folders, str) else list(folders)
 
     @pyqtSlot()
     def run(self):
-        success, message = add_defender_exclusion(self.folder)
+        success, message = add_defender_exclusions(self.folders)
         self.finished.emit(success, message)
 
 
@@ -711,11 +816,13 @@ class InstallWorker(QObject):
     error = pyqtSignal(str)
     canceled = pyqtSignal()
 
-    def __init__(self, game: Game, dest_path: str, fix_only: bool = False):
+    def __init__(self, game: Game, dest_path: str, fix_only: bool = False,
+                 remove_temp_exclusion: bool = False):
         super().__init__()
         self.game = game
         self.dest_path = dest_path
         self._fix_only = fix_only
+        self._remove_temp_exclusion = remove_temp_exclusion
         self._cancel = threading.Event()
         self._temp_files = []
         self._temp_dirs = []
@@ -804,6 +911,18 @@ class InstallWorker(QObject):
         self._temp_files = []
         self._temp_dirs = []
 
+    def _finish_cleanup(self):
+        """Clean temp files then, if the %TEMP% Defender exclusion was added
+        for this install, remove it now that extraction is fully done.
+        Clears the flag so a subsequent call (e.g. from the finally guard in
+        run()) is a no-op."""
+        self._cleanup_temp()
+        if self._remove_temp_exclusion:
+            _log.debug("_finish_cleanup  removing %%TEMP%% exclusion  path=%r",
+                       tempfile.gettempdir())
+            self._remove_temp_exclusion = False
+            remove_defender_exclusion(tempfile.gettempdir())
+
     def _abort(self):
         self._cleanup_temp()
         self.canceled.emit()
@@ -860,7 +979,7 @@ class InstallWorker(QObject):
                 self._remove_file(fix_archive)
                 if self._cancelled():
                     return
-                self._cleanup_temp()
+                self._finish_cleanup()
                 elapsed = time.monotonic() - self._start_time
                 self.elapsed_text.emit(self._fmt_time(elapsed))
                 self.status.emit(f"Fix applied in {self._fmt_time(elapsed)}")
@@ -937,7 +1056,7 @@ class InstallWorker(QObject):
                     return
 
             # --- Done -------------------------------------------------------
-            self._cleanup_temp()
+            self._finish_cleanup()
             elapsed = time.monotonic() - self._start_time
             self.elapsed_text.emit(self._fmt_time(elapsed))
             self.status.emit(f"Install completed successfully in {self._fmt_time(elapsed)}")
@@ -946,8 +1065,17 @@ class InstallWorker(QObject):
 
         except Exception as exc:  # last-resort safety net — never crash the app
             traceback.print_exc()
-            self._cleanup_temp()
+            self._finish_cleanup()
             self.error.emit(f"Unexpected error:\n{exc}")
+
+        finally:
+            # Belt-and-suspenders: if a mid-install helper returned False and
+            # called _cleanup_temp() directly (skipping _finish_cleanup), the
+            # flag is still True and the exclusion hasn't been removed yet.
+            if self._remove_temp_exclusion:
+                _log.debug("run finally  removing %%TEMP%% exclusion (early-exit path)")
+                self._remove_temp_exclusion = False
+                remove_defender_exclusion(tempfile.gettempdir())
 
     # -- destination validation --------------------------------------------
     def _prepare_destination(self) -> bool:
@@ -1817,9 +1945,10 @@ class InstallDialog(QDialog):
         else:
             self._launch_install_worker(target)
 
-    def _launch_install_worker(self, target: str):
+    def _launch_install_worker(self, target: str, remove_temp_exclusion: bool = False):
         self.thread = QThread()
-        self.worker = InstallWorker(self.game, target)
+        self.worker = InstallWorker(self.game, target,
+                                    remove_temp_exclusion=remove_temp_exclusion)
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
         self.worker.download_progress.connect(
@@ -1944,7 +2073,7 @@ class InstallDialog(QDialog):
     # -- Defender exclusion (pre-install) -------------------------------------
     def _start_pre_defender(self, path: str):
         self.defender_thread = QThread()
-        self.defender_worker = DefenderWorker(path)
+        self.defender_worker = DefenderWorker([path, tempfile.gettempdir()])
         self.defender_worker.moveToThread(self.defender_thread)
         self.defender_thread.started.connect(self.defender_worker.run)
         self.defender_worker.finished.connect(self._on_pre_install_defender_done)
@@ -1964,7 +2093,7 @@ class InstallDialog(QDialog):
         self._teardown_defender_thread()
         if success:
             self.status_label.setText("Exclusion added. Starting download…")
-            self._launch_install_worker(self._install_target)
+            self._launch_install_worker(self._install_target, remove_temp_exclusion=True)
         else:
             self._installing = False
             self._reset_controls()
