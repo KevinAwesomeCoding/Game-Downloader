@@ -49,6 +49,7 @@ jobs:
           pyinstaller
           --onefile
           --windowed
+          --uac-admin
           --name "GameInstaller"
           main.py
 

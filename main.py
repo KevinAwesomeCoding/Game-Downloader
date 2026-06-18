@@ -147,6 +147,36 @@ def save_settings(data: dict):
 
 
 # ---------------------------------------------------------------------------
+# User preferences — stored in %APPDATA%\GameInstaller\prefs.json so they
+# follow the user across app versions and download locations.
+# (Contrast with settings.json above, which lives next to the exe and resets
+# intentionally when the user downloads a fresh copy.)
+# ---------------------------------------------------------------------------
+def _prefs_dir() -> str:
+    return os.path.join(os.environ.get("APPDATA", app_dir()), "GameInstaller")
+
+
+def load_prefs() -> dict:
+    path = os.path.join(_prefs_dir(), "prefs.json")
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+            return data if isinstance(data, dict) else {}
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def save_prefs(data: dict):
+    d = _prefs_dir()
+    try:
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, "prefs.json"), "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2)
+    except OSError:
+        pass
+
+
+# ---------------------------------------------------------------------------
 # Spacewar helpers
 # ---------------------------------------------------------------------------
 def is_spacewar_installed() -> bool:
@@ -595,6 +625,76 @@ class DefenderWorker(QObject):
 
 
 # ---------------------------------------------------------------------------
+# Google Drive large-file confirmation helper
+# ---------------------------------------------------------------------------
+_GDRIVE_UC_RE = re.compile(r"https?://drive\.google\.com/uc\b")
+
+def _gdrive_confirm(session: "requests.Session", url: str) -> str:
+    """If *url* is a Google Drive /uc download link, follow the virus-scan
+    warning page and return the confirmed download URL with session cookies
+    preserved.  Returns *url* unchanged for non-Drive URLs.
+
+    Two strategies are tried in order:
+      1. Modern Drive – extract the ``uuid`` hidden form field and redirect to
+         ``drive.usercontent.google.com/download``.
+      2. Legacy Drive – re-use the ``confirm=<token>`` found in the page, or
+         append ``confirm=t`` as a last resort.
+
+    The probe request uses ``stream=True`` so no file bytes are consumed when
+    the server returns a direct download (no warning page).
+    """
+    if not _GDRIVE_UC_RE.match(url):
+        return url
+    try:
+        probe = session.get(url, stream=True, timeout=30, allow_redirects=True)
+        probe.raise_for_status()
+        ct = probe.headers.get("Content-Type", "")
+        if "text/html" not in ct:
+            probe.close()
+            _log.debug("_gdrive_confirm  direct file  ct=%r  url=%s", ct, url)
+            return url
+        html = probe.text   # warning page is small; read it fully
+        probe.close()
+    except requests.exceptions.RequestException:
+        return url  # let _download surface the error
+
+    _log.debug("_gdrive_confirm  warning page detected  url=%s", url)
+
+    # Modern Drive: <input name="uuid" value="..."> in the confirmation form
+    uuid_m = re.search(
+        r'<input[^>]+name=["\']uuid["\'][^>]+value=["\']([^"\']+)["\']'
+        r'|<input[^>]+value=["\']([^"\']+)["\'][^>]+name=["\']uuid["\']',
+        html, re.IGNORECASE,
+    )
+    if uuid_m:
+        uuid_val = uuid_m.group(1) or uuid_m.group(2)
+        from urllib.parse import parse_qs, urlparse
+        file_id = parse_qs(urlparse(url).query).get("id", [""])[0]
+        confirmed = (
+            f"https://drive.usercontent.google.com/download"
+            f"?id={file_id}&export=download&confirm=t&uuid={uuid_val}"
+        )
+        _log.debug("_gdrive_confirm  uuid=%s  -> %s", uuid_val, confirmed)
+        return confirmed
+
+    # Legacy Drive: a specific confirm token (not the generic "t") in the HTML
+    token_m = re.search(r"confirm=([0-9A-Za-z_\-]+)", html)
+    if token_m and token_m.group(1) != "t":
+        sep = "&" if "?" in url else "?"
+        confirmed = f"{url}{sep}confirm={token_m.group(1)}"
+        _log.debug("_gdrive_confirm  legacy token=%s  -> %s",
+                   token_m.group(1), confirmed)
+        return confirmed
+
+    # Last resort: append confirm=t if not already present
+    if "confirm=" not in url:
+        sep = "&" if "?" in url else "?"
+        url = f"{url}{sep}confirm=t"
+    _log.debug("_gdrive_confirm  fallback  -> %s", url)
+    return url
+
+
+# ---------------------------------------------------------------------------
 # Install worker (download + extract + optional fix merge) on its own QThread.
 # ---------------------------------------------------------------------------
 class InstallWorker(QObject):
@@ -810,9 +910,11 @@ class InstallWorker(QObject):
         self._stage_progress[stage_idx] = 0
         self._update_overall_progress()
         self._emit_status(status_text, -1)
+        session = requests.Session()
+        session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        url = _gdrive_confirm(session, url)
         try:
-            with requests.get(url, stream=True, timeout=REQUEST_TIMEOUT,
-                              headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}) as resp:
+            with session.get(url, stream=True, timeout=REQUEST_TIMEOUT) as resp:
                 _log.debug(
                     "_download RESPONSE  status=%d  content-type=%r  "
                     "content-length=%r  url-after-redirects=%s",
@@ -964,20 +1066,82 @@ class InstallWorker(QObject):
         return False
 
     def _extract_zip(self, zip_path, dest_dir, progress_signal, stage_idx=1) -> bool:
+        # Pre-open diagnostics
+        try:
+            _zsize = os.path.getsize(zip_path)
+        except OSError:
+            _zsize = -1
+        _zexists = os.path.isfile(zip_path)
+        _zvalid = zipfile.is_zipfile(zip_path) if _zexists else False
+        try:
+            with open(zip_path, "rb") as _f:
+                _zmagic = _f.read(8)
+        except OSError:
+            _zmagic = b""
+        _log.debug(
+            "_extract_zip PRE  path=%s  exists=%s  size=%d  "
+            "is_zipfile=%s  magic=%s (%r)",
+            zip_path, _zexists, _zsize, _zvalid, _zmagic.hex(), _zmagic,
+        )
+
         try:
             with zipfile.ZipFile(zip_path) as zf:
                 members = zf.infolist()
                 count = len(members)
+                _log.debug(
+                    "_extract_zip OPEN  members=%d  dest_dir=%s",
+                    count, dest_dir,
+                )
                 if count == 0:
                     self._cleanup_temp()
                     self.error.emit("The downloaded archive is empty.")
                     return False
 
+                _dest_real = os.path.realpath(dest_dir)
                 for index, member in enumerate(members, start=1):
                     if self._cancel.is_set():
                         self._abort()
                         return False
-                    zf.extract(member, dest_dir)
+
+                    # Guard against zip-slip: Python < 3.12 does not prevent
+                    # '..' components from escaping the staging directory.
+                    # Strip every '.' and '..' segment; skip the member if
+                    # nothing useful remains.
+                    _orig_fn = member.filename
+                    _parts = [
+                        p for p in _orig_fn.replace("\\", "/").split("/")
+                        if p not in ("..", ".", "")
+                    ]
+                    if not _parts:
+                        _log.debug(
+                            "_extract_zip  SKIP all-traversal  %r", _orig_fn
+                        )
+                        continue
+                    member.filename = "/".join(_parts) + (
+                        "/" if _orig_fn.endswith("/") else ""
+                    )
+                    if member.filename != _orig_fn:
+                        _log.debug(
+                            "_extract_zip  sanitized  %r -> %r",
+                            _orig_fn, member.filename,
+                        )
+
+                    _target = os.path.normpath(
+                        os.path.join(dest_dir, member.filename.replace("/", os.sep))
+                    )
+                    _log.debug(
+                        "_extract_zip  [%d/%d]  %r  ->  %s",
+                        index, count, member.filename, _target,
+                    )
+                    try:
+                        zf.extract(member, dest_dir)
+                    except OSError as _mexc:
+                        _log.debug(
+                            "_extract_zip  MEMBER FAIL  %r  target=%s  exc=%s",
+                            member.filename, _target, _mexc,
+                        )
+                        raise
+
                     pct = int(index * 100 / count)
                     progress_signal.emit(pct)
                     self._stage_progress[stage_idx] = pct
@@ -1359,7 +1523,8 @@ class InstallDialog(QDialog):
         dest_row = QHBoxLayout()
         self.dest_edit = QLineEdit()
         self.dest_edit.setPlaceholderText("Choose a folder to install into…")
-        self.dest_edit.setText(os.path.join(os.path.expanduser("~"), "Games"))
+        _saved = load_prefs().get("install_path", "")
+        self.dest_edit.setText(_saved or os.path.join(os.path.expanduser("~"), "Games"))
         dest_row.addWidget(self.dest_edit)
         self.browse_btn = QPushButton("Browse…")
         self.browse_btn.clicked.connect(self._browse)
@@ -1587,6 +1752,9 @@ class InstallDialog(QDialog):
 
     def _finish(self, path: str, defender_result):
         """Show the final completion dialog and close the install dialog."""
+        prefs = load_prefs()
+        prefs["install_path"] = self.dest_edit.text().strip()
+        save_prefs(prefs)
         body = f"{self.game.name} was installed successfully.\n\nLocation:\n{path}"
         if defender_result is not None:
             ok, msg = defender_result
