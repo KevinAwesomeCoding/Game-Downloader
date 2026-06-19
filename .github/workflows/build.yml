@@ -52,6 +52,7 @@ jobs:
           --uac-admin
           --collect-all PyQt6
           --hidden-import PyQt6.sip
+          --contents-directory .
           --name "GameInstaller"
           main.py
 
