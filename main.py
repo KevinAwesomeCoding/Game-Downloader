@@ -41,16 +41,31 @@ import zipfile
 from datetime import datetime
 
 import requests
-from PyQt6.QtCore import (
-    Qt, QObject, QThread, QThreadPool, QRunnable, QSize, QRect, QPoint,
-    QTimer, pyqtSignal, pyqtSlot,
-)
-from PyQt6.QtGui import QPixmap, QImage
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QLabel, QPushButton, QVBoxLayout,
-    QHBoxLayout, QScrollArea, QFrame, QStackedWidget, QDialog, QLineEdit,
-    QProgressBar, QFileDialog, QMessageBox, QSizePolicy, QLayout, QCheckBox,
-)
+try:
+    from PyQt6.QtCore import (
+        Qt, QObject, QThread, QThreadPool, QRunnable, QSize, QRect, QPoint,
+        QTimer, pyqtSignal, pyqtSlot,
+    )
+    from PyQt6.QtGui import QPixmap, QImage
+    from PyQt6.QtWidgets import (
+        QApplication, QMainWindow, QWidget, QLabel, QPushButton, QVBoxLayout,
+        QHBoxLayout, QScrollArea, QFrame, QStackedWidget, QDialog, QLineEdit,
+        QProgressBar, QFileDialog, QMessageBox, QSizePolicy, QLayout, QCheckBox,
+    )
+except ImportError as _qt_err:
+    _msg = (
+        f"Could not load Qt6 libraries:\n{_qt_err}\n\n"
+        "If you are running through CrossOver or Wine:\n"
+        "  1. Use the GameInstaller.zip release (not a single .exe).\n"
+        "  2. Install 'Visual C++ Redistributable 2019' inside your bottle\n"
+        "     (Bottle → Install Software → search vcrun2019).\n"
+        "  3. Run GameInstaller.exe from the extracted folder, not from inside the zip."
+    )
+    try:
+        ctypes.windll.user32.MessageBoxW(0, _msg, "GameInstaller — Qt load error", 0x10)
+    except Exception:
+        print(_msg, file=sys.stderr)
+    sys.exit(1)
 
 
 # ---------------------------------------------------------------------------
