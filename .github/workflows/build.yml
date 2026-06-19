@@ -31,7 +31,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install "pyinstaller>=6.0"
 
       - name: Generate release tag
         id: tag
@@ -55,6 +55,24 @@ jobs:
           --contents-directory .
           --name "GameInstaller"
           main.py
+
+      - name: Flatten DLLs for Wine/CrossOver compatibility
+        shell: pwsh
+        run: |
+          pyinstaller --version
+          # --contents-directory . (PyInstaller 6+) should already be flat.
+          # If _internal still exists (version/cache fallback), copy all DLLs
+          # from it up next to the exe so Wine's DLL loader finds them.
+          # _internal is kept intact — Python's import system still uses it.
+          if (Test-Path "dist\GameInstaller\_internal") {
+            Write-Host "_internal found — copying root-level DLLs to exe directory"
+            Get-ChildItem "dist\GameInstaller\_internal" -Filter "*.dll" |
+              Copy-Item -Destination "dist\GameInstaller\" -Force
+            Write-Host "DLLs now present in exe directory:"
+            Get-ChildItem "dist\GameInstaller" -Filter "*.dll" | Select-Object -ExpandProperty Name
+          } else {
+            Write-Host "Flat layout confirmed — no _internal folder present"
+          }
 
       - name: Zip dist folder
         shell: pwsh
