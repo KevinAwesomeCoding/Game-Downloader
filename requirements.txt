@@ -1,2 +1,8 @@
-PyQt6>=6.5
+# Pinned to the Qt 6.6 line: it links an older MSVC runtime (~14.36) that
+# CrossOver/Wine has supported for years. Qt 6.8+ pulls MSVC 14.44, whose
+# Universal CRT requirements break on older Wine bottles (QtCore "DLL load
+# failed"). Bump these only alongside a known-good CrossOver/Wine version.
+PyQt6==6.6.1
+PyQt6-Qt6>=6.6,<6.7
+PyQt6-sip>=13.6
 requests>=2.28

@@ -49,48 +49,19 @@ jobs:
           pyinstaller
           --onedir
           --windowed
-          --uac-admin
           --collect-all PyQt6
-          --collect-binaries PyQt6
           --hidden-import PyQt6.sip
           --contents-directory .
           --name "GameInstaller"
           main.py
 
-      - name: Flatten DLLs for Wine/CrossOver compatibility
-        shell: pwsh
-        run: |
-          $dest = "dist\GameInstaller"
-
-          # Phase 1 — copy every DLL to the exe root so the PE loader finds
-          # python311.dll and vcruntime140.dll when the exe starts.
-          Get-ChildItem $dest -Directory | ForEach-Object {
-            Get-ChildItem $_.FullName -Recurse -Filter *.dll | ForEach-Object {
-              Copy-Item $_.FullName -Destination $dest -Force
-            }
-          }
-          $rootDlls = (Get-ChildItem $dest -Filter *.dll).Count
-          Write-Host "Phase 1: $rootDlls DLLs now in exe directory"
-
-          # Phase 2 — mirror every DLL next to QtCore.pyd.
-          # Wine's LoadLibrary() resolves imports from the calling module's
-          # directory, not the exe root, so Qt6Core.dll must live in PyQt6/.
-          $qtPyd = Get-ChildItem $dest -Recurse -Filter QtCore.pyd | Select-Object -First 1
-          if (-not $qtPyd) { Write-Error "QtCore.pyd not found"; exit 1 }
-          $pyqt6 = $qtPyd.DirectoryName
-          Write-Host "PyQt6 dir: $pyqt6"
-          Get-ChildItem $dest -Filter *.dll | ForEach-Object {
-            Copy-Item $_.FullName -Destination $pyqt6 -Force
-          }
-          $pyqtDlls = (Get-ChildItem $pyqt6 -Filter *.dll).Count
-          Write-Host "Phase 2: $pyqtDlls DLLs now next to QtCore.pyd"
-
-          if (Test-Path (Join-Path $pyqt6 "Qt6Core.dll")) {
-            Write-Host "OK: Qt6Core.dll is next to QtCore.pyd"
-          } else {
-            Write-Error "FAIL: Qt6Core.dll not found next to QtCore.pyd"
-            exit 1
-          }
+      # NOTE: No DLL-flattening step on purpose. PyInstaller's PyQt6 layout and
+      # its generated qt.conf must stay intact — especially
+      # PyQt6/Qt6/plugins/platforms/qwindows.dll. Flattening breaks Qt's plugin
+      # discovery and never fixed the real Wine failure, which is the bottle's
+      # Universal CRT (ucrtbase) being too old for the bundled MSVC 14.44
+      # runtime that Qt 6.x links against. Fix that in the bottle (recent
+      # CrossOver / matching VC++ redist), not by moving DLLs around.
 
       - name: Zip dist folder
         shell: pwsh
