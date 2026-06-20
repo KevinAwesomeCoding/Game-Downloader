@@ -51,30 +51,46 @@ jobs:
           --windowed
           --uac-admin
           --collect-all PyQt6
+          --collect-binaries PyQt6
           --hidden-import PyQt6.sip
           --contents-directory .
           --name "GameInstaller"
           main.py
 
-      - name: Diagnose build structure
+      - name: Flatten DLLs for Wine/CrossOver compatibility
         shell: pwsh
         run: |
           $dest = "dist\GameInstaller"
-          $root = (Resolve-Path $dest).Path
-          Get-ChildItem $dest -Recurse |
-            Select-Object FullName, Length |
-            ForEach-Object {
-              $rel = $_.FullName.Replace($root + "\", "")
-              "$rel  ($($_.Length) bytes)"
-            } |
-            Out-File -FilePath dist\build-tree.txt -Encoding utf8
-          Write-Host "Tree written to dist\build-tree.txt"
 
-      - name: Upload build tree artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-tree
-          path: dist\build-tree.txt
+          # Phase 1 — copy every DLL to the exe root so the PE loader finds
+          # python311.dll and vcruntime140.dll when the exe starts.
+          Get-ChildItem $dest -Directory | ForEach-Object {
+            Get-ChildItem $_.FullName -Recurse -Filter *.dll | ForEach-Object {
+              Copy-Item $_.FullName -Destination $dest -Force
+            }
+          }
+          $rootDlls = (Get-ChildItem $dest -Filter *.dll).Count
+          Write-Host "Phase 1: $rootDlls DLLs now in exe directory"
+
+          # Phase 2 — mirror every DLL next to QtCore.pyd.
+          # Wine's LoadLibrary() resolves imports from the calling module's
+          # directory, not the exe root, so Qt6Core.dll must live in PyQt6/.
+          $qtPyd = Get-ChildItem $dest -Recurse -Filter QtCore.pyd | Select-Object -First 1
+          if (-not $qtPyd) { Write-Error "QtCore.pyd not found"; exit 1 }
+          $pyqt6 = $qtPyd.DirectoryName
+          Write-Host "PyQt6 dir: $pyqt6"
+          Get-ChildItem $dest -Filter *.dll | ForEach-Object {
+            Copy-Item $_.FullName -Destination $pyqt6 -Force
+          }
+          $pyqtDlls = (Get-ChildItem $pyqt6 -Filter *.dll).Count
+          Write-Host "Phase 2: $pyqtDlls DLLs now next to QtCore.pyd"
+
+          if (Test-Path (Join-Path $pyqt6 "Qt6Core.dll")) {
+            Write-Host "OK: Qt6Core.dll is next to QtCore.pyd"
+          } else {
+            Write-Error "FAIL: Qt6Core.dll not found next to QtCore.pyd"
+            exit 1
+          }
 
       - name: Zip dist folder
         shell: pwsh
