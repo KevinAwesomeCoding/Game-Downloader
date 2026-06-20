@@ -65,20 +65,52 @@ jobs:
           Write-Host "=== Build structure before flatten ==="
           Get-ChildItem $dest | Select-Object Name, Attributes
 
-          # Copy ALL DLLs from every subdirectory (recursive) up to the exe root.
-          # Handles _internal/, a nested GameInstaller/, or any name PyInstaller picks.
-          # Subdirectories are kept intact — Python's import system still uses them.
+          # --- Step 1: copy ALL DLLs from every subdirectory up to the exe root ---
+          # Wine's PE loader searches the exe directory when launching the process.
+          # This covers python311.dll, vcruntime140.dll, api-ms-win-*.dll, etc.
           $copied = 0
           Get-ChildItem $dest -Directory | ForEach-Object {
             Write-Host "Scanning: $($_.Name)"
             Get-ChildItem $_.FullName -Filter "*.dll" -Recurse | ForEach-Object {
               Copy-Item $_.FullName -Destination "$dest\" -Force
-              Write-Host "  copied $($_.Name)"
+              Write-Host "  -> $($_.Name)"
               $copied++
             }
           }
-          Write-Host "=== $copied DLLs copied to exe root ==="
-          Get-ChildItem $dest -Filter "*.dll" | Select-Object -ExpandProperty Name
+          Write-Host "=== Step 1: $copied DLLs copied to exe root ==="
+
+          # --- Step 2: copy Qt6*.dll next to QtCore.pyd ---
+          # python311.dll is found by the PE loader (exe dir). But Qt6Core.dll is
+          # loaded later by QtCore.pyd via LoadLibrary(). Wine's LoadLibrary searches
+          # the *calling module's directory* first — that is the PyQt6/ folder where
+          # QtCore.pyd lives, NOT the exe directory. Qt DLLs must be there too.
+          $qtPyd = Get-ChildItem $dest -Filter "QtCore.pyd" -Recurse |
+                   Select-Object -First 1
+          if ($qtPyd) {
+            $pyqt6Dir = $qtPyd.DirectoryName
+            Write-Host "QtCore.pyd found at: $pyqt6Dir"
+            # Find Qt6/bin/ wherever it sits in the tree
+            $qt6bin = Get-ChildItem $dest -Directory -Recurse |
+                      Where-Object { $_.Name -eq "bin" -and $_.Parent.Name -eq "Qt6" } |
+                      Select-Object -First 1
+            if ($qt6bin) {
+              Write-Host "Qt6/bin found at: $($qt6bin.FullName)"
+              Get-ChildItem $qt6bin.FullName -Filter "Qt6*.dll" | ForEach-Object {
+                Copy-Item $_.FullName -Destination $pyqt6Dir -Force
+                Write-Host "  Qt DLL -> PyQt6/: $($_.Name)"
+              }
+            } else {
+              Write-Host "Qt6/bin not found — copying any Qt6*.dll found in tree"
+              Get-ChildItem $dest -Filter "Qt6*.dll" -Recurse | ForEach-Object {
+                Copy-Item $_.FullName -Destination $pyqt6Dir -Force
+                Write-Host "  Qt DLL -> PyQt6/: $($_.Name)"
+              }
+            }
+            Write-Host "=== Step 2: Qt DLLs now in PyQt6/ ==="
+            Get-ChildItem $pyqt6Dir -Filter "Qt6*.dll" | Select-Object -ExpandProperty Name
+          } else {
+            Write-Host "WARNING: QtCore.pyd not found — Qt DLL placement skipped"
+          }
 
       - name: Zip dist folder
         shell: pwsh
