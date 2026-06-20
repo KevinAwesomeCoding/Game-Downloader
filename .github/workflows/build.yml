@@ -44,7 +44,7 @@ jobs:
           "tag=$tag"         >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
 
-      - name: Build Windows executable
+      - name: Build onedir (CrossOver / Wine)
         run: >
           pyinstaller
           --onedir
@@ -63,9 +63,19 @@ jobs:
       # runtime that Qt 6.x links against. Fix that in the bottle (recent
       # CrossOver / matching VC++ redist), not by moving DLLs around.
 
-      - name: Zip dist folder
+      - name: Zip onedir build
         shell: pwsh
         run: Compress-Archive -Path dist\GameInstaller -DestinationPath dist\GameInstaller.zip
+
+      - name: Build onefile (Windows)
+        run: >
+          pyinstaller
+          --onefile
+          --windowed
+          --collect-all PyQt6
+          --hidden-import PyQt6.sip
+          --name "GameInstaller"
+          main.py
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -74,21 +84,19 @@ jobs:
           name: Game Installer ${{ steps.tag.outputs.tag }}
           draft: false
           prerelease: false
-          files: dist/GameInstaller.zip
+          files: |
+            dist/GameInstaller.zip
+            dist/GameInstaller.exe
           body: |
             **Version:** ${{ steps.tag.outputs.version }}
             **Commit:** `${{ github.sha }}`
             **Trigger:** ${{ github.event_name }}
 
-            ### How to install
-            1. Download `GameInstaller.zip`.
-            2. Extract the zip — you will get a `GameInstaller` folder.
-            3. Run `GameInstaller\GameInstaller.exe` inside that folder.
-            4. On launch, the app will try to download the latest `games.json`.
-            5. If the download fails, the app will use its local fallback behavior.
+            ### Windows users
+            Download **`GameInstaller.exe`** — single file, run directly.
 
-            ### CrossOver / Wine users
-            Before running, install **Visual C++ Redistributable 2019** inside your bottle
-            (Bottle → Install Software → search "Visual C++ 2019" or use `vcrun2019`).
+            ### CrossOver / Wine users (Mac)
+            Download **`GameInstaller.zip`**, extract it, then run `GameInstaller\GameInstaller.exe` from inside the extracted folder.
+            Requires CrossOver 24+ (Wine 9+) for the bundled Qt runtime to load correctly.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
