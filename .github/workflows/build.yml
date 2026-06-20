@@ -60,19 +60,25 @@ jobs:
         shell: pwsh
         run: |
           pyinstaller --version
-          # --contents-directory . (PyInstaller 6+) should already be flat.
-          # If _internal still exists (version/cache fallback), copy all DLLs
-          # from it up next to the exe so Wine's DLL loader finds them.
-          # _internal is kept intact — Python's import system still uses it.
-          if (Test-Path "dist\GameInstaller\_internal") {
-            Write-Host "_internal found — copying root-level DLLs to exe directory"
-            Get-ChildItem "dist\GameInstaller\_internal" -Filter "*.dll" |
-              Copy-Item -Destination "dist\GameInstaller\" -Force
-            Write-Host "DLLs now present in exe directory:"
-            Get-ChildItem "dist\GameInstaller" -Filter "*.dll" | Select-Object -ExpandProperty Name
-          } else {
-            Write-Host "Flat layout confirmed — no _internal folder present"
+          $dest = "dist\GameInstaller"
+
+          Write-Host "=== Build structure before flatten ==="
+          Get-ChildItem $dest | Select-Object Name, Attributes
+
+          # Copy ALL DLLs from every subdirectory (recursive) up to the exe root.
+          # Handles _internal/, a nested GameInstaller/, or any name PyInstaller picks.
+          # Subdirectories are kept intact — Python's import system still uses them.
+          $copied = 0
+          Get-ChildItem $dest -Directory | ForEach-Object {
+            Write-Host "Scanning: $($_.Name)"
+            Get-ChildItem $_.FullName -Filter "*.dll" -Recurse | ForEach-Object {
+              Copy-Item $_.FullName -Destination "$dest\" -Force
+              Write-Host "  copied $($_.Name)"
+              $copied++
+            }
           }
+          Write-Host "=== $copied DLLs copied to exe root ==="
+          Get-ChildItem $dest -Filter "*.dll" | Select-Object -ExpandProperty Name
 
       - name: Zip dist folder
         shell: pwsh
