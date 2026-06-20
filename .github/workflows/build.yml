@@ -62,54 +62,53 @@ jobs:
           pyinstaller --version
           $dest = "dist\GameInstaller"
 
-          Write-Host "=== Build structure before flatten ==="
+          Write-Host "=== Build structure (top level) ==="
           Get-ChildItem $dest | Select-Object Name, Attributes
 
-          # --- Step 1: copy ALL DLLs from every subdirectory up to the exe root ---
-          # Wine's PE loader searches the exe directory when launching the process.
-          # This covers python311.dll, vcruntime140.dll, api-ms-win-*.dll, etc.
-          $copied = 0
+          # ------------------------------------------------------------------
+          # Phase 1 - gather EVERY DLL into the exe directory.
+          # The exe resolves its OWN startup dependencies (python311.dll,
+          # vcruntime140.dll) from its own folder. Wine honours "search the
+          # directory of the module being loaded", which is why python311.dll
+          # started working once it was placed next to the exe.
+          # ------------------------------------------------------------------
           Get-ChildItem $dest -Directory | ForEach-Object {
-            Write-Host "Scanning: $($_.Name)"
-            Get-ChildItem $_.FullName -Filter "*.dll" -Recurse | ForEach-Object {
-              Copy-Item $_.FullName -Destination "$dest\" -Force
-              Write-Host "  -> $($_.Name)"
-              $copied++
+            Get-ChildItem $_.FullName -Recurse -Filter *.dll | ForEach-Object {
+              Copy-Item $_.FullName -Destination $dest -Force
             }
           }
-          Write-Host "=== Step 1: $copied DLLs copied to exe root ==="
+          $rootDlls = (Get-ChildItem $dest -Filter *.dll).Count
+          Write-Host "Phase 1: $rootDlls DLLs now in exe directory"
 
-          # --- Step 2: copy Qt6*.dll next to QtCore.pyd ---
-          # python311.dll is found by the PE loader (exe dir). But Qt6Core.dll is
-          # loaded later by QtCore.pyd via LoadLibrary(). Wine's LoadLibrary searches
-          # the *calling module's directory* first — that is the PyQt6/ folder where
-          # QtCore.pyd lives, NOT the exe directory. Qt DLLs must be there too.
-          $qtPyd = Get-ChildItem $dest -Filter "QtCore.pyd" -Recurse |
-                   Select-Object -First 1
-          if ($qtPyd) {
-            $pyqt6Dir = $qtPyd.DirectoryName
-            Write-Host "QtCore.pyd found at: $pyqt6Dir"
-            # Find Qt6/bin/ wherever it sits in the tree
-            $qt6bin = Get-ChildItem $dest -Directory -Recurse |
-                      Where-Object { $_.Name -eq "bin" -and $_.Parent.Name -eq "Qt6" } |
-                      Select-Object -First 1
-            if ($qt6bin) {
-              Write-Host "Qt6/bin found at: $($qt6bin.FullName)"
-              Get-ChildItem $qt6bin.FullName -Filter "Qt6*.dll" | ForEach-Object {
-                Copy-Item $_.FullName -Destination $pyqt6Dir -Force
-                Write-Host "  Qt DLL -> PyQt6/: $($_.Name)"
-              }
-            } else {
-              Write-Host "Qt6/bin not found — copying any Qt6*.dll found in tree"
-              Get-ChildItem $dest -Filter "Qt6*.dll" -Recurse | ForEach-Object {
-                Copy-Item $_.FullName -Destination $pyqt6Dir -Force
-                Write-Host "  Qt DLL -> PyQt6/: $($_.Name)"
-              }
-            }
-            Write-Host "=== Step 2: Qt DLLs now in PyQt6/ ==="
-            Get-ChildItem $pyqt6Dir -Filter "Qt6*.dll" | Select-Object -ExpandProperty Name
+          # ------------------------------------------------------------------
+          # Phase 2 - make the PyQt6 folder SELF-CONTAINED.
+          # Qt6Core.dll is NOT loaded by the exe; PyQt6\QtCore.pyd pulls it in
+          # at "import QtCore" time. Wine resolves a module's dependencies from
+          # the folder THAT MODULE LIVES IN, and does NOT reliably honour the
+          # AddDllDirectory() path PyInstaller registers for PyQt6\Qt6\bin.
+          # So every DLL Qt needs - Qt6*.dll AND their CRT deps including
+          # vcruntime140_1.dll - must sit directly next to QtCore.pyd. We mirror
+          # the full DLL set (gathered in Phase 1) into that folder.
+          # ------------------------------------------------------------------
+          $qtPyd = Get-ChildItem $dest -Recurse -Filter QtCore.pyd | Select-Object -First 1
+          if (-not $qtPyd) { Write-Error "QtCore.pyd not found in build output"; exit 1 }
+          $pyqt6 = $qtPyd.DirectoryName
+          Write-Host "QtCore.pyd located in: $pyqt6"
+          Get-ChildItem $dest -Filter *.dll | ForEach-Object {
+            Copy-Item $_.FullName -Destination $pyqt6 -Force
+          }
+          $pyqtDlls = (Get-ChildItem $pyqt6 -Filter *.dll).Count
+          Write-Host "Phase 2: $pyqtDlls DLLs now next to QtCore.pyd"
+
+          # ------------------------------------------------------------------
+          # Verify the critical file landed where Wine will actually look.
+          # Fails the build loudly if it did not, instead of shipping a broken zip.
+          # ------------------------------------------------------------------
+          if (Test-Path (Join-Path $pyqt6 "Qt6Core.dll")) {
+            Write-Host "OK: Qt6Core.dll is next to QtCore.pyd"
           } else {
-            Write-Host "WARNING: QtCore.pyd not found — Qt DLL placement skipped"
+            Write-Error "FAIL: Qt6Core.dll is NOT next to QtCore.pyd"
+            exit 1
           }
 
       - name: Zip dist folder
