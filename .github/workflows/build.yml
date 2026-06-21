@@ -49,6 +49,7 @@ jobs:
           pyinstaller
           --onedir
           --windowed
+          --uac-admin
           --collect-all PyQt6
           --hidden-import PyQt6.sip
           --contents-directory .
@@ -72,6 +73,7 @@ jobs:
           pyinstaller
           --onefile
           --windowed
+          --uac-admin
           --collect-all PyQt6
           --hidden-import PyQt6.sip
           --name "GameInstaller"
