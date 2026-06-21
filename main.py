@@ -108,7 +108,7 @@ def app_dir() -> str:
     return os.path.dirname(os.path.abspath(__file__))
 
 
-# Hide the console window when launching 7-Zip from a windowed app.
+# Hide the console window when launching 7-Zip from a windowed app. bruh
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 _SEVENZIP_PATH = None  # cached result of find_7zip()
 _SEVENZIP_SEARCHED = False
