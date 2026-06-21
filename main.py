@@ -37,6 +37,7 @@ import traceback
 import winreg
 import zipfile
 from datetime import datetime
+from enum import Enum, auto
 
 import requests
 from PyQt6.QtCore import (
@@ -129,6 +130,86 @@ def save_settings(data: dict):
             json.dump(data, fh, indent=2)
     except OSError:
         pass  # settings are best-effort; never crash for this
+
+
+# ---------------------------------------------------------------------------
+# Install state tracking
+# ---------------------------------------------------------------------------
+class InstallState(Enum):
+    NOT_INSTALLED = auto()
+    INSTALLED_CURRENT = auto()
+    INSTALLED_OUTDATED = auto()
+    BROKEN = auto()
+
+
+INSTALL_MANIFEST = "gameinstall.json"
+
+
+class InstallRegistry:
+    """Tracks installed games by ID, path, and version.
+
+    Primary record: a gameinstall.json written inside the game folder on every
+    successful install or update.  Fast-lookup index: "installed_games" dict
+    inside settings.json, so we never scan the filesystem on startup.
+    """
+
+    def get_install_path(self, game_id: str) -> str | None:
+        return load_settings().get("installed_games", {}).get(game_id)
+
+    def get_install_info(self, game_id: str) -> dict | None:
+        path = self.get_install_path(game_id)
+        if not path:
+            return None
+        mf = os.path.join(path, INSTALL_MANIFEST)
+        try:
+            with open(mf, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            if isinstance(data, dict) and data.get("game_id") == game_id:
+                return data
+        except (OSError, json.JSONDecodeError):
+            pass
+        # Folder present but manifest missing/invalid → treat as broken install.
+        if os.path.isdir(path):
+            return {"game_id": game_id, "version": None, "broken": True}
+        # Folder gone entirely — remove stale index entry.
+        self._remove_from_index(game_id)
+        return None
+
+    def state_for(self, game) -> InstallState:
+        info = self.get_install_info(game.id)
+        if info is None:
+            return InstallState.NOT_INSTALLED
+        if info.get("broken"):
+            return InstallState.BROKEN
+        if info.get("version") != game.version:
+            return InstallState.INSTALLED_OUTDATED
+        return InstallState.INSTALLED_CURRENT
+
+    def record_install(self, game_id: str, install_path: str, version: str):
+        """Write gameinstall.json and update the settings index."""
+        manifest = {
+            "game_id": game_id,
+            "version": version,
+            "installed_at": datetime.now().isoformat(),
+        }
+        try:
+            with open(
+                os.path.join(install_path, INSTALL_MANIFEST), "w", encoding="utf-8"
+            ) as fh:
+                json.dump(manifest, fh, indent=2)
+        except OSError:
+            pass  # best-effort; the settings index still records the path
+        settings = load_settings()
+        settings.setdefault("installed_games", {})[game_id] = install_path
+        save_settings(settings)
+
+    def _remove_from_index(self, game_id: str):
+        settings = load_settings()
+        settings.get("installed_games", {}).pop(game_id, None)
+        save_settings(settings)
+
+
+INSTALL_REGISTRY = InstallRegistry()
 
 
 # ---------------------------------------------------------------------------
@@ -1133,10 +1214,11 @@ class GameCard(QFrame):
     CARD_W = 280
     THUMB_H = 130
 
-    def __init__(self, game: Game, on_click):
+    def __init__(self, game: Game, on_click, install_state: InstallState = InstallState.NOT_INSTALLED):
         super().__init__()
         self.game = game
         self._on_click = on_click
+        self.install_state = install_state
         self.setObjectName("GameCard")
         self.setFixedWidth(self.CARD_W)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1177,7 +1259,16 @@ class GameCard(QFrame):
         meta.setObjectName("CardMeta")
         body.addWidget(meta)
 
-        if game.is_available:
+        if install_state == InstallState.INSTALLED_CURRENT:
+            badge = QLabel("✓ Installed")
+            badge.setObjectName("BadgeInstalled")
+        elif install_state == InstallState.INSTALLED_OUTDATED:
+            badge = QLabel("⬆ Update Available")
+            badge.setObjectName("BadgeUpdate")
+        elif install_state == InstallState.BROKEN:
+            badge = QLabel("⚠ Repair Needed")
+            badge.setObjectName("BadgeBroken")
+        elif game.is_available:
             badge = QLabel("● Available")
             badge.setObjectName("BadgeAvailable")
         else:
@@ -1238,7 +1329,8 @@ class GameCard(QFrame):
 # Install dialog — owns the worker thread for one install.
 # ---------------------------------------------------------------------------
 class InstallDialog(QDialog):
-    def __init__(self, game: Game, parent=None):
+    def __init__(self, game: Game, parent=None, *, is_update: bool = False,
+                 existing_path: str | None = None):
         super().__init__(parent)
         self.game = game
         self.thread = None
@@ -1247,8 +1339,10 @@ class InstallDialog(QDialog):
         self.defender_thread = None
         self.defender_worker = None
         self._installed_path = None
+        self._is_update = is_update
+        self._existing_path = existing_path  # pre-known install dir for updates
 
-        self.setWindowTitle(f"Install — {game.name}")
+        self.setWindowTitle(f"{'Update' if is_update else 'Install'} — {game.name}")
         self.setMinimumWidth(540)
         self.setModal(True)
 
@@ -1277,15 +1371,31 @@ class InstallDialog(QDialog):
             meta.setObjectName("CardMeta")
             root.addWidget(meta)
 
+        if is_update:
+            info = INSTALL_REGISTRY.get_install_info(game.id)
+            installed_ver = (info.get("version") or "unknown") if info else "unknown"
+            ver_label = QLabel(
+                f"Installed version:  {installed_ver}   →   New version:  {game.version}"
+            )
+            ver_label.setObjectName("UpdateVersionLabel")
+            root.addWidget(ver_label)
+
         # Destination row.
         root.addWidget(self._label("Install location", "SectionLabel"))
         dest_row = QHBoxLayout()
         self.dest_edit = QLineEdit()
         self.dest_edit.setPlaceholderText("Choose a folder to install into…")
-        self.dest_edit.setText(os.path.join(os.path.expanduser("~"), "Games"))
+        self.dest_edit.setText(
+            existing_path if (is_update and existing_path)
+            else os.path.join(os.path.expanduser("~"), "Games")
+        )
+        if is_update:
+            self.dest_edit.setEnabled(False)
         dest_row.addWidget(self.dest_edit)
         self.browse_btn = QPushButton("Browse…")
         self.browse_btn.clicked.connect(self._browse)
+        if is_update:
+            self.browse_btn.setEnabled(False)
         dest_row.addWidget(self.browse_btn)
         root.addLayout(dest_row)
 
@@ -1351,7 +1461,7 @@ class InstallDialog(QDialog):
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.clicked.connect(self._on_cancel_clicked)
         btn_row.addWidget(self.cancel_btn)
-        self.install_btn = QPushButton("Execute / Install")
+        self.install_btn = QPushButton("Update" if is_update else "Execute / Install")
         self.install_btn.setObjectName("PrimaryButton")
         self.install_btn.clicked.connect(self._start_install)
         btn_row.addWidget(self.install_btn)
@@ -1379,14 +1489,18 @@ class InstallDialog(QDialog):
         return bar
 
     def _target_path(self) -> str:
+        if self._existing_path:
+            return self._existing_path
         base = self.dest_edit.text().strip()
         if CONFIG["default_install_subfolder"]:
             return os.path.join(base, self.game.safe_folder_name)
         return base
 
     def _update_hint(self):
-        if self.dest_edit.text().strip():
-            self.final_hint.setText(f"Will install to:  {self._target_path()}")
+        path = self._target_path()
+        if path:
+            prefix = "Will update:" if self._is_update else "Will install to:"
+            self.final_hint.setText(f"{prefix}  {path}")
         else:
             self.final_hint.setText("")
 
@@ -1477,6 +1591,7 @@ class InstallDialog(QDialog):
                 bar.setValue(100)
         self._teardown_thread()
         self._installed_path = path
+        INSTALL_REGISTRY.record_install(self.game.id, path, self.game.version)
 
         if self.defender_check.isChecked():
             self.status_label.setText("Adding Defender exclusion…")
@@ -1510,12 +1625,14 @@ class InstallDialog(QDialog):
 
     def _finish(self, path: str, defender_result):
         """Show the final completion dialog and close the install dialog."""
-        body = f"{self.game.name} was installed successfully.\n\nLocation:\n{path}"
+        action = "updated" if self._is_update else "installed"
+        title = "Update complete" if self._is_update else "Installation complete"
+        body = f"{self.game.name} was {action} successfully.\n\nLocation:\n{path}"
         if defender_result is not None:
             ok, msg = defender_result
             icon = "✓" if ok else "⚠"
             body += f"\n\n{icon} Defender exclusion: {msg}"
-        QMessageBox.information(self, "Installation complete", body)
+        QMessageBox.information(self, title, body)
         self.accept()
 
     # -------------------------------------------------------------------------
@@ -1582,6 +1699,7 @@ class MainWindow(QMainWindow):
         self.manifest_thread = None
         self.manifest_worker = None
         self._spacewar_check_done = False  # fires at most once per session
+        self._current_games: list = []
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -1718,6 +1836,7 @@ class MainWindow(QMainWindow):
     @pyqtSlot(list, str)
     def _on_manifest_loaded(self, games, source):
         self._teardown_manifest_thread()
+        self._current_games = games
         self._populate_cards(games)
         stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
         self.updated_label.setText(f"Last updated {stamp}  ·  {source}")
@@ -1795,10 +1914,23 @@ class MainWindow(QMainWindow):
             return
 
         for game in games:
-            self.cards_layout.addWidget(GameCard(game, self._open_install))
+            state = INSTALL_REGISTRY.state_for(game)
+            self.cards_layout.addWidget(GameCard(game, self._open_install, state))
 
     def _open_install(self, game: Game):
-        InstallDialog(game, self).exec()
+        state = INSTALL_REGISTRY.state_for(game)
+        if state == InstallState.INSTALLED_CURRENT:
+            # Game is up to date — open its folder in Explorer.
+            path = INSTALL_REGISTRY.get_install_path(game.id)
+            if path and os.path.isdir(path):
+                os.startfile(path)
+            return
+        is_update = state != InstallState.NOT_INSTALLED
+        existing = INSTALL_REGISTRY.get_install_path(game.id) if is_update else None
+        dlg = InstallDialog(game, self, is_update=is_update, existing_path=existing)
+        dlg.exec()
+        # Refresh cards so badges reflect the new state immediately.
+        self._populate_cards(self._current_games)
 
 
 # ---------------------------------------------------------------------------
@@ -1847,6 +1979,13 @@ QLabel { background-color: transparent; }
     color: #fbbf24; font-size: 12px; font-weight: 700;
     background-color: #3a2f12; border-radius: 6px; padding: 3px 8px;
 }
+#BadgeInstalled { color: #22c55e; font-size: 12px; font-weight: 700; }
+#BadgeUpdate {
+    color: #fbbf24; font-size: 12px; font-weight: 700;
+    background-color: #3a2f12; border-radius: 6px; padding: 3px 8px;
+}
+#BadgeBroken { color: #fb923c; font-size: 12px; font-weight: 700; }
+#UpdateVersionLabel { color: #2dd4bf; font-size: 13px; font-weight: 600; }
 
 #DialogTitle { font-size: 20px; font-weight: 700; color: #ffffff; }
 #SectionLabel { font-size: 13px; font-weight: 600; color: #c4cad8; margin-top: 4px; }
