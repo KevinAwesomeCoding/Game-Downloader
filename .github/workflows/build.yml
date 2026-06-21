@@ -10,6 +10,7 @@ on:
       - 'main.py'
       - 'requirements.txt'
       - 'README.md'
+      - 'version_info.txt'
       - '.github/workflows/**'
   workflow_dispatch:
 
@@ -50,6 +51,8 @@ jobs:
           --onedir
           --windowed
           --uac-admin
+          --noupx
+          --version-file version_info.txt
           --collect-all PyQt6
           --hidden-import PyQt6.sip
           --contents-directory .
@@ -74,6 +77,8 @@ jobs:
           --onefile
           --windowed
           --uac-admin
+          --noupx
+          --version-file version_info.txt
           --collect-all PyQt6
           --hidden-import PyQt6.sip
           --name "GameInstaller"
@@ -94,8 +99,14 @@ jobs:
             **Commit:** `${{ github.sha }}`
             **Trigger:** ${{ github.event_name }}
 
-            ### Windows users
-            Download **`GameInstaller.exe`** — single file, run directly.
+            ### Windows users (recommended)
+            Download **`GameInstaller.zip`**, extract it, and run `GameInstaller\GameInstaller.exe` from inside the folder.
+            This folder build is the least likely to trip antivirus false positives.
+
+            Prefer one file? **`GameInstaller.exe`** works too. Because it is unsigned and
+            self-extracting, Windows Defender may show a false-positive warning. If it does:
+            click **More info → Run anyway**, or allow it in Windows Security →
+            Virus & threat protection → Protection history.
 
             ### CrossOver / Wine users (Mac)
             Download **`GameInstaller.zip`**, extract it, then run `GameInstaller\GameInstaller.exe` from inside the extracted folder.
