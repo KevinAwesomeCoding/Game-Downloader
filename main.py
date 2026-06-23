@@ -2275,10 +2275,12 @@ class GameCard(QFrame):
 # Install dialog — owns the worker thread for one install.
 # ---------------------------------------------------------------------------
 class InstallDialog(QDialog):
-    def __init__(self, game: Game, parent=None, *, patch_target: str | None = None):
+    def __init__(self, game: Game, parent=None, *, patch_target: str | None = None,
+                 manager=None):
         super().__init__(parent)
         self.game = game
         self._patch_target = patch_target
+        self._manager = manager  # DownloadManager; dialog enqueues then closes
         self.thread = None
         self.worker = None
         self._installing = False
@@ -2377,10 +2379,18 @@ class InstallDialog(QDialog):
             self.defender_warn.setVisible(False)
             self.final_hint.setText(f"Will apply fix into:  {patch_target}")
 
-        # Status + progress bars.
+        # Status + progress bars. With a download manager these live on the
+        # Downloads page instead, so the whole section is hidden here — the
+        # dialog is purely a configure-and-queue step.
+        self._progress_box = QWidget()
+        pbox = QVBoxLayout(self._progress_box)
+        pbox.setContentsMargins(0, 0, 0, 0)
+        pbox.setSpacing(13)
+        root.addWidget(self._progress_box)
+
         self.status_label = QLabel("Ready.")
         self.status_label.setObjectName("StatusLabel")
-        root.addWidget(self.status_label)
+        pbox.addWidget(self.status_label)
 
         # Detailed metrics row
         metrics_row = QHBoxLayout()
@@ -2395,23 +2405,26 @@ class InstallDialog(QDialog):
         self.eta_label = QLabel("")
         self.eta_label.setObjectName("MetricLabel")
         metrics_row.addWidget(self.eta_label)
-        root.addLayout(metrics_row)
+        pbox.addLayout(metrics_row)
 
-        root.addWidget(self._label("Overall progress", "SmallLabel"))
+        pbox.addWidget(self._label("Overall progress", "SmallLabel"))
         self.overall_bar = QProgressBar()
         self.overall_bar.setRange(0, 100)
         self.overall_bar.setValue(0)
-        root.addWidget(self.overall_bar)
+        pbox.addWidget(self.overall_bar)
 
-        self.dl_bar = self._add_bar(root, "Download")
-        self.ex_bar = self._add_bar(root, "Extraction")
+        self.dl_bar = self._add_bar(pbox, "Download")
+        self.ex_bar = self._add_bar(pbox, "Extraction")
         # Fix bars only shown when this game ships a patch.
-        self.fix_dl_label, self.fix_dl_bar = self._add_bar(root, "Fix download", ret_label=True)
-        self.fix_ap_label, self.fix_ap_bar = self._add_bar(root, "Applying fix", ret_label=True)
+        self.fix_dl_label, self.fix_dl_bar = self._add_bar(pbox, "Fix download", ret_label=True)
+        self.fix_ap_label, self.fix_ap_bar = self._add_bar(pbox, "Applying fix", ret_label=True)
         if not game.has_fix:
             for w in (self.fix_dl_label, self.fix_dl_bar,
                       self.fix_ap_label, self.fix_ap_bar):
                 w.setVisible(False)
+
+        if manager is not None:
+            self._progress_box.setVisible(False)
 
         # Buttons.
         btn_row = QHBoxLayout()
@@ -2536,36 +2549,30 @@ class InstallDialog(QDialog):
                 return
 
         target = self._target_path()
-        self._install_target = target
-        self._installing = True
-        self.install_btn.setEnabled(False)
-        self.fix_only_btn.setEnabled(False)
-        self.browse_btn.setEnabled(False)
-        self.dest_edit.setEnabled(False)
-        self.defender_check.setEnabled(False)
-        self.cancel_btn.setText("Cancel")
-        for bar in (self.dl_bar, self.ex_bar, self.fix_dl_bar, self.fix_ap_bar):
-            bar.setRange(0, 100)
-            bar.setValue(0)
 
+        # Hand the job to the download manager and close — it runs in the
+        # background on the Downloads page (and applies the Defender exclusion
+        # there if requested, just like the old inline pre-step did).
+        defender_folders = None
         if self.defender_check.isChecked():
-            # Create the folder now so Defender has a real path to exclude,
-            # then add the exclusion before any game files are written.
             try:
                 os.makedirs(target, exist_ok=True)
             except OSError as exc:
-                self._installing = False
-                self._reset_controls()
                 QMessageBox.critical(
                     self, "Cannot create folder",
                     f"Could not create the install folder:\n{exc}",
                 )
                 return
-            self.status_label.setText("Adding Defender exclusion…")
-            self.cancel_btn.setEnabled(False)
-            self._start_pre_defender(target)
-        else:
-            self._launch_install_worker(target)
+            defender_folders = [target, tempfile.gettempdir()]
+
+        if not self._patch_target:
+            prefs = load_prefs()
+            prefs["install_path"] = self.dest_edit.text().strip()
+            save_prefs(prefs)
+
+        self._manager.enqueue(self.game, target, fix_only=False,
+                              defender_folders=defender_folders)
+        self.accept()
 
     def _launch_install_worker(self, target: str, remove_temp_exclusion: bool = False):
         self.thread = QThread()
@@ -2606,19 +2613,9 @@ class InstallDialog(QDialog):
             self.game.id, self.game.name, self.game.fix_url, target,
         )
 
-        self._installing = True
-        self.install_btn.setEnabled(False)
-        self.fix_only_btn.setEnabled(False)
-        self.browse_btn.setEnabled(False)
-        self.dest_edit.setEnabled(False)
-        self.defender_check.setEnabled(False)
-        self.cancel_btn.setText("Cancel")
-        for bar in (self.dl_bar, self.ex_bar, self.fix_dl_bar, self.fix_ap_bar,
-                    self.overall_bar):
-            bar.setRange(0, 100)
-            bar.setValue(0)
-
-        self._launch_fix_only_worker(target)
+        self._manager.enqueue(self.game, target, fix_only=True,
+                              defender_folders=None)
+        self.accept()
 
     def _launch_fix_only_worker(self, target: str):
         self.thread = QThread()
@@ -2796,6 +2793,368 @@ class InstallDialog(QDialog):
 
 
 # ---------------------------------------------------------------------------
+# Concurrent downloads — manager + per-download status card + Downloads page.
+# Each running card owns its own InstallWorker on its own QThread (same proven
+# logic the install dialog used to run inline); the manager just limits how
+# many run at once and starts queued ones as slots free up.
+# ---------------------------------------------------------------------------
+class DownloadCard(QFrame):
+    """One download's full status row: overall + per-stage bars, speed/ETA,
+    and a context action button (Cancel / Open folder / Remove)."""
+
+    def __init__(self, game: Game, target: str, fix_only: bool,
+                 defender_folders, manager):
+        super().__init__()
+        self.game = game
+        self.target = target
+        self.fix_only = fix_only
+        self._defender_folders = defender_folders
+        self.manager = manager
+        self.state = "queued"  # queued | running | done | error | canceled
+        self.thread = None
+        self.worker = None
+        self.defender_thread = None
+        self.defender_worker = None
+        self._installed_path = None
+
+        self.setObjectName("DownloadCard")
+        root = QVBoxLayout(self)
+        root.setContentsMargins(16, 14, 16, 14)
+        root.setSpacing(8)
+
+        head = QHBoxLayout()
+        name = QLabel(game.name)
+        name.setObjectName("DownloadName")
+        head.addWidget(name)
+        if fix_only:
+            tag = QLabel("fix only")
+            tag.setObjectName("CardMeta")
+            head.addWidget(tag)
+        head.addStretch(1)
+        self.chip = QLabel("Queued")
+        self.chip.setObjectName("ChipQueued")
+        head.addWidget(self.chip)
+        self.action_btn = QPushButton("Cancel")
+        self.action_btn.clicked.connect(self._action_clicked)
+        head.addWidget(self.action_btn)
+        root.addLayout(head)
+
+        self.status_label = QLabel("Waiting to start…")
+        self.status_label.setObjectName("StatusLabel")
+        self.status_label.setWordWrap(True)
+        root.addWidget(self.status_label)
+
+        metrics = QHBoxLayout()
+        self.speed_label = QLabel("")
+        self.speed_label.setObjectName("MetricLabel")
+        metrics.addWidget(self.speed_label)
+        metrics.addStretch(1)
+        self.elapsed_label = QLabel("")
+        self.elapsed_label.setObjectName("MetricLabel")
+        metrics.addWidget(self.elapsed_label)
+        metrics.addSpacing(10)
+        self.eta_label = QLabel("")
+        self.eta_label.setObjectName("MetricLabel")
+        metrics.addWidget(self.eta_label)
+        root.addLayout(metrics)
+
+        self.overall_bar = self._bar(root, "Overall")
+        self.dl_lbl, self.dl_bar = self._bar(root, "Download", ret=True)
+        self.ex_lbl, self.ex_bar = self._bar(root, "Extraction", ret=True)
+        self.fix_dl_lbl, self.fix_dl_bar = self._bar(root, "Fix download", ret=True)
+        self.fix_ap_lbl, self.fix_ap_bar = self._bar(root, "Applying fix", ret=True)
+        if fix_only:
+            for w in (self.dl_lbl, self.dl_bar, self.ex_lbl, self.ex_bar):
+                w.setVisible(False)
+        elif not game.has_fix:
+            for w in (self.fix_dl_lbl, self.fix_dl_bar, self.fix_ap_lbl, self.fix_ap_bar):
+                w.setVisible(False)
+
+    # -- ui helpers ---------------------------------------------------------
+    def _bar(self, layout, caption, ret=False):
+        lbl = QLabel(caption)
+        lbl.setObjectName("SmallLabel")
+        layout.addWidget(lbl)
+        bar = QProgressBar()
+        bar.setRange(0, 100)
+        bar.setValue(0)
+        layout.addWidget(bar)
+        if ret:
+            return lbl, bar
+        # caller (overall) doesn't keep the caption label
+        return bar
+
+    def _set_bar(self, bar, value):
+        if value < 0:
+            bar.setRange(0, 0)  # indeterminate / busy
+        else:
+            bar.setRange(0, 100)
+            bar.setValue(value)
+
+    def _set_chip(self, text, kind):
+        self.chip.setText(text)
+        self.chip.setObjectName(f"Chip{kind}")
+        self.chip.style().unpolish(self.chip)
+        self.chip.style().polish(self.chip)
+
+    # -- lifecycle (manager-driven) -----------------------------------------
+    def start(self):
+        """Begin this download. Called by the manager when a slot is free."""
+        self.state = "running"
+        self._set_chip("Downloading", "Running")
+        self.action_btn.setText("Cancel")
+        self.action_btn.setEnabled(True)
+        if self._defender_folders:
+            self._start_defender()
+        else:
+            self._start_worker(remove_temp_exclusion=False)
+
+    def _start_defender(self):
+        self.status_label.setText("Adding Defender exclusion…")
+        self.action_btn.setEnabled(False)
+        self.defender_thread = QThread()
+        self.defender_worker = DefenderWorker(self._defender_folders)
+        self.defender_worker.moveToThread(self.defender_thread)
+        self.defender_thread.started.connect(self.defender_worker.run)
+        self.defender_worker.finished.connect(self._on_defender_done)
+        self.defender_thread.start()
+
+    @pyqtSlot(bool, str)
+    def _on_defender_done(self, ok, message):
+        self._teardown_defender()
+        self.action_btn.setEnabled(True)
+        if ok:
+            self.status_label.setText("Exclusion added. Starting download…")
+            self._start_worker(remove_temp_exclusion=True)
+        else:
+            self._fail(f"Defender exclusion failed: {message}")
+
+    def _start_worker(self, remove_temp_exclusion):
+        self.thread = QThread()
+        self.worker = InstallWorker(self.game, self.target, fix_only=self.fix_only,
+                                    remove_temp_exclusion=remove_temp_exclusion)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.download_progress.connect(lambda v: self._set_bar(self.dl_bar, v))
+        self.worker.extract_progress.connect(lambda v: self._set_bar(self.ex_bar, v))
+        self.worker.fix_download_progress.connect(lambda v: self._set_bar(self.fix_dl_bar, v))
+        self.worker.fix_apply_progress.connect(lambda v: self._set_bar(self.fix_ap_bar, v))
+        self.worker.status.connect(self.status_label.setText)
+        self.worker.speed_text.connect(self.speed_label.setText)
+        self.worker.eta_text.connect(self.eta_label.setText)
+        self.worker.elapsed_text.connect(self.elapsed_label.setText)
+        self.worker.overall_progress.connect(lambda v: self._set_bar(self.overall_bar, v))
+        self.worker.success.connect(self._on_success)
+        self.worker.error.connect(self._on_error)
+        self.worker.canceled.connect(self._on_canceled)
+        self.thread.start()
+
+    def _teardown_thread(self):
+        if self.thread is not None:
+            self.thread.quit()
+            self.thread.wait()
+            self.worker.deleteLater()
+            self.thread.deleteLater()
+            self.worker = None
+            self.thread = None
+
+    def _teardown_defender(self):
+        if self.defender_thread is not None:
+            self.defender_thread.quit()
+            self.defender_thread.wait()
+            self.defender_worker.deleteLater()
+            self.defender_thread.deleteLater()
+            self.defender_worker = None
+            self.defender_thread = None
+
+    # -- worker slots -------------------------------------------------------
+    @pyqtSlot(str)
+    def _on_success(self, path):
+        self._installed_path = path
+        self._set_bar(self.overall_bar, 100)
+        if not self.fix_only:
+            self._set_bar(self.dl_bar, 100)
+            self._set_bar(self.ex_bar, 100)
+        if self.game.has_fix or self.fix_only:
+            self._set_bar(self.fix_dl_bar, 100)
+            self._set_bar(self.fix_ap_bar, 100)
+        self._teardown_thread()
+        self.state = "done"
+        self._set_chip("Done ✓", "Done")
+        self.status_label.setText(f"Installed to {path}")
+        self.speed_label.setText("")
+        self.eta_label.setText("")
+        self.action_btn.setText("Open folder")
+        self.action_btn.setEnabled(True)
+        self.manager.on_state_changed()
+
+    @pyqtSlot(str)
+    def _on_error(self, message):
+        self._teardown_thread()
+        self._fail(message)
+
+    @pyqtSlot()
+    def _on_canceled(self):
+        self._teardown_thread()
+        self.state = "canceled"
+        self._set_chip("Canceled", "Canceled")
+        self.status_label.setText("Download canceled.")
+        self.speed_label.setText("")
+        self.eta_label.setText("")
+        self.action_btn.setText("Remove")
+        self.action_btn.setEnabled(True)
+        self.manager.on_state_changed()
+
+    def _fail(self, message):
+        self.state = "error"
+        self._set_chip("Failed", "Error")
+        self.status_label.setText(message)
+        self.speed_label.setText("")
+        self.eta_label.setText("")
+        self.action_btn.setText("Remove")
+        self.action_btn.setEnabled(True)
+        self.manager.on_state_changed()
+
+    # -- the context-sensitive button --------------------------------------
+    def _action_clicked(self):
+        if self.state == "queued":
+            self.state = "canceled"
+            self._set_chip("Canceled", "Canceled")
+            self.status_label.setText("Canceled before starting.")
+            self.action_btn.setText("Remove")
+            self.manager.on_state_changed()
+        elif self.state == "running":
+            if self.worker is not None:
+                self.status_label.setText("Canceling…")
+                self.action_btn.setEnabled(False)
+                self.worker.cancel()
+            # else: mid-Defender elevation — cannot interrupt cleanly, ignore
+        elif self.state == "done":
+            if self._installed_path and os.path.isdir(self._installed_path):
+                try:
+                    os.startfile(self._installed_path)
+                except OSError:
+                    pass
+        else:  # error / canceled
+            self.manager.remove_card(self)
+
+    def force_stop(self):
+        """Used on app shutdown so no QThread is left running."""
+        if self.worker is not None:
+            self.worker.cancel()
+        if self.thread is not None:
+            self.thread.quit()
+            self.thread.wait(3000)
+        if self.defender_thread is not None:
+            self.defender_thread.quit()
+            self.defender_thread.wait(3000)
+
+
+class DownloadManager(QObject):
+    """Runs at most *max_concurrent* downloads at once; the rest wait queued
+    and start automatically as running ones finish."""
+    count_changed = pyqtSignal(int)  # number of active (queued + running) jobs
+
+    def __init__(self, page, max_concurrent=3):
+        super().__init__()
+        self.page = page
+        self.max_concurrent = max_concurrent
+        self.cards = []
+        page.clear_btn.clicked.connect(self.clear_finished)
+
+    def enqueue(self, game, target, fix_only=False, defender_folders=None):
+        card = DownloadCard(game, target, fix_only, defender_folders, self)
+        self.cards.append(card)
+        self.page.add_card(card)
+        self.page.set_empty(False)
+        _log.debug("DownloadManager.enqueue  id=%r  fix_only=%s  target=%r",
+                   game.id, fix_only, target)
+        self._pump()
+
+    def on_state_changed(self):
+        """A card finished/canceled — start the next queued one and refresh."""
+        self._pump()
+
+    def _pump(self):
+        running = sum(1 for c in self.cards if c.state == "running")
+        for c in self.cards:
+            if running >= self.max_concurrent:
+                break
+            if c.state == "queued":
+                c.start()
+                running += 1
+        active = sum(1 for c in self.cards if c.state in ("queued", "running"))
+        self.count_changed.emit(active)
+
+    def remove_card(self, card):
+        if card in self.cards:
+            self.cards.remove(card)
+        self.page.remove_card(card)
+        self.page.set_empty(len(self.cards) == 0)
+        self._pump()
+
+    def clear_finished(self):
+        for c in list(self.cards):
+            if c.state in ("done", "error", "canceled"):
+                self.remove_card(c)
+
+    def shutdown(self):
+        for c in self.cards:
+            c.force_stop()
+
+
+class DownloadsPage(QWidget):
+    """Scrollable list of DownloadCards with a header + 'Clear finished'."""
+
+    def __init__(self):
+        super().__init__()
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+
+        bar = QFrame()
+        bar.setObjectName("DownloadsBar")
+        brow = QHBoxLayout(bar)
+        brow.setContentsMargins(24, 14, 24, 14)
+        title = QLabel("Downloads")
+        title.setObjectName("AppTitle")
+        brow.addWidget(title)
+        brow.addStretch(1)
+        self.clear_btn = QPushButton("Clear finished")
+        self.clear_btn.setObjectName("SpacewarButton")
+        brow.addWidget(self.clear_btn)
+        lay.addWidget(bar)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setObjectName("Scroll")
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        container = QWidget()
+        self.list_layout = QVBoxLayout(container)
+        self.list_layout.setContentsMargins(24, 18, 24, 18)
+        self.list_layout.setSpacing(14)
+        self.empty_label = QLabel("No downloads yet.\nPick a game from the Library to start one.")
+        self.empty_label.setObjectName("SubInfo")
+        self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.list_layout.addWidget(self.empty_label)
+        self.list_layout.addStretch(1)
+        scroll.setWidget(container)
+        lay.addWidget(scroll, 1)
+
+    def add_card(self, card):
+        # insert just before the trailing stretch so cards stay top-aligned
+        self.list_layout.insertWidget(self.list_layout.count() - 1, card)
+
+    def remove_card(self, card):
+        card.setParent(None)
+        card.deleteLater()
+
+    def set_empty(self, is_empty):
+        self.empty_label.setVisible(is_empty)
+        self.clear_btn.setEnabled(not is_empty)
+
+
+# ---------------------------------------------------------------------------
 # Main window
 # ---------------------------------------------------------------------------
 class MainWindow(QMainWindow):
@@ -2821,11 +3180,27 @@ class MainWindow(QMainWindow):
         self.loading_page = self._build_loading_page()
         self.error_page = self._build_error_page()
         self.content_page = self._build_content_page()
+        self.downloads_page = DownloadsPage()
+        self.download_manager = DownloadManager(self.downloads_page, max_concurrent=3)
+        self.download_manager.count_changed.connect(self._update_downloads_badge)
+        self.downloads_page.set_empty(True)
         self.stack.addWidget(self.loading_page)
         self.stack.addWidget(self.error_page)
         self.stack.addWidget(self.content_page)
+        self.stack.addWidget(self.downloads_page)
 
         self.load_manifest()
+
+    def closeEvent(self, event):
+        # Stop any in-flight downloads so no QThread is left running at exit.
+        try:
+            self.download_manager.shutdown()
+        except Exception:
+            pass
+        super().closeEvent(event)
+
+    def _update_downloads_badge(self, active):
+        self.downloads_btn.setText("Downloads" if active == 0 else f"Downloads ({active})")
 
     # -- header -------------------------------------------------------------
     def _build_header(self):
@@ -2844,6 +3219,18 @@ class MainWindow(QMainWindow):
         title_box.addWidget(self.updated_label)
         lay.addLayout(title_box)
         lay.addStretch(1)
+
+        self.library_btn = QPushButton("Library")
+        self.library_btn.setObjectName("NavButton")
+        self.library_btn.clicked.connect(
+            lambda: self.stack.setCurrentWidget(self.content_page))
+        lay.addWidget(self.library_btn)
+
+        self.downloads_btn = QPushButton("Downloads")
+        self.downloads_btn.setObjectName("NavButton")
+        self.downloads_btn.clicked.connect(
+            lambda: self.stack.setCurrentWidget(self.downloads_page))
+        lay.addWidget(self.downloads_btn)
 
         self.spacewar_btn = QPushButton("Get Spacewar")
         self.spacewar_btn.setObjectName("SpacewarButton")
@@ -3037,9 +3424,14 @@ class MainWindow(QMainWindow):
             )
             if not folder:
                 return
-            InstallDialog(game, self, patch_target=folder).exec()
+            dlg = InstallDialog(game, self, patch_target=folder,
+                                manager=self.download_manager)
         else:
-            InstallDialog(game, self).exec()
+            dlg = InstallDialog(game, self, manager=self.download_manager)
+        # Dialog is now just a configure-and-queue step; accepted == enqueued,
+        # so jump to the Downloads page to show progress.
+        if dlg.exec():
+            self.stack.setCurrentWidget(self.downloads_page)
 
 
 # ---------------------------------------------------------------------------
@@ -3165,6 +3557,27 @@ QScrollBar::handle:vertical {
 }
 QScrollBar::handle:vertical:hover { background: #2e3750; }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+
+/* Header navigation buttons */
+#NavButton {
+    background-color: transparent; color: #c4cad8;
+    border: 1px solid #232a42; border-radius: 8px;
+    padding: 7px 14px; font-weight: 600;
+}
+#NavButton:hover { background-color: #1a2036; color: #ffffff; }
+
+/* Downloads page */
+#DownloadsBar { background-color: #11152340; border-bottom: 1px solid #1c2336; }
+#DownloadCard {
+    background-color: #161b2e; border: 1px solid #232a42; border-radius: 12px;
+}
+#DownloadName { font-size: 16px; font-weight: 700; color: #ffffff; }
+
+#ChipQueued   { color: #8b93a7; font-size: 12px; font-weight: 700; padding: 2px 8px; }
+#ChipRunning  { color: #2dd4bf; font-size: 12px; font-weight: 700; padding: 2px 8px; }
+#ChipDone     { color: #22c55e; font-size: 12px; font-weight: 700; padding: 2px 8px; }
+#ChipError    { color: #f87171; font-size: 12px; font-weight: 700; padding: 2px 8px; }
+#ChipCanceled { color: #fbbf24; font-size: 12px; font-weight: 700; padding: 2px 8px; }
 """
 
 
