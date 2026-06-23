@@ -79,6 +79,7 @@ CONFIG = {
 
 # Bundled fallback manifest, looked up next to this file / the exe.
 LOCAL_MANIFEST = "games.json"
+ZIP_PASSWORD = b"online-fix.me"
 
 # Network timeouts (connect, read) in seconds, and download chunk size.
 REQUEST_TIMEOUT = (10, 30)
@@ -535,6 +536,7 @@ class Game:
         self.thumbnail = str(raw.get("thumbnail", "")).strip()
         self.zip_url = str(raw.get("zipUrl", "")).strip()
         self.fix_url = str(raw.get("fixZipUrl", "")).strip()
+        self.entry_type = str(raw.get("type", "game")).strip().lower()
 
     @property
     def is_available(self) -> bool:
@@ -543,6 +545,10 @@ class Game:
     @property
     def has_fix(self) -> bool:
         return bool(self.fix_url)
+
+    @property
+    def is_patch(self) -> bool:
+        return self.entry_type == "fix"
 
     @property
     def safe_folder_name(self) -> str:
@@ -1304,6 +1310,30 @@ class InstallWorker(QObject):
                     self.error.emit("The downloaded archive is empty.")
                     return False
 
+                # Determine whether the zip is password-protected by probing the
+                # first file member.  Try ZIP_PASSWORD first; if it raises
+                # RuntimeError with "password required" we know we need it.  If
+                # it raises RuntimeError with "bad password" the password is
+                # wrong (shouldn't happen for online-fix zips).  If it succeeds
+                # or raises anything else (e.g. the zip is unencrypted) we set
+                # pwd=None and let ZipFile handle it normally.
+                _pwd: bytes | None = None
+                for _probe in members:
+                    if not _probe.filename.endswith("/"):
+                        try:
+                            with zf.open(_probe, pwd=ZIP_PASSWORD) as _fh:
+                                _fh.read(1)
+                            _pwd = ZIP_PASSWORD
+                            _log.debug("_extract_zip  password accepted")
+                        except RuntimeError as _e:
+                            _msg = str(_e).lower()
+                            if "password required" in _msg or "bad password" in _msg:
+                                _pwd = None
+                                _log.debug("_extract_zip  no/wrong password, extracting without")
+                        except Exception:
+                            _pwd = None
+                        break
+
                 _dest_real = os.path.realpath(dest_dir)
                 for index, member in enumerate(members, start=1):
                     if self._cancel.is_set():
@@ -1341,7 +1371,7 @@ class InstallWorker(QObject):
                         index, count, member.filename, _target,
                     )
                     try:
-                        zf.extract(member, dest_dir)
+                        zf.extract(member, dest_dir, pwd=_pwd)
                     except OSError as _mexc:
                         _log.debug(
                             "_extract_zip  MEMBER FAIL  %r  target=%s  exc=%s",
@@ -1687,7 +1717,10 @@ class GameCard(QFrame):
         meta.setObjectName("CardMeta")
         body.addWidget(meta)
 
-        if game.is_available:
+        if game.is_patch:
+            badge = QLabel("⚙ Fix / Patch")
+            badge.setObjectName("BadgeFix")
+        elif game.is_available:
             badge = QLabel("● Available")
             badge.setObjectName("BadgeAvailable")
         else:
@@ -1748,9 +1781,10 @@ class GameCard(QFrame):
 # Install dialog — owns the worker thread for one install.
 # ---------------------------------------------------------------------------
 class InstallDialog(QDialog):
-    def __init__(self, game: Game, parent=None):
+    def __init__(self, game: Game, parent=None, *, patch_target: str | None = None):
         super().__init__(parent)
         self.game = game
+        self._patch_target = patch_target
         self.thread = None
         self.worker = None
         self._installing = False
@@ -1759,7 +1793,8 @@ class InstallDialog(QDialog):
         self._installed_path = None
         self._install_target = None
 
-        self.setWindowTitle(f"Install — {game.name}")
+        title_text = f"Apply Fix — {game.name}" if patch_target else f"Install — {game.name}"
+        self.setWindowTitle(title_text)
         self.setMinimumWidth(540)
         self.setModal(True)
 
@@ -1800,8 +1835,9 @@ class InstallDialog(QDialog):
             meta.setObjectName("CardMeta")
             root.addWidget(meta)
 
-        # Destination row.
-        root.addWidget(self._label("Install location", "SectionLabel"))
+        # Destination row — hidden for patch installs (folder already chosen).
+        self._dest_label = self._label("Install location", "SectionLabel")
+        root.addWidget(self._dest_label)
         dest_row = QHBoxLayout()
         self.dest_edit = QLineEdit()
         self.dest_edit.setPlaceholderText("Choose a folder to install into…")
@@ -1811,7 +1847,9 @@ class InstallDialog(QDialog):
         self.browse_btn = QPushButton("Browse…")
         self.browse_btn.clicked.connect(self._browse)
         dest_row.addWidget(self.browse_btn)
-        root.addLayout(dest_row)
+        self._dest_row_widget = QWidget()
+        self._dest_row_widget.setLayout(dest_row)
+        root.addWidget(self._dest_row_widget)
 
         self.final_hint = QLabel()
         self.final_hint.setObjectName("CardMeta")
@@ -1832,6 +1870,13 @@ class InstallDialog(QDialog):
         )
         self.defender_warn.setObjectName("DefenderWarning")
         root.addWidget(self.defender_warn)
+
+        if patch_target:
+            self._dest_label.setVisible(False)
+            self._dest_row_widget.setVisible(False)
+            self.defender_check.setVisible(False)
+            self.defender_warn.setVisible(False)
+            self.final_hint.setText(f"Will apply fix into:  {patch_target}")
 
         # Status + progress bars.
         self.status_label = QLabel("Ready.")
@@ -1875,7 +1920,8 @@ class InstallDialog(QDialog):
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.clicked.connect(self._on_cancel_clicked)
         btn_row.addWidget(self.cancel_btn)
-        self.install_btn = QPushButton("Execute / Install")
+        install_label = "Apply Fix" if patch_target else "Execute / Install"
+        self.install_btn = QPushButton(install_label)
         self.install_btn.setObjectName("PrimaryButton")
         self.install_btn.clicked.connect(self._start_install)
         btn_row.addWidget(self.install_btn)
@@ -1903,6 +1949,8 @@ class InstallDialog(QDialog):
         return bar
 
     def _target_path(self) -> str:
+        if self._patch_target:
+            return self._patch_target
         base = self.dest_edit.text().strip()
         if CONFIG["default_install_subfolder"]:
             return os.path.join(base, self.game.safe_folder_name)
@@ -1922,11 +1970,12 @@ class InstallDialog(QDialog):
             self.dest_edit.setText(folder)
 
     def _start_install(self):
-        base = self.dest_edit.text().strip()
-        if not base:
-            QMessageBox.warning(self, "No destination",
-                                "Please choose a folder to install the game into.")
-            return
+        if not self._patch_target:
+            base = self.dest_edit.text().strip()
+            if not base:
+                QMessageBox.warning(self, "No destination",
+                                    "Please choose a folder to install the game into.")
+                return
 
         target = self._target_path()
         self._install_target = target
@@ -2120,10 +2169,14 @@ class InstallDialog(QDialog):
 
     def _finish(self, path: str, defender_result):
         """Show the final completion dialog and close the install dialog."""
-        prefs = load_prefs()
-        prefs["install_path"] = self.dest_edit.text().strip()
-        save_prefs(prefs)
-        body = f"{self.game.name} was installed successfully.\n\nLocation:\n{path}"
+        if not self._patch_target:
+            prefs = load_prefs()
+            prefs["install_path"] = self.dest_edit.text().strip()
+            save_prefs(prefs)
+        if self._patch_target:
+            body = f"{self.game.name} fix was applied successfully.\n\nLocation:\n{path}"
+        else:
+            body = f"{self.game.name} was installed successfully.\n\nLocation:\n{path}"
         if defender_result is not None:
             ok, msg = defender_result
             icon = "✓" if ok else "⚠"
@@ -2413,10 +2466,22 @@ class MainWindow(QMainWindow):
 
     def _open_install(self, game: Game):
         _log.debug(
-            "_open_install  id=%r  name=%r  zip_url=%r  fix_url=%r",
-            game.id, game.name, game.zip_url, game.fix_url,
+            "_open_install  id=%r  name=%r  type=%r  zip_url=%r  fix_url=%r",
+            game.id, game.name, game.entry_type, game.zip_url, game.fix_url,
         )
-        InstallDialog(game, self).exec()
+        if game.is_patch:
+            steam_common = r"C:\Program Files (x86)\Steam\steamapps\common"
+            start_dir = steam_common if os.path.isdir(steam_common) else os.path.expanduser("~")
+            folder = QFileDialog.getExistingDirectory(
+                self,
+                f"Select game folder to apply '{game.name}' into",
+                start_dir,
+            )
+            if not folder:
+                return
+            InstallDialog(game, self, patch_target=folder).exec()
+        else:
+            InstallDialog(game, self).exec()
 
 
 # ---------------------------------------------------------------------------
@@ -2461,6 +2526,7 @@ QLabel { background-color: transparent; }
 #CardMeta { color: #8b93a7; font-size: 12px; }
 
 #BadgeAvailable { color: #2dd4bf; font-size: 12px; font-weight: 700; }
+#BadgeFix { color: #a78bfa; font-size: 12px; font-weight: 700; }
 #BadgeSoon {
     color: #fbbf24; font-size: 12px; font-weight: 700;
     background-color: #3a2f12; border-radius: 6px; padding: 3px 8px;
