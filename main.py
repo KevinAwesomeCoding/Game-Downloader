@@ -537,10 +537,13 @@ class Game:
         self.description = str(raw.get("description", "")).strip()
         self.version = str(raw.get("version", "")).strip()
         self.size = str(raw.get("size", "")).strip()
+        self.players = str(raw.get("players", "")).strip()
         self.thumbnail = str(raw.get("thumbnail", "")).strip()
         self.zip_url = str(raw.get("zipUrl", "")).strip()
         self.fix_url = str(raw.get("fixZipUrl", "")).strip()
         self.entry_type = str(raw.get("type", "game")).strip().lower()
+        _reqs = raw.get("requirements")
+        self.requirements = _reqs if isinstance(_reqs, dict) else {}
 
     @property
     def is_available(self) -> bool:
@@ -568,6 +571,240 @@ def parse_manifest(text: str) -> list:
     if not isinstance(data, list):
         raise ValueError("Manifest must be a JSON array of games.")
     return [Game(item) for item in data if isinstance(item, dict)]
+
+
+# ---------------------------------------------------------------------------
+# System spec detection + "will it run?" requirement matching.
+#
+# RAM, OS (version + bitness), free storage and DirectX are checked for real
+# and drive the verdict. CPU and GPU are shown for comparison only — reliably
+# deciding whether a CPU/GPU *model name* meets a requirement needs a benchmark
+# database, so we detect and display them and let the user judge rather than
+# lie with a fake pass/fail.
+# ---------------------------------------------------------------------------
+_SYSTEM_SPECS = None  # cached dict, computed once
+
+_WIN_NAME_TO_VER = {
+    "xp": 5.1, "vista": 6.0, "7": 7.0, "8": 8.0, "8.1": 8.1, "10": 10.0, "11": 11.0,
+}
+
+
+class _MEMORYSTATUSEX(ctypes.Structure):
+    _fields_ = [
+        ("dwLength", ctypes.c_ulong),
+        ("dwMemoryLoad", ctypes.c_ulong),
+        ("ullTotalPhys", ctypes.c_ulonglong),
+        ("ullAvailPhys", ctypes.c_ulonglong),
+        ("ullTotalPageFile", ctypes.c_ulonglong),
+        ("ullAvailPageFile", ctypes.c_ulonglong),
+        ("ullTotalVirtual", ctypes.c_ulonglong),
+        ("ullAvailVirtual", ctypes.c_ulonglong),
+        ("sullAvailExtendedVirtual", ctypes.c_ulonglong),
+    ]
+
+
+def _detect_ram_gb():
+    try:
+        stat = _MEMORYSTATUSEX()
+        stat.dwLength = ctypes.sizeof(stat)
+        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat)):
+            return stat.ullTotalPhys / (1024 ** 3)
+    except Exception:
+        pass
+    return None
+
+
+def _detect_cpu_name():
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE,
+            r"HARDWARE\DESCRIPTION\System\CentralProcessor\0",
+        ) as key:
+            return winreg.QueryValueEx(key, "ProcessorNameString")[0].strip()
+    except OSError:
+        return ""
+
+
+def _detect_gpu_name():
+    """Primary display adapter's DriverDesc. Best-effort, registry-only (no
+    subprocess, to avoid both latency and AV heuristics)."""
+    try:
+        base = (r"SYSTEM\CurrentControlSet\Control\Class"
+                r"\{4d36e968-e325-11ce-bfc1-08002be10318}")
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, base) as root:
+            i = 0
+            while True:
+                try:
+                    sub = winreg.EnumKey(root, i)
+                except OSError:
+                    break
+                i += 1
+                if not sub.isdigit():
+                    continue
+                try:
+                    with winreg.OpenKey(root, sub) as k:
+                        desc = winreg.QueryValueEx(k, "DriverDesc")[0].strip()
+                    if desc:
+                        return desc
+                except OSError:
+                    continue
+    except OSError:
+        pass
+    return ""
+
+
+def _detect_os():
+    """Return (display_name, numeric_version, is_64bit)."""
+    is64 = (os.environ.get("PROCESSOR_ARCHITECTURE", "").endswith("64") or
+            os.environ.get("PROCESSOR_ARCHITEW6432", "").endswith("64"))
+    try:
+        v = sys.getwindowsversion()
+    except Exception:
+        return ("Unknown OS", None, is64)
+    major, minor, build = v.major, v.minor, v.build
+    if major == 10 and build >= 22000:
+        return ("Windows 11", 11.0, is64)
+    if major == 10:
+        return ("Windows 10", 10.0, is64)
+    mapping = {
+        (6, 3): ("Windows 8.1", 8.1), (6, 2): ("Windows 8", 8.0),
+        (6, 1): ("Windows 7", 7.0), (6, 0): ("Windows Vista", 6.0),
+        (5, 1): ("Windows XP", 5.1),
+    }
+    if (major, minor) in mapping:
+        name, num = mapping[(major, minor)]
+        return (name, num, is64)
+    return (f"Windows {major}.{minor}", float(major), is64)
+
+
+def detect_system_specs():
+    """Detect and cache this PC's specs. Safe to call repeatedly."""
+    global _SYSTEM_SPECS
+    if _SYSTEM_SPECS is None:
+        os_name, os_ver, is64 = _detect_os()
+        _SYSTEM_SPECS = {
+            "os_name": os_name, "os_version": os_ver, "is_64bit": is64,
+            "ram_gb": _detect_ram_gb(),
+            "cpu_name": _detect_cpu_name(), "gpu_name": _detect_gpu_name(),
+        }
+        _log.debug("detect_system_specs  %r", _SYSTEM_SPECS)
+    return _SYSTEM_SPECS
+
+
+def _parse_gb(text):
+    """Pull a GB figure out of a requirement string like '8 GB' / '512 MB'."""
+    if not text:
+        return None
+    m = re.search(r"(\d+(?:\.\d+)?)\s*(TB|GB|MB)", str(text), re.IGNORECASE)
+    if not m:
+        return None
+    val, unit = float(m.group(1)), m.group(2).upper()
+    return val * 1024 if unit == "TB" else val / 1024 if unit == "MB" else val
+
+
+def _min_windows_version(os_req):
+    """Lowest Windows version named in the requirement (it's a floor)."""
+    if not os_req:
+        return None
+    found = [_WIN_NAME_TO_VER.get(t) for t in
+             re.findall(r"8\.1|11|10|\b8\b|\b7\b|vista|xp", os_req.lower())]
+    found = [f for f in found if f]
+    return min(found) if found else None
+
+
+def _free_space_gb(path):
+    """Free space (GB) on the drive of *path*, walking up to the nearest
+    existing directory since the install folder may not exist yet."""
+    target = path or os.path.expanduser("~")
+    while target and not os.path.isdir(target):
+        parent = os.path.dirname(target)
+        if parent == target:
+            break
+        target = parent
+    try:
+        return shutil.disk_usage(target).free / (1024 ** 3)
+    except OSError:
+        return None
+
+
+def evaluate_requirements(reqs, install_path=None):
+    """Compare a game's requirements dict against this PC.
+
+    Returns {'verdict': pass|warn|fail|unknown, 'summary': str,
+             'checks': [{'label','required','yours','status','note'}, ...]}.
+    """
+    if not reqs:
+        return {"verdict": "unknown",
+                "summary": "No system requirements are listed for this game.",
+                "checks": []}
+
+    specs = detect_system_specs()
+    checks = []
+
+    def add(label, required, yours, status, note=""):
+        checks.append({"label": label, "required": str(required or "—"),
+                       "yours": str(yours or "—"), "status": status, "note": note})
+
+    # OS — version floor + bitness
+    os_req = reqs.get("os", "")
+    if os_req:
+        bitness = " 64-bit" if specs["is_64bit"] else " 32-bit"
+        status, note = "pass", ""
+        floor = _min_windows_version(os_req)
+        if "64" in os_req and specs["is_64bit"] is False:
+            status, note = "fail", "This game needs 64-bit Windows."
+        elif floor and specs["os_version"] and specs["os_version"] < floor:
+            status, note = "fail", "Your Windows version is older than required."
+        add("OS", os_req, specs["os_name"] + bitness, status, note)
+
+    # RAM
+    ram_req = _parse_gb(reqs.get("ram"))
+    if ram_req:
+        yours = specs["ram_gb"]
+        if yours is None:
+            add("RAM", reqs.get("ram"), None, "unknown")
+        else:
+            ok = yours + 0.5 >= ram_req  # tolerate reserved/rounded RAM
+            add("RAM", reqs.get("ram"), f"{yours:.1f} GB",
+                "pass" if ok else "fail",
+                "" if ok else "You have less RAM than required.")
+
+    # Storage — free space on the install drive
+    store_req = _parse_gb(reqs.get("storage"))
+    if store_req:
+        free = _free_space_gb(install_path)
+        if free is None:
+            add("Storage", reqs.get("storage"), None, "unknown")
+        else:
+            ok = free >= store_req
+            add("Storage", reqs.get("storage"), f"{free:.1f} GB free",
+                "pass" if ok else "warn",
+                "" if ok else "Not enough free space — free some up first.")
+
+    # DirectX — Win10/11 ship DX12, which covers DX9–12 apps
+    dx_req = reqs.get("directx", "")
+    if dx_req:
+        m = re.search(r"(\d+)", dx_req)
+        dxnum = int(m.group(1)) if m else None
+        if dxnum and specs["os_version"] and specs["os_version"] >= 10 and dxnum <= 12:
+            add("DirectX", dx_req, "Included with Windows 10/11", "pass")
+        else:
+            add("DirectX", dx_req, "", "info")
+
+    # CPU / GPU — informational (see module note above)
+    if reqs.get("cpu"):
+        add("CPU", reqs.get("cpu"), specs["cpu_name"], "info")
+    if reqs.get("gpu"):
+        add("GPU", reqs.get("gpu"), specs["gpu_name"], "info")
+
+    statuses = [c["status"] for c in checks]
+    if "fail" in statuses:
+        verdict, summary = "fail", "This game may not run well on your PC."
+    elif "warn" in statuses:
+        verdict, summary = "warn", "This game should run — see the note below."
+    else:
+        verdict, summary = "pass", "This game should run on your PC."
+    return {"verdict": verdict, "summary": summary, "checks": checks}
 
 
 # ---------------------------------------------------------------------------
@@ -1968,6 +2205,12 @@ class GameCard(QFrame):
         meta.setObjectName("CardMeta")
         body.addWidget(meta)
 
+        if game.players:
+            players_lbl = QLabel(f"👥 {game.players}")
+            players_lbl.setObjectName("CardPlayers")
+            players_lbl.setWordWrap(True)
+            body.addWidget(players_lbl)
+
         if game.is_patch:
             badge = QLabel("⚙ Fix / Patch")
             badge.setObjectName("BadgeFix")
@@ -2079,12 +2322,17 @@ class InstallDialog(QDialog):
             meta_bits.append(f"Version {game.version}")
         if game.size:
             meta_bits.append(f"Size {game.size}")
+        if game.players:
+            meta_bits.append(f"👥 {game.players}")
         if game.has_fix:
             meta_bits.append("Includes repair patch")
         if meta_bits:
             meta = QLabel("   •   ".join(meta_bits))
             meta.setObjectName("CardMeta")
             root.addWidget(meta)
+
+        # "Will it run on your PC?" — compared against this game's requirements.
+        self._build_system_check(root)
 
         # Destination row — hidden for patch installs (folder already chosen).
         self._dest_label = self._label("Install location", "SectionLabel")
@@ -2198,6 +2446,65 @@ class InstallDialog(QDialog):
         if ret_label:
             return lbl, bar
         return bar
+
+    def _build_system_check(self, root):
+        """Render the 'will it run?' box from this game's requirements. No-op
+        when the game has no requirements listed."""
+        if not self.game.requirements:
+            return
+
+        # Storage is checked against the drive we'll install to. dest_edit
+        # doesn't exist yet, so resolve the same default path it will show.
+        default_dest = (load_prefs().get("install_path", "")
+                        or os.path.join(os.path.expanduser("~"), "Games"))
+        path_for_storage = self._patch_target or default_dest
+        result = evaluate_requirements(self.game.requirements, path_for_storage)
+
+        frame = QFrame()
+        frame.setObjectName("SysCheckBox")
+        box = QVBoxLayout(frame)
+        box.setContentsMargins(14, 10, 14, 12)
+        box.setSpacing(6)
+
+        verdict = QLabel(result["summary"])
+        verdict.setObjectName({
+            "pass": "SysVerdictPass", "warn": "SysVerdictWarn",
+            "fail": "SysVerdictFail",
+        }.get(result["verdict"], "SysVerdictUnknown"))
+        verdict.setWordWrap(True)
+        box.addWidget(verdict)
+
+        def esc(s):
+            return (str(s).replace("&", "&amp;")
+                    .replace("<", "&lt;").replace(">", "&gt;"))
+
+        icons = {"pass": ("✓", "#22c55e"), "fail": ("✗", "#f87171"),
+                 "warn": ("⚠", "#fbbf24"), "info": ("ℹ", "#8b93a7"),
+                 "unknown": ("?", "#8b93a7")}
+        rows = []
+        for c in result["checks"]:
+            icon, color = icons.get(c["status"], ("•", "#8b93a7"))
+            line = (f'<span style="color:{color};">{icon}</span> '
+                    f'<b>{esc(c["label"])}:</b> needs {esc(c["required"])}'
+                    f' &nbsp;·&nbsp; you: {esc(c["yours"])}')
+            if c["note"]:
+                line += f' <span style="color:#8b93a7;">— {esc(c["note"])}</span>'
+            rows.append(line)
+        if rows:
+            detail = QLabel("<br>".join(rows))
+            detail.setObjectName("SysCheckDetail")
+            detail.setTextFormat(Qt.TextFormat.RichText)
+            detail.setWordWrap(True)
+            box.addWidget(detail)
+
+        if any(c["status"] == "info" for c in result["checks"]):
+            tip = QLabel("ℹ CPU and GPU are shown for you to compare — they "
+                         "can't be auto-verified reliably.")
+            tip.setObjectName("SysCheckTip")
+            tip.setWordWrap(True)
+            box.addWidget(tip)
+
+        root.addWidget(frame)
 
     def _target_path(self) -> str:
         if self._patch_target:
@@ -2775,6 +3082,7 @@ QLabel { background-color: transparent; }
 #CardTitle { font-size: 16px; font-weight: 700; color: #ffffff; }
 #CardDesc { color: #aeb4c6; font-size: 13px; }
 #CardMeta { color: #8b93a7; font-size: 12px; }
+#CardPlayers { color: #93c5fd; font-size: 12px; font-weight: 600; }
 
 #BadgeAvailable { color: #2dd4bf; font-size: 12px; font-weight: 700; }
 #BadgeFix { color: #a78bfa; font-size: 12px; font-weight: 700; }
@@ -2782,6 +3090,18 @@ QLabel { background-color: transparent; }
     color: #fbbf24; font-size: 12px; font-weight: 700;
     background-color: #3a2f12; border-radius: 6px; padding: 3px 8px;
 }
+
+#SysCheckBox {
+    background-color: #161b2e;
+    border: 1px solid #232a42;
+    border-radius: 10px;
+}
+#SysVerdictPass { color: #22c55e; font-size: 14px; font-weight: 700; background: transparent; }
+#SysVerdictWarn { color: #fbbf24; font-size: 14px; font-weight: 700; background: transparent; }
+#SysVerdictFail { color: #f87171; font-size: 14px; font-weight: 700; background: transparent; }
+#SysVerdictUnknown { color: #8b93a7; font-size: 14px; font-weight: 700; background: transparent; }
+#SysCheckDetail { color: #c4cad8; font-size: 12px; background: transparent; }
+#SysCheckTip { color: #8b93a7; font-size: 11px; background: transparent; }
 
 #DialogTitle { font-size: 20px; font-weight: 700; color: #ffffff; }
 #SectionLabel { font-size: 13px; font-weight: 600; color: #c4cad8; margin-top: 4px; }

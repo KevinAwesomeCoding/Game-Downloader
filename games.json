@@ -5,15 +5,17 @@
     "description": "A silly multiplayer party game with wobbly gelatinous characters.",
     "version": "1.18.195",
     "size": "752 MB",
+    "players": "Up to 8 players online / 4 local",
     "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/285900/header.jpg",
     "zipUrl": "https://archive.org/download/gang-beasts_202606/Gang%20Beasts.zip",
     "fixZipUrl": "https://files.catbox.moe/d67oj8.zip",
     "requirements": {
       "os": "Windows 7",
-      "cpu": "2nd Gen Intel Core i3, AMD A6, or higher",
+      "cpu": "2nd generation Intel Core i3, AMD A6, or higher",
       "ram": "4 GB",
       "gpu": "Nvidia 8800 GT / AMD 5670 / Intel HD 3000",
-      "directx": "Version 10"
+      "directx": "Version 10",
+      "storage": "2 GB"
     }
   },
   {
@@ -22,14 +24,16 @@
     "description": "A first-person multiplayer horror experience.",
     "version": "0.2.6",
     "size": "1.4 GB",
+    "players": "Up to 4 players (online co-op)",
     "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2827200/12344cf4308921c50f6603b618dd197a2ec54263/header_alt_assets_1.jpg?t=1781504870",
     "zipUrl": "https://archive.org/download/mimesis.v-0.2.6.-multiplayer/MIMESIS.v0.2.6.Multiplayer.zip",
     "fixZipUrl": "",
     "requirements": {
-      "os": "Windows 10 64-bit",
+      "os": "Windows 10 64-bit or newer",
       "cpu": "Intel Core i3-8100 / AMD Ryzen 3 2200G",
       "ram": "8 GB",
-      "gpu": "NVIDIA GTX 1050 Ti 4GB / AMD RX 570 4GB"
+      "gpu": "NVIDIA GTX 1050 Ti 4GB / AMD RX 570 4GB",
+      "storage": "4 GB"
     }
   },
   {
@@ -38,14 +42,16 @@
     "description": "A wobbly physics-based puzzle platformer with open-ended creative levels.",
     "version": "1.0",
     "size": "2.1 GB",
+    "players": "Solo or up to 8 players co-op",
     "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/477160/header.jpg",
     "zipUrl": "https://archive.org/download/human.-fall.-flat_202606/Human.Fall.Flat.zip",
     "fixZipUrl": "",
     "requirements": {
-      "os": "Windows XP/Vista/7/8/10",
+      "os": "Windows XP/Vista/7/8/8.1/10",
       "cpu": "Intel Core2 Duo E6750 / AMD Athlon 64 X2 6000+",
       "ram": "1 GB",
-      "gpu": "GeForce GT 740 / Radeon HD 5770"
+      "gpu": "GeForce GT 740 2GB / Radeon HD 5770",
+      "storage": "500 MB"
     }
   },
   {
@@ -54,6 +60,7 @@
     "description": "A multiplayer game with strategy and chance elements. Installs from a RAR archive with a ZIP repair patch.",
     "version": "1.0.11",
     "size": "550 MB",
+    "players": "1-6 players (solo or online co-op)",
     "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3892270/395e6d7972474333a698b26f8aa5597bf38109a1/header.jpg?t=1778274309",
     "zipUrl": "https://archive.org/download/gameble-with-your-friends-v-1.0.11/Gameble%20With%20Your%20Friends%20v1.0.11.rar",
     "fixZipUrl": "https://files.catbox.moe/ugmph7.zip",
@@ -62,7 +69,8 @@
       "cpu": "Intel Core i5-6600",
       "ram": "8 GB",
       "gpu": "NVIDIA GTX 970",
-      "directx": "Version 11"
+      "directx": "Version 11",
+      "storage": "3 GB"
     }
   },
   {
@@ -71,13 +79,14 @@
     "description": "A fast-paced action game with challenging gameplay and vibrant visuals.",
     "version": "1.0",
     "size": "3.8 GB",
+    "players": "2-10 players (online PvP)",
     "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4704690/163e2a742e5fb8e1f5d1e3a890da98f04ab809d4/header.jpg?t=1781108224",
     "zipUrl": "https://archive.org/download/meccha-chameleon_202606/MECCHA%20CHAMELEON.zip",
     "fixZipUrl": "https://files.catbox.moe/su1vwl.zip",
     "requirements": {
       "os": "Windows 10 64-bit",
       "cpu": "Intel Core i5",
-      "gpu": "DirectX 11 or 12 compatible",
+      "gpu": "DirectX 11 or 12 compatible graphics card",
       "directx": "Version 11"
     }
   },
@@ -87,6 +96,7 @@
     "description": "A multiplayer party game of teamwork and betrayal in space.",
     "version": "17.3I",
     "size": "711 MB",
+    "players": "4-15 players",
     "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/945360/header.jpg",
     "zipUrl": "https://archive.org/download/among-us-to-u-mod/Among%20Us%20ToU%20Mod.zip",
     "fixZipUrl": "",
@@ -103,6 +113,7 @@
     "description": "Compete with up to 4 players to build the most successful hardware store! Design your shop, manage inventory, hire employees, and influence market prices in this detailed business simulator.",
     "version": "Early Access",
     "size": "271 MB",
+    "players": "1-4 players (solo or co-op)",
     "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/3358560/header.jpg",
     "zipUrl": "https://archive.org/download/hardware-store-simulator/Hardware%20Store%20Simulator.zip",
     "fixZipUrl": "https://files.catbox.moe/7v42l3.zip",
@@ -111,7 +122,8 @@
       "cpu": "Intel Core i5-3550",
       "ram": "8 GB",
       "gpu": "NVIDIA GeForce GTX 1050 4GB",
-      "directx": "Version 11"
+      "directx": "Version 11",
+      "storage": "5 GB"
     }
   },
   {
@@ -120,15 +132,17 @@
     "description": "A multiplayer online experience set in a sketchy bar where lying and bluffing are key to victory. Join a table of 4 and test your skills in Liar's Dice and Liar's Deck.",
     "version": "0.985",
     "size": "4.6 GB",
+    "players": "Up to 4 players (online)",
     "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/3097560/header.jpg",
     "zipUrl": "https://archive.org/download/liars-bar/Liars%20Bar.zip",
     "fixZipUrl": "https://files.catbox.moe/15p7h7.zip",
     "requirements": {
       "os": "Windows 10 64-bit",
-      "cpu": "Intel Core i5-4670 / AMD FX-4350",
+      "cpu": "Intel Core i5-4670 (quad-core) / AMD FX-4350 (quad-core)",
       "ram": "4 GB",
-      "gpu": "NVIDIA GTX 1050 2GB / AMD RX 460 4GB",
-      "directx": "Version 11"
+      "gpu": "NVIDIA GTX 1050 2GB / AMD RX 460 4GB / Intel Arc A380 6GB",
+      "directx": "Version 11",
+      "storage": "15 GB"
     }
   },
   {
@@ -137,6 +151,7 @@
     "description": "A punishing 2-4 player co-op driving game where one player can't see and the other can't drive. Navigate mountains, highways, and secret facilities together without destroying each other.",
     "version": "Early Access",
     "size": "2 GB",
+    "players": "2-4 players (online co-op)",
     "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3558400/2dc867af11f5ed2794aa5566ff9f5a0cb8efd978/header.jpg?t=1773298919",
     "zipUrl": "",
     "fixZipUrl": "https://drive.usercontent.google.com/download?id=1rCoowpFAJtLmFcdECXaC5nA6PaKj9y9_&export=download&confirm=t",
@@ -145,8 +160,9 @@
       "os": "Windows 10 64-bit",
       "cpu": "Quad-core CPU or equivalent",
       "ram": "4 GB",
-      "gpu": "DirectX 11 compatible, 2GB VRAM",
-      "directx": "Version 11"
+      "gpu": "DirectX 11 compatible with at least 2GB VRAM",
+      "directx": "Version 11",
+      "storage": "2 GB"
     }
   },
   {
@@ -155,15 +171,17 @@
     "description": "A 1-4 player co-op horror comedy where you take food delivery gigs in the afterlife. Finish the orders before sunrise or the underworld will claim you forever.",
     "version": "Early Access",
     "size": "2 GB",
+    "players": "1-4 players (solo or co-op)",
     "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3761880/a7747d30784d6a8b7e86198d5bd336715ae805c3/header.jpg?t=1781524054",
     "zipUrl": "https://drive.usercontent.google.com/download?id=1G5bPLPxxoptPEuAHicIfkTAHEm7ARNaa&export=download&confirm=t",
     "fixZipUrl": "https://files.catbox.moe/438ijn.rar",
     "requirements": {
       "os": "Windows 10",
-      "cpu": "Intel Core i5-7400 / AMD Ryzen 5 1400",
+      "cpu": "Intel Core i5-7400 @ 3.00GHz / AMD Ryzen 5 1400",
       "ram": "8 GB",
       "gpu": "GeForce GTX 1050 Ti / AMD R9 270X",
-      "directx": "Version 11"
+      "directx": "Version 11",
+      "storage": "2 GB"
     }
   },
   {
@@ -172,6 +190,7 @@
     "description": "The year is 1999. You're the last remaining video rental store. Run your shop, explore a low-poly open world, and build an underground empire with co-op multiplayer.",
     "version": "Early Access",
     "size": "8 GB",
+    "players": "1-4 players (solo or co-op)",
     "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3977290/027fdbc9a353708547f7452dd1395054bdc8afa1/header.jpg?t=1774388187",
     "zipUrl": "https://drive.usercontent.google.com/download?id=1dNSB4cWN94zO5PZuVT9yTWqzAo42SIQJ&export=download&confirm=t",
     "fixZipUrl": "https://files.catbox.moe/opuzil.rar",
@@ -179,7 +198,8 @@
       "os": "Windows 10 64-bit",
       "cpu": "3GHz 4-Core or similar",
       "ram": "8 GB",
-      "gpu": "GeForce GTX 1060 / Radeon RX 580"
+      "gpu": "GeForce GTX 1060 / Radeon RX 580",
+      "storage": "8 GB"
     }
   },
   {
@@ -188,15 +208,17 @@
     "description": "A multiplayer card game combining Old Maid gameplay with chaotic space station settings. Pick cards, find the Joker, and cut wires while avoiding elimination.",
     "version": "1.0",
     "size": "2 GB",
+    "players": "3+ players (online; solo via matchmaking)",
     "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3498650/426bf9536f4783a5c5b9cf068bd58946a1e4b399/header.jpg?t=1770277031",
     "zipUrl": "https://drive.usercontent.google.com/download?id=1cBq828jP_-Xa1tyeuuial08ezbbdph7n&export=download&confirm=t",
     "fixZipUrl": "https://drive.usercontent.google.com/download?id=1MPmM1h2bj1cVeP5E6amVdwOC-oOOX707&export=download&confirm=t",
     "requirements": {
       "os": "Windows 10 64-bit",
-      "cpu": "Intel Core i3-8130U 3.4GHz",
+      "cpu": "Intel Core i3-8130U 3.4 GHz",
       "ram": "4 GB",
-      "gpu": "NVIDIA GTX 770 / AMD R9 380",
-      "directx": "Version 12"
+      "gpu": "NVIDIA GeForce GTX 770 / AMD R9 380",
+      "directx": "Version 12",
+      "storage": "2 GB"
     }
   },
   {
@@ -205,6 +227,7 @@
     "description": "Mini-golf with traps, tricks, and tornados! Deploy your traps to mess with your opponents or find a new path to a hole-in-one!",
     "version": "1.0",
     "size": "5 GB",
+    "players": "Up to 8 players",
     "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2761350/35ef2a7ea9f5d60c0ec8e574ee2cd47c2499b70e/header.jpg?t=1768228614",
     "zipUrl": "https://drive.usercontent.google.com/download?id=11u1VUGHQHpuA-D6oRDnGVzDlh8ylCVdh&export=download&confirm=t",
     "fixZipUrl": "https://drive.usercontent.google.com/download?id=1Xe0Bsm0cZFunx9eZtzN2L-TDk-B0e8v5&export=download&confirm=t",
@@ -212,8 +235,9 @@
       "os": "Windows 7 64-bit or higher",
       "cpu": "Intel Core i3-2130 3.4GHz / AMD FX-6300 3.5GHz",
       "ram": "4 GB",
-      "gpu": "NVIDIA GTX 960 / AMD R9 280",
-      "directx": "Version 10"
+      "gpu": "Nvidia GTX 960 / AMD R9 280",
+      "directx": "Version 10",
+      "storage": "5 GB"
     }
   },
   {
@@ -222,6 +246,7 @@
     "description": "Find yourself trapped alone in a room with a ticking time bomb. Your friends have the manual to defuse it, but they can't see the bomb, so you're going to have to talk it out — fast!",
     "version": "1.0",
     "size": "1 GB",
+    "players": "2+ players (1 defuser + experts)",
     "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/341800/header.jpg?t=1699020889",
     "zipUrl": "https://drive.usercontent.google.com/download?id=1KIFCvy4uTHB9xEiO5mkRm8DhT_w-eB0I&export=download&confirm=t",
     "fixZipUrl": "https://drive.usercontent.google.com/download?id=1GCtvxgu-qlQ2ls3-RxwJBPeYtFVo44d-&export=download&confirm=t",
@@ -230,7 +255,8 @@
       "cpu": "1.5 GHz",
       "ram": "2 GB",
       "gpu": "256MB DirectX 9 compatible",
-      "directx": "Version 9"
+      "directx": "Version 9",
+      "storage": "1 GB"
     }
   },
   {
@@ -239,6 +265,7 @@
     "description": "Work together to survive the night shift in this challenging co-op PvE horror game. Serve your villagers as disgraced knights by evading danger and fulfilling their commands in a cursed kingdom.",
     "version": "Early Access",
     "size": "2 GB",
+    "players": "Solo or online co-op",
     "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4204530/f6d03e5943bb0bf6ae626fe5fdc485ec7c5bd9e0/header.jpg?t=1777696405",
     "zipUrl": "https://drive.usercontent.google.com/download?id=1Vnw8VSprJR-8EX2nqet01FXWFcJvQFCk&export=download&confirm=t",
     "fixZipUrl": "https://drive.usercontent.google.com/download?id=1SFnTYrkbWqIU1cV12NpEMDGqk9ABZwAA&export=download&confirm=t",
@@ -246,8 +273,9 @@
       "os": "Windows 11",
       "cpu": "Intel Core i5-750 or higher (4 threads)",
       "ram": "8 GB",
-      "gpu": "2GB VRAM or more",
-      "directx": "Version 12"
+      "gpu": "2 GB VRAM or more",
+      "directx": "Version 12",
+      "storage": "2 GB"
     }
   }
 ]
