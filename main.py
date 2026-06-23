@@ -1666,10 +1666,20 @@ class InstallWorker(QObject):
         try:
             os.makedirs(dest_dir, exist_ok=True)
             # x = extract with paths, -o = output dir, -y = assume yes,
-            # -bsp1 = progress to stdout, -bb1 = log names so output flows.
+            # -p = archive password, -bsp1 = progress to stdout,
+            # -bb1 = log names so output flows.
+            #
+            # online-fix RARs are password-protected (sometimes with encrypted
+            # headers, which is why a missing password fails outright instead of
+            # just blocking the data). 7-Zip ignores -p for archives that aren't
+            # encrypted, so passing it unconditionally is safe for plain RARs.
+            # stdin=DEVNULL ensures 7-Zip can never block waiting on a prompt.
+            _pwd = ZIP_PASSWORD.decode("utf-8", "ignore")
             proc = subprocess.Popen(
-                [seven, "x", rar_path, f"-o{dest_dir}", "-y", "-bsp1", "-bb1"],
+                [seven, "x", rar_path, f"-o{dest_dir}", "-y",
+                 f"-p{_pwd}", "-bsp1", "-bb1"],
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
                 creationflags=_NO_WINDOW,
             )
         except (OSError, ValueError) as exc:
