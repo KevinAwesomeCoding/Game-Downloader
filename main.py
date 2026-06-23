@@ -85,6 +85,10 @@ ZIP_PASSWORD = b"online-fix.me"
 REQUEST_TIMEOUT = (10, 30)
 DOWNLOAD_CHUNK = 64 * 1024  # 64 KiB
 
+# Optional Google Drive API key for the alt=media download fallback.
+# Leave as "" to disable the API fallback (interstitial scraping still works).
+GDRIVE_API_KEY = "AIzaSyBWA4KDNJFzRhhRW7HnA6HeGdMiN39MDtg"
+
 SPACEWAR_APP_ID = 480
 SETTINGS_FILE = "settings.json"
 
@@ -821,6 +825,167 @@ def _gdrive_confirm(session: "requests.Session", url: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Google Drive download (replaces _gdrive_confirm in the download path).
+# _gdrive_confirm above is kept intentionally for rollback but is no longer
+# called anywhere.
+# ---------------------------------------------------------------------------
+def _is_gdrive_url(url: str) -> bool:
+    return "drive.google.com" in url or "drive.usercontent.google.com" in url
+
+
+def _gdrive_file_id(url: str):
+    """Extract a Drive file id from any common link shape, or None.
+    Handles /file/d/<id>/, ?id=<id>, /d/<id>, and usercontent ?id=<id>."""
+    for pat in (r"/file/d/([^/?#]+)", r"[?&]id=([^&#]+)", r"/d/([^/?#]+)"):
+        m = re.search(pat, url)
+        if m:
+            return m.group(1)
+    return None
+
+
+_HTML_SNIFF = re.compile(rb"^\s*(<!doctype html|<html|<head|<body|<!--)", re.IGNORECASE)
+
+
+def _looks_like_html(head: bytes) -> bool:
+    return bool(_HTML_SNIFF.match(head))
+
+
+def _parse_gdrive_form(html: str):
+    """Pull the confirmation <form> action URL and ALL its hidden inputs.
+    Robust to attribute ordering (name-before-value or value-before-name)."""
+    form = re.search(r'<form[^>]+action="([^"]+)"[^>]*>(.*?)</form>',
+                     html, re.IGNORECASE | re.DOTALL)
+    if not form:
+        return None, {}
+    action = form.group(1).replace("&amp;", "&")
+    fields = {}
+    for tag in re.finditer(r'<input\b[^>]*>', form.group(2), re.IGNORECASE):
+        t = tag.group(0)
+        nm = re.search(r'name="([^"]*)"', t, re.IGNORECASE)
+        vm = re.search(r'value="([^"]*)"', t, re.IGNORECASE)
+        if nm:
+            fields[nm.group(1)] = vm.group(1) if vm else ""
+    return action, fields
+
+
+def _validate_not_html(path: str) -> bool:
+    """Final guard: reject (and delete) the file if we saved the warning page."""
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(512)
+    except OSError:
+        return False
+    if not head or _looks_like_html(head):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        return False
+    return True
+
+
+def download_gdrive(file_id: str, dest_path: str, progress_callback=None, *,
+                    api_key: str = None, session: "requests.Session" = None,
+                    cancel=None) -> bool:
+    """Download a *public* Google Drive file by id, handling the large-file
+    virus-scan interstitial automatically.
+
+    Returns True on success, False on any failure — network error, per-file
+    download quota, or the server handing us the HTML warning page instead of
+    the real file (in which case no bad file is left on disk).
+
+    progress_callback(bytes_downloaded, total_bytes): total_bytes is 0 when the
+    server doesn't report a Content-Length.
+    Optional: api_key enables the Drive-API fallback; cancel may be a
+    threading.Event or a zero-arg callable returning True to abort.
+    """
+    api_key = api_key or None  # treat "" (unset key) as no API fallback
+    owns_session = session is None
+    if owns_session:
+        session = requests.Session()
+        session.headers["User-Agent"] = (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+        )
+
+    def cancelled() -> bool:
+        if cancel is None:
+            return False
+        return cancel.is_set() if hasattr(cancel, "is_set") else bool(cancel())
+
+    def stream_to_disk(resp) -> bool:
+        total = resp.headers.get("Content-Length")
+        total = int(total) if total and total.isdigit() else 0
+        done = 0
+        first = True
+        with open(dest_path, "wb") as out:
+            for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK):
+                if cancelled():
+                    return False
+                if not chunk:
+                    continue
+                if first:
+                    first = False
+                    if _looks_like_html(chunk[:64]):
+                        return False          # headers lied; it's the warning page
+                out.write(chunk)
+                done += len(chunk)
+                if progress_callback is not None:
+                    progress_callback(done, total)
+        return done > 0
+
+    def fetch(url, params=None):
+        """-> ('file', ok) after streaming, ('html', text), or ('error', None)."""
+        try:
+            with session.get(url, params=params, stream=True,
+                             timeout=REQUEST_TIMEOUT, allow_redirects=True) as resp:
+                resp.raise_for_status()
+                if "text/html" in resp.headers.get("Content-Type", "").lower():
+                    return "html", resp.text
+                return "file", stream_to_disk(resp)
+        except requests.exceptions.RequestException:
+            return "error", None
+
+    def is_quota(html: str) -> bool:
+        h = html.lower()
+        return "too many users" in h or "exceeded" in h or "quota" in h
+
+    # 1) usercontent with confirm=t — fast path; small files + some large ones
+    kind, payload = fetch("https://drive.usercontent.google.com/download",
+                          {"id": file_id, "export": "download", "confirm": "t"})
+    if kind == "file" and payload:
+        return _validate_not_html(dest_path)
+    html = payload if kind == "html" else ""
+
+    # 2) scrape the interstitial form and resubmit (carries the required uuid/at)
+    if is_quota(html):
+        return False                          # per-file quota: no method fixes this
+    action, fields = _parse_gdrive_form(html)
+    if not action:
+        kind, payload = fetch("https://drive.google.com/uc",
+                              {"export": "download", "id": file_id})
+        if kind == "file" and payload:
+            return _validate_not_html(dest_path)
+        html = payload if kind == "html" else ""
+        if is_quota(html):
+            return False
+        action, fields = _parse_gdrive_form(html)
+    if action:
+        kind, payload = fetch(action, fields)
+        if kind == "file" and payload:
+            return _validate_not_html(dest_path)
+
+    # 3) Drive API alt=media — most stable transport, needs api_key + public file
+    if api_key:
+        kind, payload = fetch(f"https://www.googleapis.com/drive/v3/files/{file_id}",
+                              {"alt": "media", "key": api_key})
+        if kind == "file" and payload:
+            return _validate_not_html(dest_path)
+
+    return False
+
+
+# ---------------------------------------------------------------------------
 # Install worker (download + extract + optional fix merge) on its own QThread.
 # ---------------------------------------------------------------------------
 class InstallWorker(QObject):
@@ -1125,7 +1290,83 @@ class InstallWorker(QObject):
         self._emit_status(status_text, -1)
         session = requests.Session()
         session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-        url = _gdrive_confirm(session, url)
+
+        # Google Drive links route through the dedicated handler, which deals
+        # with the large-file virus-scan interstitial and validates that we got
+        # the file (not the HTML warning page). All other URLs fall through to
+        # the generic streaming path below. (_gdrive_confirm is retained above
+        # for rollback but no longer called.)
+        if _is_gdrive_url(url):
+            file_id = _gdrive_file_id(url)
+            _log.debug("_download GDRIVE route  file_id=%r  url=%s", file_id, url)
+            if not file_id:
+                self._cleanup_temp()
+                self.error.emit("Could not read the Google Drive file ID from the link.")
+                return False
+
+            stage_start = time.monotonic()
+            last_update = [stage_start]  # boxed so the closure can mutate it
+
+            def _gd_progress(done, total):
+                now = time.monotonic()
+                if now - last_update[0] < 0.3 and (total <= 0 or done < total):
+                    return  # throttle UI updates to ~3/sec
+                last_update[0] = now
+                elapsed = now - stage_start
+                if total > 0:
+                    pct = int(done * 100 / total)
+                    progress_signal.emit(pct)
+                    self._stage_progress[stage_idx] = pct
+                    speed = done / elapsed if elapsed > 0 else 0
+                    remaining = total - done
+                    eta = remaining / speed if speed > 0 else 0
+                    speed_str = f"{speed / 1e6:.1f} MB/s" if speed > 0 else "calculating..."
+                    eta_str = self._fmt_time(eta) if eta > 0 else "calculating..."
+                    bytes_str = f"{self._fmt_bytes(done)} / {self._fmt_bytes(total)}"
+                    self.speed_text.emit(speed_str)
+                    self.eta_text.emit(f"{eta_str} remaining")
+                    self._emit_status(status_text, pct, bytes_str)
+                    self._update_overall_progress()
+                else:
+                    progress_signal.emit(-1)  # indeterminate
+                    self._emit_status(status_text, -1, f"{self._fmt_bytes(done)}")
+
+            try:
+                ok = download_gdrive(file_id, dest_file, _gd_progress,
+                                     session=session,
+                                     cancel=self._cancel,
+                                     api_key=GDRIVE_API_KEY)
+            except OSError as exc:
+                _log.debug("_download GDRIVE OSError  stage=%d  %s", stage_idx, exc)
+                self._cleanup_temp()
+                self.error.emit(f"Could not write the downloaded file:\n{exc}")
+                return False
+
+            if self._cancel.is_set():
+                self._abort()
+                return False
+            if not ok:
+                self._cleanup_temp()
+                self.error.emit(
+                    "Google Drive download failed.\n\n"
+                    "The file may be private, the per-file download quota may be "
+                    "exceeded, or Google returned its virus-scan warning page "
+                    "instead of the file. Please try again later."
+                )
+                return False
+
+            progress_signal.emit(100)
+            self._stage_progress[stage_idx] = 100
+            self._update_overall_progress()
+            try:
+                with open(dest_file, "rb") as _probe:
+                    _first16 = _probe.read(16)
+                _log.debug("_download GDRIVE DONE  stage=%d  first16=%s (%r)",
+                           stage_idx, _first16.hex(), _first16[:16])
+            except OSError:
+                pass
+            return True
+
         try:
             with session.get(url, stream=True, timeout=REQUEST_TIMEOUT) as resp:
                 _log.debug(

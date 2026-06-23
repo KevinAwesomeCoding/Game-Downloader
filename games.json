@@ -78,5 +78,36 @@
     "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/3097560/header.jpg",
     "zipUrl": "https://archive.org/download/liars-bar/Liars%20Bar.zip",
     "fixZipUrl": "https://files.catbox.moe/15p7h7.zip"
+  },
+  {
+    "id": "backseat-drivers",
+    "name": "Backseat Drivers",
+    "description": "A punishing 2-4 player co-op driving game where one player can't see and the other can't drive. Navigate mountains, highways, and secret facilities together without destroying each other.",
+    "version": "Early Access",
+    "size": "2 GB",
+    "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/3558400/header.jpg",
+    "zipUrl": "",
+    "fixZipUrl": "https://files.catbox.moe/ovj2zf.rar",
+    "type": "fix"
+  },
+  {
+    "id": "night-shippers",
+    "name": "Night Shippers",
+    "description": "A 1-4 player co-op horror comedy where you take food delivery gigs in the afterlife. Finish the orders before sunrise or the underworld will claim you forever.",
+    "version": "Early Access",
+    "size": "2 GB",
+    "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/3761880/header.jpg",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1G5bPLPxxoptPEuAHicIfkTAHEm7ARNaa&export=download&confirm=t",
+    "fixZipUrl": "https://files.catbox.moe/438ijn.rar"
+  },
+  {
+    "id": "rewind-99",
+    "name": "Rewind 99",
+    "description": "The year is 1999. You're the last remaining video rental store. Run your shop, explore a low-poly open world, and build an underground empire with co-op multiplayer.",
+    "version": "Early Access",
+    "size": "8 GB",
+    "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/3977290/header.jpg",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1dNSB4cWN94zO5PZuVT9yTWqzAo42SIQJ&export=download&confirm=t",
+    "fixZipUrl": "https://files.catbox.moe/opuzil.rar"
   }
 ]
