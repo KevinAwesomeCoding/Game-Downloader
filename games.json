@@ -2,7 +2,6 @@
   {
     "id": "gang-beasts",
     "name": "Gang Beasts",
-    "type": "game",
     "description": "A silly multiplayer party game with wobbly gelatinous characters.",
     "version": "1.18.195",
     "size": "752 MB",
@@ -13,7 +12,6 @@
   {
     "id": "mimesis",
     "name": "MIMESIS",
-    "type": "game",
     "description": "A first-person multiplayer horror experience.",
     "version": "0.2.6",
     "size": "1.4 GB",
@@ -24,7 +22,6 @@
   {
     "id": "human-fall-flat",
     "name": "Human Fall Flat",
-    "type": "game",
     "description": "A wobbly physics-based puzzle platformer with open-ended creative levels.",
     "version": "1.0",
     "size": "2.1 GB",
@@ -35,7 +32,6 @@
   {
     "id": "gamble-with-your-friends",
     "name": "Gamble With Your Friends",
-    "type": "game",
     "description": "A multiplayer game with strategy and chance elements. Installs from a RAR archive with a ZIP repair patch.",
     "version": "1.0.11",
     "size": "550 MB",
@@ -46,7 +42,6 @@
   {
     "id": "meccha-chameleon",
     "name": "MECCHA CHAMELEON",
-    "type": "game",
     "description": "A fast-paced action game with challenging gameplay and vibrant visuals.",
     "version": "1.0",
     "size": "3.8 GB",
@@ -57,7 +52,6 @@
   {
     "id": "among-us",
     "name": "Among Us",
-    "type": "game",
     "description": "A multiplayer party game of teamwork and betrayal in space.",
     "version": "17.3I",
     "size": "711 MB",
@@ -68,7 +62,6 @@
   {
     "id": "hardware-store-simulator",
     "name": "Hardware Store Simulator",
-    "type": "game",
     "description": "Compete with up to 4 players to build the most successful hardware store! Design your shop, manage inventory, hire employees, and influence market prices in this detailed business simulator.",
     "version": "Early Access",
     "size": "271 MB",
@@ -79,7 +72,6 @@
   {
     "id": "liars-bar",
     "name": "Liar's Bar",
-    "type": "game",
     "description": "A multiplayer online experience set in a sketchy bar where lying and bluffing are key to victory. Join a table of 4 and test your skills in Liar's Dice and Liar's Deck.",
     "version": "0.985",
     "size": "4.6 GB",
