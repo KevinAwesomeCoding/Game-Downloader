@@ -3442,6 +3442,7 @@ class MainWindow(QMainWindow):
         self._spacewar_check_done = False  # fires at most once per session
         self._update_thread = None
         self._update_worker = None
+        self._current_games: list = []
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -3593,6 +3594,18 @@ class MainWindow(QMainWindow):
         page = QWidget()
         lay = QVBoxLayout(page)
         lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+
+        search_row = QWidget()
+        sr_lay = QHBoxLayout(search_row)
+        sr_lay.setContentsMargins(24, 14, 24, 10)
+        self._search_bar = QLineEdit()
+        self._search_bar.setPlaceholderText("Search games...")
+        self._search_bar.setClearButtonEnabled(True)
+        self._search_bar.textChanged.connect(self._on_search_changed)
+        sr_lay.addWidget(self._search_bar)
+        lay.addWidget(search_row)
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setObjectName("Scroll")
@@ -3631,6 +3644,8 @@ class MainWindow(QMainWindow):
     @pyqtSlot(list, str)
     def _on_manifest_loaded(self, games, source):
         self._teardown_manifest_thread()
+        self._current_games = games
+        self._search_bar.clear()
         self._populate_cards(games)
         stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
         self.updated_label.setText(f"Last updated {stamp}  ·  {source}")
@@ -3694,6 +3709,14 @@ class MainWindow(QMainWindow):
         """Manual button handler — always launches, ignores the one-time flag."""
         self._do_launch_spacewar()
 
+    def _on_search_changed(self, text: str):
+        q = text.strip().lower()
+        filtered = (
+            [g for g in self._current_games if q in g.name.lower()]
+            if q else self._current_games
+        )
+        self._populate_cards(filtered)
+
     def _populate_cards(self, games):
         while self.cards_layout.count():
             item = self.cards_layout.takeAt(0)
@@ -3702,7 +3725,9 @@ class MainWindow(QMainWindow):
                 w.deleteLater()
 
         if not games:
-            placeholder = QLabel("No games are available right now.")
+            searching = self._search_bar.text().strip() if hasattr(self, "_search_bar") else ""
+            msg = "No games match your search." if searching else "No games are available right now."
+            placeholder = QLabel(msg)
             placeholder.setObjectName("SubInfo")
             self.cards_layout.addWidget(placeholder)
             return
