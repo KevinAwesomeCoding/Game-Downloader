@@ -277,5 +277,42 @@
       "directx": "Version 12",
       "storage": "2 GB"
     }
+  },
+  {
+    "id": "mage-arena",
+    "name": "Mage Arena",
+    "description": "A co-op PvP experience about using your voice to cast spells in the Mage Arena to settle an ages-old feud between sorcerers and warlocks.",
+    "version": "Early Access",
+    "size": "2 GB",
+    "players": "Up to 4v4 or 1v1 duels",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3716600/e09e178465c67642c1214736e29d64846d966e52/header.jpg?t=1754585254",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1m09DsjnBTNmwqJhfgypHWTHrSMNBlynz&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1OKeexiEA1h7fpq0wEZEPT60oKTUSAkDb&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i5-7400",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GeForce GTX 1060",
+      "directx": "Version 11",
+      "storage": "2 GB"
+    }
+  },
+  {
+    "id": "jackbox-party-pack-11",
+    "name": "The Jackbox Party Pack 11",
+    "description": "5 new party games for your game night! Destroy wholesome jokes in Doominate, record your voice in Hear Say, create kookiness in Cookie Haus, sleuth through social clues in Suspectives, and collaborate in Legends of Trivia.",
+    "version": "1.0",
+    "size": "3 GB",
+    "players": "1-8 players",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3364070/35c35317cc3f6ac5733896ab00c4cfbd5a1a025d/header.jpg?t=1774630140",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1ooO3iW4ffNEhVenkCketIgBo0KlifjO2&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1j5jk_M-TT8SgQMnsR7NDa5MYbcPcQ5rx&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Core 2 Duo 2.66 GHz or greater",
+      "ram": "4 GB",
+      "gpu": "GeForce 500+ / Radeon 5000+ or greater",
+      "storage": "3 GB"
+    }
   }
 ]
