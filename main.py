@@ -2364,7 +2364,7 @@ class InstallDialog(QDialog):
             "Add this install folder to Microsoft Defender exclusions  "
             "(Admin required)"
         )
-        self.defender_check.setChecked(False)
+        self.defender_check.setChecked(True)
         root.addWidget(self.defender_check)
         self.defender_warn = QLabel(
             "⚠  This reduces antivirus scanning for this folder."
