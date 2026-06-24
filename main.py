@@ -93,6 +93,11 @@ GDRIVE_API_KEY = "AIzaSyBWA4KDNJFzRhhRW7HnA6HeGdMiN39MDtg"
 SPACEWAR_APP_ID = 480
 SETTINGS_FILE = "settings.json"
 
+# Current build version.  Set this to match the semver in the VERSION file
+# before each release so the self-update check knows what is installed.
+VERSION = "v1.0.0"
+RELEASES_API = "https://api.github.com/repos/KevinAwesomeCoding/Game-Downloader/releases/latest"
+
 # ---------------------------------------------------------------------------
 # DEBUG — temporary instrumentation to diagnose fixZipUrl download failures.
 # Remove this block and all _log.* calls once the root cause is confirmed.
@@ -116,6 +121,7 @@ def app_dir() -> str:
 
 # Hide the console window when launching 7-Zip from a windowed app. bruh
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+_DETACHED_PROCESS = 0x00000008  # Windows: child survives after parent exits
 _SEVENZIP_PATH = None  # cached result of find_7zip()
 _SEVENZIP_SEARCHED = False
 
@@ -154,6 +160,47 @@ def find_7zip():
     _SEVENZIP_PATH = next((p for p in candidates if p and os.path.exists(p)), None)
     _SEVENZIP_SEARCHED = True
     return _SEVENZIP_PATH
+
+
+def _parse_version(tag: str) -> tuple:
+    """Return (major, minor, patch) ints from a tag like 'v1.2.3' or 'v1.2.3-20260624-42'."""
+    core = tag.lstrip("v").split("-")[0]
+    parts = core.split(".")
+    try:
+        return tuple(int(p) for p in parts[:3])
+    except ValueError:
+        return (0, 0, 0)
+
+
+def _launch_update_bat(new_exe: str, current_exe: str) -> None:
+    """Write and launch a detached .bat that waits for this process to exit,
+    atomically replaces current_exe with new_exe, relaunches, then self-deletes.
+
+    On Windows a running exe cannot be overwritten directly, so the bat polls
+    for the PID to disappear before issuing the move.
+    """
+    pid = os.getpid()
+    fd, bat_path = tempfile.mkstemp(suffix=".bat", prefix="gameupdate_")
+    os.close(fd)
+    script = (
+        "@echo off\n"
+        ":wait\n"
+        f'tasklist /FI "PID eq {pid}" 2>NUL | find "{pid}" >NUL\n'
+        "if not errorlevel 1 (\n"
+        "    timeout /t 1 /nobreak >nul\n"
+        "    goto wait\n"
+        ")\n"
+        f'move /y "{new_exe}" "{current_exe}"\n'
+        f'start "" "{current_exe}"\n'
+        'del "%~f0"\n'
+    )
+    with open(bat_path, "w", encoding="ascii") as fh:
+        fh.write(script)
+    subprocess.Popen(
+        ["cmd.exe", "/c", bat_path],
+        creationflags=_DETACHED_PROCESS | _NO_WINDOW,
+        close_fds=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1001,6 +1048,72 @@ class DefenderWorker(QObject):
     def run(self):
         success, message = add_defender_exclusions(self.folders)
         self.finished.emit(success, message)
+
+
+# ---------------------------------------------------------------------------
+# Self-update workers
+# ---------------------------------------------------------------------------
+class UpdateChecker(QObject):
+    """Fetches the latest GitHub release and signals if a newer version exists."""
+    update_available = pyqtSignal(str, str)  # tag_name, exe_download_url
+
+    @pyqtSlot()
+    def run(self):
+        try:
+            resp = requests.get(
+                RELEASES_API,
+                timeout=(5, 10),
+                headers={
+                    "Accept": "application/vnd.github+json",
+                    "User-Agent": "GameInstaller-updater",
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            tag = data.get("tag_name", "")
+            if not tag or _parse_version(tag) <= _parse_version(VERSION):
+                return
+            exe_url = next(
+                (a["browser_download_url"] for a in data.get("assets", [])
+                 if a.get("name", "").endswith(".exe")),
+                None,
+            )
+            if exe_url:
+                self.update_available.emit(tag, exe_url)
+        except Exception:
+            pass  # fail silently — update check must never affect normal operation
+
+
+class UpdateDownloadWorker(QObject):
+    """Downloads the new release exe to a temp file."""
+    progress = pyqtSignal(int)   # 0-100, or -1 for indeterminate
+    success = pyqtSignal(str)    # path to downloaded temp file
+    error = pyqtSignal(str)
+
+    def __init__(self, url: str):
+        super().__init__()
+        self.url = url
+
+    @pyqtSlot()
+    def run(self):
+        try:
+            fd, dest = tempfile.mkstemp(suffix=".exe", prefix="GameInstaller_update_")
+            os.close(fd)
+            with requests.get(self.url, stream=True, timeout=REQUEST_TIMEOUT) as resp:
+                resp.raise_for_status()
+                total = int(resp.headers.get("Content-Length") or 0)
+                done = 0
+                with open(dest, "wb") as fh:
+                    for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK):
+                        if not chunk:
+                            continue
+                        fh.write(chunk)
+                        done += len(chunk)
+                        self.progress.emit(int(done * 100 / total) if total else -1)
+            self.progress.emit(100)
+            self.success.emit(dest)
+        except Exception as exc:
+            self.error.emit(str(exc))
 
 
 # ---------------------------------------------------------------------------
@@ -3191,6 +3304,131 @@ class DownloadsPage(QWidget):
 
 
 # ---------------------------------------------------------------------------
+# Self-update dialog
+# ---------------------------------------------------------------------------
+class UpdateDialog(QDialog):
+    def __init__(self, tag: str, exe_url: str, parent=None):
+        super().__init__(parent)
+        self.tag = tag
+        self.exe_url = exe_url
+        self._thread = None
+        self._worker = None
+        self._new_exe: str | None = None
+
+        self.setWindowTitle("Update available")
+        self.setMinimumWidth(420)
+        self.setModal(True)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(24, 24, 24, 24)
+        root.setSpacing(12)
+
+        title = QLabel(f"Version {tag} is available")
+        title.setObjectName("DialogTitle")
+        root.addWidget(title)
+
+        sub = QLabel(
+            "A new version of Game Installer is ready.\n"
+            "The app will restart automatically after downloading."
+        )
+        sub.setObjectName("CardDesc")
+        sub.setWordWrap(True)
+        root.addWidget(sub)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setVisible(False)
+        root.addWidget(self.progress_bar)
+
+        self.status_label = QLabel("")
+        self.status_label.setObjectName("CardMeta")
+        self.status_label.setVisible(False)
+        root.addWidget(self.status_label)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch(1)
+        self.later_btn = QPushButton("Later")
+        self.later_btn.clicked.connect(self.reject)
+        btn_row.addWidget(self.later_btn)
+        self.update_btn = QPushButton("Update")
+        self.update_btn.setObjectName("PrimaryButton")
+        self.update_btn.clicked.connect(self._start_download)
+        btn_row.addWidget(self.update_btn)
+        root.addLayout(btn_row)
+
+    def _start_download(self):
+        self.update_btn.setEnabled(False)
+        self.later_btn.setEnabled(False)
+        self.progress_bar.setVisible(True)
+        self.status_label.setText("Downloading update…")
+        self.status_label.setVisible(True)
+
+        self._thread = QThread()
+        self._worker = UpdateDownloadWorker(self.exe_url)
+        self._worker.moveToThread(self._thread)
+        self._thread.started.connect(self._worker.run)
+        self._worker.progress.connect(self._on_progress)
+        self._worker.success.connect(self._on_success)
+        self._worker.error.connect(self._on_error)
+        self._thread.start()
+
+    def _teardown_thread(self):
+        if self._thread is not None:
+            self._thread.quit()
+            self._thread.wait()
+            self._worker.deleteLater()
+            self._thread.deleteLater()
+            self._worker = None
+            self._thread = None
+
+    @pyqtSlot(int)
+    def _on_progress(self, value):
+        if value < 0:
+            self.progress_bar.setRange(0, 0)
+        else:
+            self.progress_bar.setRange(0, 100)
+            self.progress_bar.setValue(value)
+
+    @pyqtSlot(str)
+    def _on_success(self, path):
+        self._teardown_thread()
+        self._new_exe = path
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(100)
+        self.status_label.setText("Download complete — restarting…")
+        QTimer.singleShot(800, self._apply_update)
+
+    @pyqtSlot(str)
+    def _on_error(self, message):
+        self._teardown_thread()
+        self.status_label.setText(f"Update failed: {message}")
+        self.later_btn.setEnabled(True)
+        self.later_btn.setText("Close")
+
+    def _apply_update(self):
+        if not self._new_exe or not os.path.isfile(self._new_exe):
+            self.status_label.setText("Update file missing. Please restart manually.")
+            return
+        if not getattr(sys, "frozen", False):
+            self.status_label.setText(
+                "Self-update is only supported for the .exe build."
+            )
+            self.later_btn.setEnabled(True)
+            self.later_btn.setText("Close")
+            return
+        _launch_update_bat(self._new_exe, sys.executable)
+        QApplication.quit()
+
+    def closeEvent(self, event):
+        # Block the close button while a download is in progress.
+        if self._thread is not None:
+            event.ignore()
+        else:
+            event.accept()
+
+
+# ---------------------------------------------------------------------------
 # Main window
 # ---------------------------------------------------------------------------
 class MainWindow(QMainWindow):
@@ -3202,6 +3440,8 @@ class MainWindow(QMainWindow):
         self.manifest_thread = None
         self.manifest_worker = None
         self._spacewar_check_done = False  # fires at most once per session
+        self._update_thread = None
+        self._update_worker = None
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -3226,6 +3466,8 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.downloads_page)
 
         self.load_manifest()
+        # Defer update check so the window is painted before any network I/O.
+        QTimer.singleShot(2000, self._start_update_check)
 
     def closeEvent(self, event):
         # Stop any in-flight downloads so no QThread is left running at exit.
@@ -3233,7 +3475,30 @@ class MainWindow(QMainWindow):
             self.download_manager.shutdown()
         except Exception:
             pass
+        if self._update_thread is not None:
+            self._update_thread.quit()
+            self._update_thread.wait()
         super().closeEvent(event)
+
+    # -- self-update ----------------------------------------------------------
+    def _start_update_check(self):
+        self._update_thread = QThread()
+        self._update_worker = UpdateChecker()
+        self._update_worker.moveToThread(self._update_thread)
+        self._update_thread.started.connect(self._update_worker.run)
+        self._update_worker.update_available.connect(self._on_update_available)
+        self._update_thread.finished.connect(self._update_thread.deleteLater)
+        self._update_thread.start()
+
+    @pyqtSlot(str, str)
+    def _on_update_available(self, tag: str, exe_url: str):
+        if self._update_thread is not None:
+            self._update_thread.quit()
+            self._update_thread.wait()
+            self._update_worker.deleteLater()
+            self._update_thread = None
+            self._update_worker = None
+        UpdateDialog(tag, exe_url, parent=self).exec()
 
     def _update_downloads_badge(self, active):
         self.downloads_btn.setText("Downloads" if active == 0 else f"Downloads ({active})")
