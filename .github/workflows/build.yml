@@ -12,6 +12,7 @@ on:
       - 'README.md'
       - 'version_info.txt'
       - '.github/workflows/**'
+    tags: ['v*']
   workflow_dispatch:
 
 jobs:
@@ -40,6 +41,13 @@ jobs:
           New-Item -ItemType Directory -Force bin | Out-Null
           Copy-Item "C:\Program Files\7-Zip\7z.exe" bin\
           Copy-Item "C:\Program Files\7-Zip\7z.dll" bin\
+
+      - name: Inject VERSION into main.py
+        shell: pwsh
+        run: |
+          $tag = if ('${{ github.ref_type }}' -eq 'tag') { '${{ github.ref_name }}' } else { 'v0.0.0' }
+          (Get-Content main.py) -replace '^VERSION = ".*"$', "VERSION = `"$tag`"" |
+            Set-Content main.py -Encoding UTF8
 
       - name: Generate release tag
         id: tag
