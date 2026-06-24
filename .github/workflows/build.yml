@@ -34,6 +34,13 @@ jobs:
           pip install -r requirements.txt
           pip install "pyinstaller>=6.0"
 
+      - name: Bundle 7-Zip binaries
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force bin | Out-Null
+          Copy-Item "C:\Program Files\7-Zip\7z.exe" bin\
+          Copy-Item "C:\Program Files\7-Zip\7z.dll" bin\
+
       - name: Generate release tag
         id: tag
         shell: pwsh
@@ -56,6 +63,8 @@ jobs:
           --collect-all PyQt6
           --hidden-import PyQt6.sip
           --contents-directory .
+          --add-data "bin/7z.exe;bin"
+          --add-data "bin/7z.dll;bin"
           --name "GameInstaller"
           main.py
 
@@ -81,6 +90,8 @@ jobs:
           --version-file version_info.txt
           --collect-all PyQt6
           --hidden-import PyQt6.sip
+          --add-data "bin/7z.exe;bin"
+          --add-data "bin/7z.dll;bin"
           --name "GameInstaller"
           main.py
 

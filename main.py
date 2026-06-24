@@ -7,10 +7,11 @@ Built with PyQt6 + requests. Two-stage install:
      matching files and merging folders recursively — with smart
      wrapper-folder detection so the patch never nests one level too deep.
 
-Archives may be ZIP (handled natively with the zipfile module) or RAR
-(extracted via 7-Zip when it is installed). The type is detected from the file
-signature, falling back to the URL extension. If a .rar is encountered without
-7-Zip available, a friendly error is shown instead of crashing.
+Archives may be ZIP (handled natively with the zipfile module), RAR, or 7Z
+(both extracted via a bundled 7-Zip binary). The type is detected from the file
+signature, falling back to the URL extension. ZIP_PASSWORD is passed
+automatically for all password-protected archives; non-protected archives
+ignore it silently.
 
 Threading model
 ---------------
@@ -120,15 +121,26 @@ _SEVENZIP_SEARCHED = False
 
 
 def find_7zip():
-    """Locate a 7-Zip executable for RAR extraction (cached).
+    """Locate a 7-Zip executable (cached).
 
-    Looks on PATH (7z / 7za) and in the standard Windows install folders.
-    Returns the executable path, or None if 7-Zip is not available.
+    Checks for a bundled copy first (placed next to the exe by PyInstaller),
+    then falls back to any system install on PATH or in Program Files.
+    Returns the executable path, or None if 7-Zip is unavailable.
     """
     global _SEVENZIP_PATH, _SEVENZIP_SEARCHED
     if _SEVENZIP_SEARCHED:
         return _SEVENZIP_PATH
 
+    # 1. Bundled copy — present in both onedir and onefile PyInstaller builds.
+    if getattr(sys, "frozen", False):
+        base = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+        candidate = os.path.join(base, "bin", "7z.exe")
+        if os.path.exists(candidate):
+            _SEVENZIP_PATH = candidate
+            _SEVENZIP_SEARCHED = True
+            return _SEVENZIP_PATH
+
+    # 2. System install fallback (useful during development).
     candidates = []
     for name in ("7z", "7za", "7zr"):
         found = shutil.which(name)
@@ -1311,7 +1323,13 @@ class InstallWorker(QObject):
     def _new_temp_archive(self, url: str) -> str:
         # Give the temp file the right extension so 7-Zip / zipfile and any
         # signature-agnostic tooling behave predictably.
-        suffix = ".rar" if url.lower().split("?")[0].endswith(".rar") else ".zip"
+        low = url.lower().split("?")[0]
+        if low.endswith(".rar"):
+            suffix = ".rar"
+        elif low.endswith(".7z"):
+            suffix = ".7z"
+        else:
+            suffix = ".zip"
         fd, path = tempfile.mkstemp(suffix=suffix, prefix="gameinstall_")
         os.close(fd)
         self._temp_files.append(path)
@@ -1713,7 +1731,7 @@ class InstallWorker(QObject):
     # -- extraction (ZIP via zipfile, RAR via 7-Zip) ------------------------
     @staticmethod
     def _archive_kind(path, url):
-        """Return 'zip', 'rar', or None — signature first, extension fallback."""
+        """Return 'zip', 'rar', '7z', or None — signature first, extension fallback."""
         try:
             with open(path, "rb") as fh:
                 sig = fh.read(8)
@@ -1721,15 +1739,19 @@ class InstallWorker(QObject):
             sig = b""
 
         if sig.startswith(b"PK"):
-            kind = "zip"           # PK\x03\x04 / PK\x05\x06 / PK\x07\x08
+            kind = "zip"                       # PK\x03\x04 / \x05\x06 / \x07\x08
         elif sig.startswith(b"Rar!"):
-            kind = "rar"           # RAR4 and RAR5
+            kind = "rar"                       # RAR4 and RAR5
+        elif sig.startswith(b"7z\xbc\xaf\x27\x1c"):
+            kind = "7z"                        # 7-Zip
         else:
             low = url.lower().split("?")[0]
             if low.endswith(".zip"):
                 kind = "zip"
             elif low.endswith(".rar"):
                 kind = "rar"
+            elif low.endswith(".7z"):
+                kind = "7z"
             else:
                 kind = None
 
@@ -1747,12 +1769,12 @@ class InstallWorker(QObject):
         kind = self._archive_kind(archive_path, url)
         if kind == "zip":
             return self._extract_zip(archive_path, dest_dir, progress_signal, stage_idx=stage_idx)
-        if kind == "rar":
+        if kind in ("rar", "7z"):
             return self._extract_rar(archive_path, dest_dir, progress_signal, stage_idx=stage_idx)
         self._cleanup_temp()
         self.error.emit(
             "Unsupported archive format.\n"
-            "Only .zip and .rar downloads are supported."
+            "Only .zip, .rar, and .7z downloads are supported."
         )
         return False
 
@@ -1893,10 +1915,9 @@ class InstallWorker(QObject):
         if not seven:
             self._cleanup_temp()
             self.error.emit(
-                "This download is a .rar archive, which requires 7-Zip to "
-                "extract — but 7-Zip was not found on this PC.\n\n"
-                "Install 7-Zip from https://www.7-zip.org and try again "
-                "(ZIP downloads work without it)."
+                "The bundled extraction tool (7-Zip) was not found.\n\n"
+                "Try reinstalling the app. If the problem persists, install "
+                "7-Zip from https://www.7-zip.org and try again."
             )
             return False
 
@@ -1925,8 +1946,9 @@ class InstallWorker(QObject):
             return False
 
         # Drain 7-Zip's output on a dedicated thread so the pipe can never fill
-        # and deadlock; it parses the latest "NN%" progress token it sees.
+        # and deadlock; it parses progress and accumulates text for error diagnosis.
         latest = {"pct": None}
+        all_chunks = []
 
         def _drain():
             buf = b""
@@ -1935,6 +1957,7 @@ class InstallWorker(QObject):
                     chunk = proc.stdout.read(256)
                     if not chunk:
                         break
+                    all_chunks.append(chunk)
                     buf += chunk
                     found = re.findall(rb"(\d{1,3})%", buf)
                     if found:
@@ -1980,11 +2003,24 @@ class InstallWorker(QObject):
 
         # 0 = OK, 1 = non-fatal warning; anything else is a real failure.
         if proc.returncode not in (0, 1):
+            full_output = b"".join(all_chunks).decode("utf-8", errors="replace").lower()
             self._cleanup_temp()
-            self.error.emit(
-                "RAR extraction failed — the archive may be corrupt, or 7-Zip "
-                "could not read it."
-            )
+            if "wrong password" in full_output or "encrypted" in full_output:
+                self.error.emit(
+                    "Extraction failed: wrong or missing password.\n\n"
+                    "The archive is password-protected and the built-in "
+                    "password did not match."
+                )
+            elif "crc failed" in full_output or "data error" in full_output or "unexpected end" in full_output:
+                self.error.emit(
+                    "Extraction failed: the archive appears to be corrupt.\n\n"
+                    "Try downloading the game again."
+                )
+            else:
+                self.error.emit(
+                    f"Extraction failed — 7-Zip could not read the archive.\n\n"
+                    f"Exit code: {proc.returncode}"
+                )
             return False
 
         progress_signal.emit(100)
