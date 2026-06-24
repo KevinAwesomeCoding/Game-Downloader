@@ -42,13 +42,6 @@ jobs:
           Copy-Item "C:\Program Files\7-Zip\7z.exe" bin\
           Copy-Item "C:\Program Files\7-Zip\7z.dll" bin\
 
-      - name: Inject VERSION into main.py
-        shell: pwsh
-        run: |
-          $tag = if ('${{ github.ref_type }}' -eq 'tag') { '${{ github.ref_name }}' } else { 'v0.0.0' }
-          (Get-Content main.py) -replace '^VERSION = ".*"$', "VERSION = `"$tag`"" |
-            Set-Content main.py -Encoding UTF8
-
       - name: Generate release tag
         id: tag
         shell: pwsh
@@ -59,6 +52,16 @@ jobs:
           $tag     = "v$version-$date-$run"
           "tag=$tag"         >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Inject VERSION into main.py
+        shell: pwsh
+        run: |
+          # Stamp the exe with the SAME tag the release is published under
+          # (steps.tag.outputs.tag), so the running app's VERSION matches the
+          # latest release tag_name and the self-update check won't loop.
+          $tag = "${{ steps.tag.outputs.tag }}"
+          (Get-Content main.py) -replace '^VERSION = ".*"$', "VERSION = `"$tag`"" |
+            Set-Content main.py -Encoding UTF8
 
       - name: Build onedir (CrossOver / Wine)
         run: >
