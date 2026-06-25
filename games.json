@@ -351,5 +351,44 @@
       "gpu": "Modern dedicated GPU (Vulkan support required)",
       "storage": "500 MB"
     }
+  },
+  {
+    "id": "midnight-heist",
+    "name": "Midnight Heist",
+    "description": "Go on heists through Midnight City alone or with up to four players to fulfill tasks as a hacker for various organizations. Improve your reputation, earn money, and uncover the secrets of shady companies while being hunted by terrifying entities.",
+    "version": "Full Release",
+    "size": "7 GB",
+    "players": "1-4 players (solo or co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2204350/header.jpg?t=1778107091",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1sI-HB-mZQBJLI5kZk6Ykd1iuTrRm-sip&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1HuDsRWoL7F--xpW1uweUX-eu5NpNT4eo&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 7 64-bit",
+      "cpu": "Intel Core i5-4570 / AMD Ryzen 5 1600",
+      "ram": "4 GB",
+      "gpu": "NVIDIA GTX 760 / AMD Radeon R9 290",
+      "storage": "7 GB"
+    }
+  },
+  {
+    "id": "backrooms-rec",
+    "name": "Backrooms Rec",
+    "description": "Dive into the eerie Backrooms in this solo-developed survival experience. Explore unsettling hallways, uncover secrets, and survive alone or with friends in story and escape-style multiplayer modes.",
+    "version": "Early Access",
+    "size": "6 GB",
+    "players": "1-6 players (solo or online co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2275020/header.jpg?t=1781257174",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1DoGiNqdyv7ZRjY_IaESZksczELI1Gqy4&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=10elWdM5L9a-xdkKSElAmk61noZ2mIheH&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 8/10/11 64-bit",
+      "cpu": "Intel Core i5-7400 @ 3.00GHz / Shader Model 5",
+      "ram": "4 GB",
+      "gpu": "NVIDIA GeForce GTX 960 2GB",
+      "directx": "Version 11",
+      "storage": "6 GB"
+    }
   }
 ]
+
+
