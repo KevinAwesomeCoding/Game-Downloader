@@ -44,8 +44,8 @@
     "size": "2.1 GB",
     "players": "Solo or up to 8 players co-op",
     "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/477160/header.jpg",
-    "zipUrl": "https://archive.org/download/human.-fall.-flat_202606/Human.Fall.Flat.zip",
-    "fixZipUrl": "",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=17Mmr5TuVQ9vyS5alkQIij0Ruxq4Du7BQ&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1xOOD_T9URoZ6FKOTj25yiEsN6Yi1A_Vu&export=download&confirm=t",
     "requirements": {
       "os": "Windows XP/Vista/7/8/8.1/10",
       "cpu": "Intel Core2 Duo E6750 / AMD Athlon 64 X2 6000+",
@@ -313,6 +313,43 @@
       "ram": "4 GB",
       "gpu": "GeForce 500+ / Radeon 5000+ or greater",
       "storage": "3 GB"
+    }
+  },
+  {
+    "id": "repo",
+    "name": "R.E.P.O.",
+    "description": "An online co-op horror game for up to 6 players. Locate valuable, fully physics-based objects and handle them with care as you retrieve and extract them to satisfy your creator's desires.",
+    "version": "Early Access",
+    "size": "1 GB",
+    "players": "1-6 players (online co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3241660/a12c92856b71315da885924ea5e1d5290c8025b8/header_alt_assets_2.jpg?t=1778158882",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1mZctjpAbAdP2JM3v2G6EDKMDgpmqhEVb&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1rl94l8zKVzNio_4vqVbxISK0EWDZqiWb&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i5-6600",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GTX 970",
+      "directx": "Version 10",
+      "storage": "1 GB"
+    }
+  },
+  {
+    "id": "buckshot-roulette",
+    "name": "Buckshot Roulette",
+    "description": "Play Russian roulette with a 12-gauge shotgun in this dark indie horror game. Four enter. One leaves.",
+    "version": "1.0",
+    "size": "500 MB",
+    "players": "1-4 players (solo or online multiplayer)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2835570/header.jpg?t=1781870706",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1Od5L3lyQj9ZM46cGVzhe_16tFYGCuxUh&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1dB2JlYgiQKERyEJxkmoxMKNFEfV1KJDl&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i3",
+      "ram": "2 GB",
+      "gpu": "Modern dedicated GPU (Vulkan support required)",
+      "storage": "500 MB"
     }
   }
 ]
