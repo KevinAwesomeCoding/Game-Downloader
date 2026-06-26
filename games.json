@@ -283,7 +283,7 @@
     "name": "Mage Arena",
     "description": "A co-op PvP experience about using your voice to cast spells in the Mage Arena to settle an ages-old feud between sorcerers and warlocks.",
     "version": "Early Access",
-    "size": "2 GB",
+    "size": "1 GB",
     "players": "Up to 4v4 or 1v1 duels",
     "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3716600/e09e178465c67642c1214736e29d64846d966e52/header.jpg?t=1754585254",
     "zipUrl": "https://drive.usercontent.google.com/download?id=1m09DsjnBTNmwqJhfgypHWTHrSMNBlynz&export=download&confirm=t",
@@ -294,7 +294,7 @@
       "ram": "8 GB",
       "gpu": "NVIDIA GeForce GTX 1060",
       "directx": "Version 11",
-      "storage": "2 GB"
+      "storage": "1 GB"
     }
   },
   {
