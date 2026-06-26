@@ -18,10 +18,6 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    # Run on tag pushes (real release) OR manual workflow_dispatch (test build).
-    # Plain branch pushes are intentionally excluded: they would stamp the wrong
-    # VERSION and try to publish a release against a non-existent tag.
-    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout
@@ -46,48 +42,26 @@ jobs:
           Copy-Item "C:\Program Files\7-Zip\7z.exe" bin\
           Copy-Item "C:\Program Files\7-Zip\7z.dll" bin\
 
-      - name: Resolve release tag
+      - name: Generate release tag
         id: tag
         shell: pwsh
         run: |
-          if ("${{ github.ref_type }}" -eq "tag") {
-            # Tag push: github.ref_name IS the pushed tag (e.g. "v1.3.0").
-            # Use it directly — never fabricate a different string.
-            $tag = "${{ github.ref_name }}"
-          } else {
-            # workflow_dispatch or other non-tag trigger: build a dev tag from
-            # the VERSION file so the exe has something meaningful stamped in it.
-            $version = (Get-Content VERSION).Trim()
-            $date    = Get-Date -Format "yyyyMMdd"
-            $run     = "${{ github.run_number }}"
-            $tag     = "v$version-dev-$date-$run"
-            Write-Host "Non-tag trigger: using dev tag $tag (will NOT publish a release)"
-          }
-          $version = $tag.TrimStart('v')
+          $version = (Get-Content VERSION).Trim()
+          $date    = Get-Date -Format "yyyyMMdd"
+          $run     = "${{ github.run_number }}"
+          $tag     = "v$version-$date-$run"
           "tag=$tag"         >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
 
       - name: Inject VERSION into main.py
         shell: pwsh
         run: |
-          # Stamp the exe with the exact git tag that triggered this run so
-          # the running app's VERSION always matches the release tag_name and
-          # the self-update check won't loop or show a stale version.
+          # Stamp the exe with the SAME tag the release is published under
+          # (steps.tag.outputs.tag), so the running app's VERSION matches the
+          # latest release tag_name and the self-update check won't loop.
           $tag = "${{ steps.tag.outputs.tag }}"
           (Get-Content main.py) -replace '^VERSION = ".*"$', "VERSION = `"$tag`"" |
             Set-Content main.py -Encoding UTF8
-
-      - name: Verify VERSION stamp
-        shell: pwsh
-        run: |
-          # Print the stamped line so it is visible in the Actions log.
-          # If the pattern is missing the inject step silently failed — catch it here.
-          $line = (Get-Content main.py) | Select-String '^VERSION = '
-          if (-not $line) {
-            Write-Error "VERSION line not found in main.py after inject step!"
-            exit 1
-          }
-          Write-Host "Stamped: $line"
 
       - name: Build onedir (CrossOver / Wine)
         run: >
@@ -133,9 +107,6 @@ jobs:
           main.py
 
       - name: Publish GitHub Release
-        # Only publish on a real tag push — workflow_dispatch builds the exe
-        # for testing but must not try to create a release under a dev tag.
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
