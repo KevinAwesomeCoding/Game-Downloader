@@ -4100,7 +4100,7 @@ def main():
     app.setStyleSheet(STYLE)
 
     # Let in-flight thumbnail fetches finish before the interpreter tears down,
-    # so Qt-pool threads are never running Python during finalization
+    # so Qt-pool threads are never running Python during finalizations
     app.aboutToQuit.connect(lambda: QThreadPool.globalInstance().waitForDone(3000))
 
     window = MainWindow()
