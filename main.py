@@ -2942,6 +2942,55 @@ class InstallDialog(QDialog):
 
 
 # ---------------------------------------------------------------------------
+# Fix Ownership dialog — shown before any "type": "fix" entry is installed.
+# ---------------------------------------------------------------------------
+class FixOwnershipDialog(QDialog):
+    """Ask whether the user already has the base game installed.
+
+    Results:
+        RESULT_YES — user has the game → continue with the fix-apply flow
+        RESULT_NO  — user doesn't    → launch the steam:// URL and return home
+        exec() == 0 (dismissed)      → do nothing
+    """
+
+    RESULT_YES = 2
+    RESULT_NO = 3
+
+    def __init__(self, game: Game, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Install — {game.name}")
+        self.setMinimumWidth(420)
+        self.setModal(True)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(24, 24, 24, 24)
+        root.setSpacing(16)
+
+        title = QLabel(game.name)
+        title.setObjectName("DialogTitle")
+        root.addWidget(title)
+
+        msg = QLabel(f"Do you already have {game.name} installed?")
+        msg.setObjectName("StatusLabel")
+        msg.setWordWrap(True)
+        root.addWidget(msg)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch(1)
+
+        no_btn = QPushButton("No")
+        no_btn.clicked.connect(lambda: self.done(FixOwnershipDialog.RESULT_NO))
+        btn_row.addWidget(no_btn)
+
+        yes_btn = QPushButton("Yes")
+        yes_btn.setObjectName("PrimaryButton")
+        yes_btn.clicked.connect(lambda: self.done(FixOwnershipDialog.RESULT_YES))
+        btn_row.addWidget(yes_btn)
+
+        root.addLayout(btn_row)
+
+
+# ---------------------------------------------------------------------------
 # Concurrent downloads — manager + per-download status card + Downloads page.
 # Each running card owns its own InstallWorker on its own QThread (same proven
 # logic the install dialog used to run inline); the manager just limits how
@@ -3741,6 +3790,28 @@ class MainWindow(QMainWindow):
             game.id, game.name, game.entry_type, game.zip_url, game.fix_url,
         )
         if game.is_patch:
+            # Step 1 — ask whether the user already has the base game installed.
+            ownership_dlg = FixOwnershipDialog(game, self)
+            result = ownership_dlg.exec()
+
+            if result == FixOwnershipDialog.RESULT_NO:
+                # Step 2a — No: launch the Steam install link, then return home.
+                zip_url = game.zip_url
+                if zip_url.startswith("steam://"):
+                    try:
+                        os.startfile(zip_url)
+                    except OSError:
+                        subprocess.Popen(
+                            ["cmd", "/c", "start", zip_url],
+                            creationflags=_NO_WINDOW,
+                        )
+                return
+
+            if result != FixOwnershipDialog.RESULT_YES:
+                # Dialog was dismissed without choosing — do nothing.
+                return
+
+            # Step 2b — Yes: proceed with the existing fix-apply flow.
             steam_common = r"C:\Program Files (x86)\Steam\steamapps\common"
             start_dir = steam_common if os.path.isdir(steam_common) else os.path.expanduser("~")
             folder = QFileDialog.getExistingDirectory(
@@ -3752,8 +3823,12 @@ class MainWindow(QMainWindow):
                 return
             dlg = InstallDialog(game, self, patch_target=folder,
                                 manager=self.download_manager)
-        else:
-            dlg = InstallDialog(game, self, manager=self.download_manager)
+            if dlg.exec():
+                self.stack.setCurrentWidget(self.downloads_page)
+            return
+
+        # Normal (non-fix) game — unchanged.
+        dlg = InstallDialog(game, self, manager=self.download_manager)
         # Dialog is now just a configure-and-queue step; accepted == enqueued,
         # so jump to the Downloads page to show progress.
         if dlg.exec():
