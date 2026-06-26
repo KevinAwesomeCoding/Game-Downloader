@@ -1115,7 +1115,7 @@ class UpdateDownloadWorker(QObject):
     """Downloads the new release exe to a temp file."""
     progress = pyqtSignal(int)   # 0-100, or -1 for indeterminate
     success = pyqtSignal(str)    # path to downloaded temp file
-    error = pyqtSignal(str) #test
+    error = pyqtSignal(str) #test again
 
     def __init__(self, url: str):
         super().__init__()
