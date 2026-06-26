@@ -1059,6 +1059,7 @@ class UpdateChecker(QObject):
 
     @pyqtSlot()
     def run(self):
+        _log.debug("UpdateChecker: runtime VERSION = %r", VERSION)
         try:
             resp = requests.get(
                 RELEASES_API,
@@ -1068,20 +1069,46 @@ class UpdateChecker(QObject):
                     "User-Agent": "GameInstaller-updater",
                 },
             )
+            _log.debug("UpdateChecker: HTTP status = %s", resp.status_code)
             resp.raise_for_status()
             data = resp.json()
             tag = data.get("tag_name", "")
-            if not tag or _parse_version(tag) <= _parse_version(VERSION):
+            _log.debug("UpdateChecker: tag_name from API = %r", tag)
+
+            if not tag:
+                _log.debug("UpdateChecker: no tag_name in response — aborting. "
+                            "Full payload keys: %s", list(data.keys()))
                 return
+
+            local_v = _parse_version(VERSION)
+            remote_v = _parse_version(tag)
+            is_newer = remote_v > local_v
+            _log.debug(
+                "UpdateChecker: comparing remote %s vs local %s -> remote_is_newer=%s",
+                remote_v, local_v, is_newer,
+            )
+
+            if not is_newer:
+                return
+
             exe_url = next(
                 (a["browser_download_url"] for a in data.get("assets", [])
                  if a.get("name", "").endswith(".exe")),
                 None,
             )
+            _log.debug("UpdateChecker: matched exe asset url = %r", exe_url)
             if exe_url:
                 self.update_available.emit(tag, exe_url)
+            else:
+                _log.debug(
+                    "UpdateChecker: newer tag found but no .exe asset attached to "
+                    "the release — dialog will not show. Asset names: %s",
+                    [a.get("name") for a in data.get("assets", [])],
+                )
         except Exception:
-            pass  # fail silently — update check must never affect normal operation
+            _log.exception("UpdateChecker: update check failed with an exception")
+            # still fail silently to the UI — update check must never affect
+            # normal operation — but now it's logged instead of invisible.
 
 
 class UpdateDownloadWorker(QObject):
