@@ -18,6 +18,10 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    # Only build and publish a release exe when triggered by a tag push.
+    # Running on plain branch pushes would stamp the wrong VERSION and
+    # upload an exe to a release that doesn't exist yet.
+    if: startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: Checkout
@@ -42,26 +46,39 @@ jobs:
           Copy-Item "C:\Program Files\7-Zip\7z.exe" bin\
           Copy-Item "C:\Program Files\7-Zip\7z.dll" bin\
 
-      - name: Generate release tag
+      - name: Resolve release tag
         id: tag
         shell: pwsh
         run: |
-          $version = (Get-Content VERSION).Trim()
-          $date    = Get-Date -Format "yyyyMMdd"
-          $run     = "${{ github.run_number }}"
-          $tag     = "v$version-$date-$run"
+          # On a tag push github.ref_name IS the pushed tag (e.g. "v1.2.0").
+          # We never fabricate a tag here; the job-level `if` above already
+          # ensures we only reach this step when github.ref_type == "tag".
+          $tag     = "${{ github.ref_name }}"
+          $version = $tag.TrimStart('v')
           "tag=$tag"         >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
 
       - name: Inject VERSION into main.py
         shell: pwsh
         run: |
-          # Stamp the exe with the SAME tag the release is published under
-          # (steps.tag.outputs.tag), so the running app's VERSION matches the
-          # latest release tag_name and the self-update check won't loop.
+          # Stamp the exe with the exact git tag that triggered this run so
+          # the running app's VERSION always matches the release tag_name and
+          # the self-update check won't loop or show a stale version.
           $tag = "${{ steps.tag.outputs.tag }}"
           (Get-Content main.py) -replace '^VERSION = ".*"$', "VERSION = `"$tag`"" |
             Set-Content main.py -Encoding UTF8
+
+      - name: Verify VERSION stamp
+        shell: pwsh
+        run: |
+          # Print the stamped line so it is visible in the Actions log.
+          # If the pattern is missing the inject step silently failed — catch it here.
+          $line = (Get-Content main.py) | Select-String '^VERSION = '
+          if (-not $line) {
+            Write-Error "VERSION line not found in main.py after inject step!"
+            exit 1
+          }
+          Write-Host "Stamped: $line"
 
       - name: Build onedir (CrossOver / Wine)
         run: >
