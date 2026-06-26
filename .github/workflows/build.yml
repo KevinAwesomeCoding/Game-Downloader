@@ -18,10 +18,10 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    # Only build and publish a release exe when triggered by a tag push.
-    # Running on plain branch pushes would stamp the wrong VERSION and
-    # upload an exe to a release that doesn't exist yet.
-    if: startsWith(github.ref, 'refs/tags/')
+    # Run on tag pushes (real release) OR manual workflow_dispatch (test build).
+    # Plain branch pushes are intentionally excluded: they would stamp the wrong
+    # VERSION and try to publish a release against a non-existent tag.
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout
@@ -50,10 +50,19 @@ jobs:
         id: tag
         shell: pwsh
         run: |
-          # On a tag push github.ref_name IS the pushed tag (e.g. "v1.2.0").
-          # We never fabricate a tag here; the job-level `if` above already
-          # ensures we only reach this step when github.ref_type == "tag".
-          $tag     = "${{ github.ref_name }}"
+          if ("${{ github.ref_type }}" -eq "tag") {
+            # Tag push: github.ref_name IS the pushed tag (e.g. "v1.3.0").
+            # Use it directly — never fabricate a different string.
+            $tag = "${{ github.ref_name }}"
+          } else {
+            # workflow_dispatch or other non-tag trigger: build a dev tag from
+            # the VERSION file so the exe has something meaningful stamped in it.
+            $version = (Get-Content VERSION).Trim()
+            $date    = Get-Date -Format "yyyyMMdd"
+            $run     = "${{ github.run_number }}"
+            $tag     = "v$version-dev-$date-$run"
+            Write-Host "Non-tag trigger: using dev tag $tag (will NOT publish a release)"
+          }
           $version = $tag.TrimStart('v')
           "tag=$tag"         >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
@@ -124,6 +133,9 @@ jobs:
           main.py
 
       - name: Publish GitHub Release
+        # Only publish on a real tag push — workflow_dispatch builds the exe
+        # for testing but must not try to create a release under a dev tag.
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
