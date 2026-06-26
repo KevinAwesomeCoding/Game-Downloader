@@ -111,6 +111,37 @@ if not _log.handlers:
     _fh.setFormatter(logging.Formatter("%(asctime)s  %(message)s"))
     _log.addHandler(_fh)
 
+# ---------------------------------------------------------------------------
+# UPDATER DEBUG LOG — persists across runs (append mode), written next to the
+# exe so it is easy to find.  Each line is timestamped.
+# Log file: <app_dir>\updater_debug.log
+# ---------------------------------------------------------------------------
+def _make_updater_logger() -> logging.Logger:
+    """Create (or retrieve) the updater-specific logger.
+
+    Called once at import time; safe to call again (idempotent thanks to the
+    handler-existence check).
+    """
+    logger = logging.getLogger("GameInstaller.updater")
+    logger.setLevel(logging.DEBUG)
+    if not logger.handlers:
+        # app_dir() is not yet defined here, so we compute it inline.
+        if getattr(sys, "frozen", False):
+            _base = os.path.dirname(sys.executable)
+        else:
+            _base = os.path.dirname(os.path.abspath(__file__))
+        _ulog_path = os.path.join(_base, "updater_debug.log")
+        _ufh = logging.FileHandler(_ulog_path, mode="a", encoding="utf-8")
+        _ufh.setFormatter(
+            logging.Formatter("%(asctime)s  %(levelname)-8s  %(message)s")
+        )
+        logger.addHandler(_ufh)
+        # Prevent messages from bubbling up to the root/gameinstaller handler.
+        logger.propagate = False
+    return logger
+
+_ulog = _make_updater_logger()
+
 
 def app_dir() -> str:
     """Directory of the running app (works for source and PyInstaller exe)."""
@@ -1059,8 +1090,12 @@ class UpdateChecker(QObject):
 
     @pyqtSlot()
     def run(self):
+        # Step 1 — app starts: log the current VERSION value.
+        _ulog.info("[1] App started. Current VERSION = %r", VERSION)
         _log.debug("UpdateChecker: runtime VERSION = %r", VERSION)
         try:
+            # Step 2 — GitHub API request: log the URL being called.
+            _ulog.info("[2] GitHub API request  URL = %s", RELEASES_API)
             resp = requests.get(
                 RELEASES_API,
                 timeout=(5, 10),
@@ -1069,13 +1104,22 @@ class UpdateChecker(QObject):
                     "User-Agent": "GameInstaller-updater",
                 },
             )
+            # Step 3 — response received: log raw tag_name and HTTP status.
             _log.debug("UpdateChecker: HTTP status = %s", resp.status_code)
             resp.raise_for_status()
             data = resp.json()
             tag = data.get("tag_name", "")
+            _ulog.info(
+                "[3] GitHub API response  status=%s  tag_name=%r",
+                resp.status_code, tag,
+            )
             _log.debug("UpdateChecker: tag_name from API = %r", tag)
 
             if not tag:
+                _ulog.warning(
+                    "[3] No tag_name in response — aborting update check. "
+                    "Payload keys: %s", list(data.keys()),
+                )
                 _log.debug("UpdateChecker: no tag_name in response — aborting. "
                             "Full payload keys: %s", list(data.keys()))
                 return
@@ -1083,6 +1127,11 @@ class UpdateChecker(QObject):
             local_v = _parse_version(VERSION)
             remote_v = _parse_version(tag)
             is_newer = remote_v > local_v
+            # Step 4 — version comparison: log both versions and the result.
+            _ulog.info(
+                "[4] Version comparison  local=%s  remote=%s  update_needed=%s",
+                VERSION, tag, "yes" if is_newer else "no",
+            )
             _log.debug(
                 "UpdateChecker: comparing remote %s vs local %s -> remote_is_newer=%s",
                 remote_v, local_v, is_newer,
@@ -1098,14 +1147,26 @@ class UpdateChecker(QObject):
             )
             _log.debug("UpdateChecker: matched exe asset url = %r", exe_url)
             if exe_url:
+                # Step 5 — update dialog will be shown.
+                _ulog.info(
+                    "[5] Update dialog will be shown for tag=%r  exe_url=%r",
+                    tag, exe_url,
+                )
                 self.update_available.emit(tag, exe_url)
             else:
+                _ulog.warning(
+                    "[5] Newer tag %r found but no .exe asset on release — "
+                    "dialog will NOT show. Asset names: %s",
+                    tag, [a.get("name") for a in data.get("assets", [])],
+                )
                 _log.debug(
                     "UpdateChecker: newer tag found but no .exe asset attached to "
                     "the release — dialog will not show. Asset names: %s",
                     [a.get("name") for a in data.get("assets", [])],
                 )
         except Exception:
+            # Step 9 — exception anywhere in the update flow: log full traceback.
+            _ulog.exception("[9] Exception in UpdateChecker.run — full traceback:")
             _log.exception("UpdateChecker: update check failed with an exception")
             # still fail silently to the UI — update check must never affect
             # normal operation — but now it's logged instead of invisible.
@@ -1123,6 +1184,8 @@ class UpdateDownloadWorker(QObject):
 
     @pyqtSlot()
     def run(self):
+        # Step 6 — download starts: log the download URL.
+        _ulog.info("[6] Download started  url=%s", self.url)
         try:
             fd, dest = tempfile.mkstemp(suffix=".exe", prefix="GameInstaller_update_")
             os.close(fd)
@@ -1140,6 +1203,8 @@ class UpdateDownloadWorker(QObject):
             self.progress.emit(100)
             self.success.emit(dest)
         except Exception as exc:
+            # Step 7 — download failed: log the exception/error.
+            _ulog.exception("[7] Download FAILED  url=%s  error=%s", self.url, exc)
             self.error.emit(str(exc))
 
 
@@ -3477,6 +3542,8 @@ class UpdateDialog(QDialog):
 
     @pyqtSlot(str)
     def _on_error(self, message):
+        # Step 7 (dialog layer) — download failed signal received by the dialog.
+        _ulog.error("[7] UpdateDialog received download error: %s", message)
         self._teardown_thread()
         self.status_label.setText(f"Update failed: {message}")
         self.later_btn.setEnabled(True)
@@ -3484,16 +3551,33 @@ class UpdateDialog(QDialog):
 
     def _apply_update(self):
         if not self._new_exe or not os.path.isfile(self._new_exe):
+            _ulog.error(
+                "[8] Replacement step skipped — downloaded file missing: %r",
+                self._new_exe,
+            )
             self.status_label.setText("Update file missing. Please restart manually.")
             return
         if not getattr(sys, "frozen", False):
+            _ulog.warning(
+                "[8] Replacement step skipped — running from source (not a frozen exe)."
+            )
             self.status_label.setText(
                 "Self-update is only supported for the .exe build."
             )
             self.later_btn.setEnabled(True)
             self.later_btn.setText("Close")
             return
-        _launch_update_bat(self._new_exe, sys.executable)
+        # Step 8 — replacement step: log old path and new path.
+        _ulog.info(
+            "[8] Replacement step running  new_exe=%r  current_exe=%r",
+            self._new_exe, sys.executable,
+        )
+        try:
+            _launch_update_bat(self._new_exe, sys.executable)
+        except Exception:
+            # Step 9 — exception during replacement.
+            _ulog.exception("[9] Exception during _launch_update_bat — full traceback:")
+            raise
         QApplication.quit()
 
     def closeEvent(self, event):
