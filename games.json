@@ -388,6 +388,44 @@
       "directx": "Version 11",
       "storage": "6 GB"
     }
+  },
+  {
+    "id": "lethal-company",
+    "name": "Lethal Company",
+    "description": "A co-op survival horror experience where you scavenge for profit while avoiding lethal threats in dangerous environments.",
+    "version": "1.0",
+    "size": "8 GB",
+    "players": "4+ players (online co-op)",
+    "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/1966720/header.jpg",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=14gTeaNRWxr5ZZ6fnupjRZGReCKUXnmQX&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1DPGvcnZGkOSfK2bmYckWRG1ye4Oyfh9i&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i5-4590 / AMD Ryzen 3 1200",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GTX 1060 / AMD RX 580",
+      "directx": "Version 11",
+      "storage": "8 GB"
+    }
+  },
+  {
+    "id": "airport-security-sucks",
+    "name": "Airport Security Sucks!",
+    "description": "A chaotic co-op game centered around airport security, absurd situations, and hilarious teamwork.",
+    "version": "1.0",
+    "size": "4 GB",
+    "players": "2-8 players (online co-op)",
+    "thumbnail": "",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=149ITJq8wAoITMMX5eQKmoybxZipf0u6v&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=18QtMGtzp5vbkQJbHLVqacTc46JndTKK3&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i5-2500K / AMD Ryzen 3 1200",
+      "ram": "4 GB",
+      "gpu": "NVIDIA GTX 960 / AMD Radeon R9 280",
+      "directx": "Version 11",
+      "storage": "4 GB"
+    }
   }
 ]
 
