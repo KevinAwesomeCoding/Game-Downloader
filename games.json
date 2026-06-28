@@ -81,8 +81,9 @@
     "size": "3.8 GB",
     "players": "2-10 players (online PvP)",
     "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4704690/163e2a742e5fb8e1f5d1e3a890da98f04ab809d4/header.jpg?t=1781108224",
-    "zipUrl": "https://archive.org/download/meccha-chameleon_202606/MECCHA%20CHAMELEON.zip",
-    "fixZipUrl": "https://files.catbox.moe/su1vwl.zip",
+    "zipUrl": "https://ts.bzzhr.to/d/gy16mhup3all?v=bz9ybOWH4RLtMurug1ANMHKTBx4J_0DDCwabeAGkk7lz1VqWIcsdZxOMlcIREg3gTLbNgWEvCErsYwENq4dnijGcmYDNU_slhu6BGORvkUxbpfhKaVt3fwHhkX23_Kv_k5_n5RBQSTdJKKSdC-pVMTg5KFgbmBw8R8AbANOHtUq-o7t8_GwXdk96kIEwSyIwBRBwu0KE",
+    "fixZipUrl": "",
+    "comment": "Reference URL: https://files.catbox.moe/su1vwl.zip",
     "requirements": {
       "os": "Windows 10 64-bit",
       "cpu": "Intel Core i5",
