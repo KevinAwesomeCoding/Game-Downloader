@@ -2811,7 +2811,12 @@ class InstallDialog(QDialog):
             prefs["install_path"] = self.dest_edit.text().strip()
             save_prefs(prefs)
 
-        self._manager.enqueue(self.game, target, fix_only=False,
+        # When applying into an existing (already-owned) game folder, the base
+        # game is already installed — only the fix needs to be downloaded and
+        # applied. Downloading the main zipUrl here would fail for Steam-based
+        # entries whose zipUrl is a steam:// link (not an HTTP archive).
+        self._manager.enqueue(self.game, target,
+                              fix_only=bool(self._patch_target),
                               defender_folders=defender_folders)
         self.accept()
 
