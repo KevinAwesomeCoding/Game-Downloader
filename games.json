@@ -427,6 +427,25 @@
       "directx": "Version 11",
       "storage": "4 GB"
     }
+  },
+  {
+    "id": "fears-to-fathom-scratch-creek",
+    "name": "Fears to Fathom - Scratch Creek",
+    "description": "A psychological co-op horror game where players assume the roles of Tessa Langley and Marcus Reed, a young couple whose journey to relocate takes an unexpected detour through the eerie town of Scratch Creek, told with the series' signature VHS-era atmosphere.",
+    "version": "1.0",
+    "size": "14 GB",
+    "players": "2 players (online co-op)",
+    "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/4121170/header.jpg",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1DyQYYpQVWWCMaMtC-DnHv39rzFIYC9HM&export=download&confirm=t, https://drive.usercontent.google.com/download?id=1MIos8hUxmPEUAn8q5kZVFT3YMzJv4yb0&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1fi1Ht2NHO87sP1Rz6hlgEFnlOCu_f_Ye&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10/11 64-bit",
+      "cpu": "Intel Core i5-6600K / AMD Ryzen 5 1600",
+      "ram": "12 GB",
+      "gpu": "NVIDIA GTX 1050 Ti / AMD RX 580 / Intel Arc A380",
+      "directx": "Version 12",
+      "storage": "14 GB"
+    }
   }
 ]
 

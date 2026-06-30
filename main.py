@@ -618,6 +618,49 @@ def remove_defender_exclusion(folder: str) -> tuple:
 # ---------------------------------------------------------------------------
 # Data model
 # ---------------------------------------------------------------------------
+def _normalize_parts(raw):
+    """Normalize a zipUrl / fixZipUrl manifest value into an ordered list of
+    ``{"url": str, "name": str}`` dicts.
+
+    Accepts, simplest first:
+      * ``"https://…/file.rar"``                       → one volume
+      * ``"https://…/p1, https://…/p2, https://…/p3"`` → multi-volume, just the
+        links in order on one line, separated by commas (or newlines)
+      * ``["https://…/p1", "https://…/p2"]``           → same, as a JSON array
+      * ``[{"url": "…", "name": "Game.part1.rar"}, …]`` → explicit local
+        filenames (only needed if you want to override the auto-naming)
+
+    For the plain-link forms the **order you list the links in is the order
+    they are joined** (link 1 → part 1, link 2 → part 2, …), so just paste them
+    in sequence. When manifest entries carry a ``…partN.rar`` name they are
+    additionally sorted by that number, so explicit-name lists may be in any
+    order.
+    """
+    # A single string holding several comma/newline-separated links expands
+    # into a multi-volume list — "zipUrl": "url1, url2, url3" just works.
+    if isinstance(raw, str) and ("," in raw or "\n" in raw):
+        raw = re.split(r"[,\n]", raw)
+
+    items = raw if isinstance(raw, list) else [raw]
+    parts = []
+    for item in items:
+        if isinstance(item, dict):
+            url = str(item.get("url", "")).strip()
+            name = str(item.get("name", "")).strip()
+        else:
+            url = str(item).strip()
+            name = ""
+        if url:
+            parts.append({"url": url, "name": name})
+
+    def _part_key(entry):
+        m = re.search(r"\.part0*(\d+)\.", entry["name"], re.IGNORECASE)
+        return (0, int(m.group(1))) if m else (1, 0)
+
+    parts.sort(key=_part_key)
+    return parts
+
+
 class Game:
     """A single game entry parsed from the manifest."""
 
@@ -629,8 +672,14 @@ class Game:
         self.size = str(raw.get("size", "")).strip()
         self.players = str(raw.get("players", "")).strip()
         self.thumbnail = str(raw.get("thumbnail", "")).strip()
-        self.zip_url = str(raw.get("zipUrl", "")).strip()
-        self.fix_url = str(raw.get("fixZipUrl", "")).strip()
+        # zipUrl / fixZipUrl may be a single URL string *or* a list of volumes
+        # (multi-part RAR sets). Normalize both into ordered [{url, name}] lists
+        # and keep the first URL as a scalar for back-compat (steam:// checks,
+        # logging, temp-file naming, availability).
+        self.zip_parts = _normalize_parts(raw.get("zipUrl", ""))
+        self.fix_parts = _normalize_parts(raw.get("fixZipUrl", ""))
+        self.zip_url = self.zip_parts[0]["url"] if self.zip_parts else ""
+        self.fix_url = self.fix_parts[0]["url"] if self.fix_parts else ""
         self.entry_type = str(raw.get("type", "game")).strip().lower()
         _reqs = raw.get("requirements")
         self.requirements = _reqs if isinstance(_reqs, dict) else {}
@@ -646,6 +695,10 @@ class Game:
     @property
     def is_patch(self) -> bool:
         return self.entry_type == "fix"
+
+    @property
+    def is_multipart(self) -> bool:
+        return len(self.zip_parts) > 1
 
     @property
     def safe_folder_name(self) -> str:
@@ -1466,6 +1519,7 @@ class InstallWorker(QObject):
         self._cancel = threading.Event()
         self._temp_files = []
         self._temp_dirs = []
+        self._last_part_paths = []  # volumes from the most recent _download_parts
         # Progress tracking
         self._start_time = None  # time.monotonic()
         self._stage_start = None  # per-stage start time
@@ -1525,21 +1579,6 @@ class InstallWorker(QObject):
         self.status.emit(step_str)
 
     # -- temp bookkeeping ---------------------------------------------------
-    def _new_temp_archive(self, url: str) -> str:
-        # Give the temp file the right extension so 7-Zip / zipfile and any
-        # signature-agnostic tooling behave predictably.
-        low = url.lower().split("?")[0]
-        if low.endswith(".rar"):
-            suffix = ".rar"
-        elif low.endswith(".7z"):
-            suffix = ".7z"
-        else:
-            suffix = ".zip"
-        fd, path = tempfile.mkstemp(suffix=suffix, prefix="gameinstall_")
-        os.close(fd)
-        self._temp_files.append(path)
-        return path
-
     def _new_temp_dir(self) -> str:
         path = tempfile.mkdtemp(prefix="gamefix_")
         self._temp_dirs.append(path)
@@ -1610,11 +1649,11 @@ class InstallWorker(QObject):
                     "run FIX_ONLY  id=%r  name=%r  fix_url=%r  dest=%r",
                     self.game.id, self.game.name, self.game.fix_url, self.dest_path,
                 )
-                fix_archive = self._new_temp_archive(self.game.fix_url)
                 self._stage_start = time.monotonic()
-                if not self._download(self.game.fix_url, fix_archive,
-                                      "Downloading fix", self.fix_download_progress,
-                                      stage_idx=2):
+                fix_archive = self._download_parts(
+                    self.game.fix_parts, "Downloading fix",
+                    self.fix_download_progress, stage_idx=2)
+                if fix_archive is None:
                     return
                 if self._cancelled():
                     return
@@ -1622,7 +1661,7 @@ class InstallWorker(QObject):
                 if not self._apply_fix(fix_archive, self.dest_path,
                                        self.game.fix_url, stage_idx=3):
                     return
-                self._remove_file(fix_archive)
+                self._remove_parts()
                 if self._cancelled():
                     return
                 self._finish_cleanup()
@@ -1633,28 +1672,31 @@ class InstallWorker(QObject):
                 self.success.emit(self.dest_path)
                 return
 
-            if not self.game.zip_url:
+            if not self.game.zip_parts:
                 self.error.emit("This game has no download URL configured.")
                 return
             if not self._prepare_destination():
                 return
 
-            # --- 1) Main game: download then extract ------------------------
-            main_archive = self._new_temp_archive(self.game.zip_url)
+            # --- 1) Main game: download (one or more volumes) then extract ---
             self._stage_start = time.monotonic()
-            if not self._download(self.game.zip_url, main_archive,
-                                  "Downloading game", self.download_progress, stage_idx=0):
+            main_archive = self._download_parts(
+                self.game.zip_parts, "Downloading game",
+                self.download_progress, stage_idx=0)
+            if main_archive is None:
                 return
             if self._cancelled():
                 return
             self._stage_start = time.monotonic()
-            # Extract to staging so wrapper-folder detection can run before
-            # any files land in the install folder.
+            # Extract to staging so wrapper-folder detection can run before any
+            # files land in the install folder. For a multi-volume RAR set, the
+            # sibling .partN.rar files sit next to this first volume, so 7-Zip
+            # pulls them in automatically and reassembles the whole archive.
             main_staging = self._new_temp_dir()
             if not self._extract_archive(main_archive, main_staging,
                                          self.game.zip_url, self.extract_progress, stage_idx=1):
                 return
-            self._remove_file(main_archive)
+            self._remove_parts()
             if self._cancelled():
                 return
             # Detect and skip a single outer wrapper folder (e.g. archive
@@ -1686,18 +1728,19 @@ class InstallWorker(QObject):
                     "run FIX BRANCH  id=%r  name=%r  fix_url=%r",
                     self.game.id, self.game.name, self.game.fix_url,
                 )
-                fix_archive = self._new_temp_archive(self.game.fix_url)
-                _log.debug("run FIX ARCHIVE  path=%s", fix_archive)
                 self._stage_start = time.monotonic()
-                if not self._download(self.game.fix_url, fix_archive,
-                                      "Downloading fix", self.fix_download_progress, stage_idx=2):
+                fix_archive = self._download_parts(
+                    self.game.fix_parts, "Downloading fix",
+                    self.fix_download_progress, stage_idx=2)
+                if fix_archive is None:
                     return
+                _log.debug("run FIX ARCHIVE  path=%s", fix_archive)
                 if self._cancelled():
                     return
                 self._stage_start = time.monotonic()
                 if not self._apply_fix(fix_archive, self.dest_path, self.game.fix_url, stage_idx=3):
                     return
-                self._remove_file(fix_archive)
+                self._remove_parts()
                 if self._cancelled():
                     return
 
@@ -1742,10 +1785,21 @@ class InstallWorker(QObject):
         return True
 
     # -- download -----------------------------------------------------------
-    def _download(self, url, dest_file, status_text, progress_signal, stage_idx=0) -> bool:
+    def _download(self, url, dest_file, status_text, progress_signal, stage_idx=0,
+                  frac_base=0.0, frac_span=1.0) -> bool:
         _log.debug("_download ENTER  stage=%d  url=%s", stage_idx, url)
-        progress_signal.emit(0)
-        self._stage_progress[stage_idx] = 0
+
+        # When this download is one volume of a multi-part set, frac_base /
+        # frac_span map its local 0-100% onto the slice of the stage it owns
+        # (e.g. part 2 of 3 → 33%..67%), so both the bar and the overall
+        # progress advance smoothly across volumes instead of resetting.
+        def _emit_pct(pct):
+            scaled = int(round(frac_base * 100 + pct * frac_span))
+            scaled = max(0, min(100, scaled))
+            progress_signal.emit(scaled)
+            self._stage_progress[stage_idx] = scaled
+
+        _emit_pct(0)
         self._update_overall_progress()
         self._emit_status(status_text, -1)
         session = requests.Session()
@@ -1775,8 +1829,7 @@ class InstallWorker(QObject):
                 elapsed = now - stage_start
                 if total > 0:
                     pct = int(done * 100 / total)
-                    progress_signal.emit(pct)
-                    self._stage_progress[stage_idx] = pct
+                    _emit_pct(pct)
                     speed = done / elapsed if elapsed > 0 else 0
                     remaining = total - done
                     eta = remaining / speed if speed > 0 else 0
@@ -1815,8 +1868,7 @@ class InstallWorker(QObject):
                 )
                 return False
 
-            progress_signal.emit(100)
-            self._stage_progress[stage_idx] = 100
+            _emit_pct(100)
             self._update_overall_progress()
             try:
                 with open(dest_file, "rb") as _probe:
@@ -1863,8 +1915,7 @@ class InstallWorker(QObject):
                         elapsed = now - stage_start
                         if total > 0:
                             pct = int(done * 100 / total)
-                            progress_signal.emit(pct)
-                            self._stage_progress[stage_idx] = pct
+                            _emit_pct(pct)
                             # Compute speed and ETA
                             speed = done / elapsed if elapsed > 0 else 0
                             remaining = total - done
@@ -1880,8 +1931,7 @@ class InstallWorker(QObject):
                             progress_signal.emit(-1)  # indeterminate
                             self._emit_status(status_text, -1, f"{self._fmt_bytes(done)}")
 
-            progress_signal.emit(100)
-            self._stage_progress[stage_idx] = 100
+            _emit_pct(100)
             self._update_overall_progress()
             try:
                 with open(dest_file, "rb") as _probe:
@@ -1932,6 +1982,79 @@ class InstallWorker(QObject):
             self._cleanup_temp()
             self.error.emit(f"Could not write the downloaded file:\n{exc}")
             return False
+
+    # -- multi-volume download ---------------------------------------------
+    def _download_parts(self, parts, status_text, progress_signal, stage_idx=0):
+        """Download one or more archive volumes into a single shared temp dir
+        and return the path of the first volume (the one to hand to the
+        extractor), or None on failure / cancellation.
+
+        Multi-volume RAR sets work by placing every ``.partN.rar`` file in the
+        same folder; 7-Zip is then pointed at the first volume and pulls in the
+        rest by name. A single-archive download is just a one-element list, so
+        the common path behaves exactly as before.
+        """
+        part_dir = self._new_temp_dir()
+        count = len(parts)
+        local_paths = []
+        for index, part in enumerate(parts):
+            filename = self._part_filename(part, index, count)
+            dest = os.path.join(part_dir, filename)
+            self._temp_files.append(dest)
+            suffix = f"  (part {index + 1}/{count})" if count > 1 else ""
+            self._stage_start = time.monotonic()
+            ok = self._download(
+                part["url"], dest, status_text + suffix, progress_signal,
+                stage_idx=stage_idx,
+                frac_base=index / count, frac_span=1 / count,
+            )
+            if not ok:
+                return None
+            if self._cancel.is_set():
+                self._abort()
+                return None
+            local_paths.append(dest)
+
+        self._last_part_paths = local_paths
+        return self._first_volume(local_paths)
+
+    @staticmethod
+    def _part_filename(part, index, count):
+        """Local filename for a downloaded volume. Prefer the explicit manifest
+        ``name`` (required for 7-Zip to pair the volumes correctly), fall back
+        to the filename in the URL, then to a generated name."""
+        name = (part.get("name") or "").strip()
+        if name:
+            return os.path.basename(name.replace("\\", "/"))
+        from urllib.parse import urlparse, unquote
+        base = os.path.basename(unquote(urlparse(part["url"]).path))
+        if base.lower().endswith((".rar", ".zip", ".7z")):
+            return base
+        return f"archive.part{index + 1}.rar" if count > 1 else "archive.zip"
+
+    @staticmethod
+    def _first_volume(paths):
+        """Return the volume to start extraction from: the ``.part1.rar``
+        (lowest part number) when names follow that scheme, else the first
+        downloaded file."""
+        if not paths:
+            return None
+        numbered = []
+        for p in paths:
+            m = re.search(r"\.part0*(\d+)\.rar$", p, re.IGNORECASE)
+            if m:
+                numbered.append((int(m.group(1)), p))
+        if numbered:
+            numbered.sort()
+            return numbered[0][1]
+        return paths[0]
+
+    def _remove_parts(self):
+        """Delete the volumes from the most recent _download_parts call (frees
+        disk before the fix stage); any stragglers are caught by cleanup."""
+        for path in self._last_part_paths:
+            self._remove_file(path)
+        self._last_part_paths = []
 
     # -- extraction (ZIP via zipfile, RAR via 7-Zip) ------------------------
     @staticmethod
