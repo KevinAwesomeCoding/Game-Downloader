@@ -287,6 +287,119 @@ def save_prefs(data: dict):
 
 
 # ---------------------------------------------------------------------------
+# Desktop shortcut creation — optional post-install step (off by default).
+#
+# The tricky part is picking the *main* game executable out of a folder that
+# often also contains redistributables, crash handlers, engine helpers, etc.
+# We score every .exe rather than naively taking the largest: a filename that
+# resembles the game's title wins, then executables nearer the top of the
+# install folder (launchers usually sit at the root), with file size only as a
+# tiebreaker. Obvious non-game exes are pushed to the bottom.
+# ---------------------------------------------------------------------------
+_NON_GAME_EXE_RE = re.compile(
+    r"unins|uninstall|setup|install|vc_?redist|vcredist|dxsetup|dxwebsetup|"
+    r"directx|dotnet|ndp\d|netfx|redist|prereq|oalinst|openal|"
+    r"crashhandler|crashreport|crashpad|unitycrashhandler|"
+    r"unrealcefsubprocess|cefsubprocess|epicwebhelper|eossdk|"
+    r"activation|touchup|notification|helper|python|node",
+    re.IGNORECASE,
+)
+
+
+def _normalize_title(s: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", str(s).lower())
+
+
+def find_main_executable(root: str, game_name: str = ""):
+    """Best guess at a game folder's main launchable .exe, or None if it has
+    no executables. See the scoring rationale in the section comment above."""
+    candidates = []
+    for dirpath, _dirs, files in os.walk(root):
+        for fn in files:
+            if not fn.lower().endswith(".exe"):
+                continue
+            full = os.path.join(dirpath, fn)
+            try:
+                size = os.path.getsize(full)
+            except OSError:
+                size = 0
+            rel = os.path.relpath(dirpath, root)
+            depth = 0 if rel == "." else rel.count(os.sep) + 1
+            candidates.append((full, fn, size, depth))
+    if not candidates:
+        return None
+
+    game_key = _normalize_title(game_name)
+
+    def score(entry):
+        full, fn, size, depth = entry
+        stem = _normalize_title(os.path.splitext(fn)[0])
+        pts = 0.0
+        if _NON_GAME_EXE_RE.search(fn):
+            pts -= 1_000_000
+        if game_key and stem and (game_key in stem or stem in game_key):
+            pts += 1_000_000
+        pts -= depth * 1000                          # shallower is better
+        pts += min(size, 4_000_000_000) / 1_000_000  # size in MB, mild nudge
+        return pts
+
+    return max(candidates, key=score)[0]
+
+
+def _ps_single_quote(value: str) -> str:
+    """Quote a value as a PowerShell single-quoted string literal."""
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def _desktop_dir() -> str:
+    """The user's Desktop, honoring OneDrive/redirected folders via the
+    registry, with a plain ~/Desktop fallback."""
+    try:
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
+        )
+        try:
+            val, _ = winreg.QueryValueEx(key, "Desktop")
+            val = os.path.expandvars(val)
+            if os.path.isdir(val):
+                return val
+        finally:
+            winreg.CloseKey(key)
+    except OSError:
+        pass
+    return os.path.join(os.path.expanduser("~"), "Desktop")
+
+
+def create_desktop_shortcut(target_exe: str, shortcut_name: str):
+    """Create a .lnk on the user's Desktop that launches target_exe. Uses
+    PowerShell's WScript.Shell COM object so no extra dependency is needed.
+    Returns the .lnk path on success, else None."""
+    if not target_exe or not os.path.isfile(target_exe):
+        return None
+    safe = re.sub(r'[<>:"/\\|?*]', "", shortcut_name).strip() or "Game"
+    lnk_path = os.path.join(_desktop_dir(), safe + ".lnk")
+    workdir = os.path.dirname(target_exe)
+    ps = (
+        "$ErrorActionPreference='Stop';"
+        f"$w=(New-Object -ComObject WScript.Shell).CreateShortcut({_ps_single_quote(lnk_path)});"
+        f"$w.TargetPath={_ps_single_quote(target_exe)};"
+        f"$w.WorkingDirectory={_ps_single_quote(workdir)};"
+        f"$w.IconLocation={_ps_single_quote(target_exe + ',0')};"
+        "$w.Save()"
+    )
+    try:
+        subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+            creationflags=_NO_WINDOW, timeout=30,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return lnk_path if os.path.isfile(lnk_path) else None
+
+
+# ---------------------------------------------------------------------------
 # Spacewar helpers
 # ---------------------------------------------------------------------------
 def is_spacewar_installed() -> bool:
@@ -3404,7 +3517,29 @@ class DownloadCard(QFrame):
         self.eta_label.setText("")
         self.action_btn.setText("Open folder")
         self.action_btn.setEnabled(True)
+        self._maybe_create_shortcut(path)
         self.manager.on_state_changed()
+
+    def _maybe_create_shortcut(self, install_dir):
+        """If the user enabled it in Settings, drop a desktop shortcut to the
+        installed game's main executable. Best-effort — never breaks the
+        install if it fails."""
+        if not load_prefs().get("create_desktop_shortcut", False):
+            return
+        try:
+            exe = find_main_executable(install_dir, self.game.name)
+            if not exe:
+                _log.debug("shortcut: no .exe found under %s", install_dir)
+                return
+            lnk = create_desktop_shortcut(exe, self.game.name)
+            if lnk:
+                _log.debug("shortcut created  %s  ->  %s", lnk, exe)
+                self.status_label.setText(
+                    f"Installed to {install_dir}  ·  Desktop shortcut created")
+            else:
+                _log.debug("shortcut: creation failed for %s", exe)
+        except Exception as exc:  # never let a shortcut failure break success
+            _log.debug("shortcut: unexpected error  %s", exc)
 
     @pyqtSlot(str)
     def _on_error(self, message):
@@ -3745,6 +3880,7 @@ class MainWindow(QMainWindow):
         self.loading_page = self._build_loading_page()
         self.error_page = self._build_error_page()
         self.content_page = self._build_content_page()
+        self.settings_page = self._build_settings_page()
         self.downloads_page = DownloadsPage()
         self.download_manager = DownloadManager(self.downloads_page, max_concurrent=3)
         self.download_manager.count_changed.connect(self._update_downloads_badge)
@@ -3752,6 +3888,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.loading_page)
         self.stack.addWidget(self.error_page)
         self.stack.addWidget(self.content_page)
+        self.stack.addWidget(self.settings_page)
         self.stack.addWidget(self.downloads_page)
 
         self.load_manifest()
@@ -3821,6 +3958,12 @@ class MainWindow(QMainWindow):
         self.downloads_btn.clicked.connect(
             lambda: self.stack.setCurrentWidget(self.downloads_page))
         lay.addWidget(self.downloads_btn)
+
+        self.settings_btn = QPushButton("Settings")
+        self.settings_btn.setObjectName("NavButton")
+        self.settings_btn.clicked.connect(
+            lambda: self.stack.setCurrentWidget(self.settings_page))
+        lay.addWidget(self.settings_btn)
 
         self.spacewar_btn = QPushButton("Get Spacewar")
         self.spacewar_btn.setObjectName("SpacewarButton")
@@ -3903,6 +4046,43 @@ class MainWindow(QMainWindow):
         scroll.setWidget(container)
         lay.addWidget(scroll)
         return page
+
+    def _build_settings_page(self):
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(24, 20, 24, 20)
+        lay.setSpacing(12)
+
+        title = QLabel("Settings")
+        title.setObjectName("AppTitle")
+        lay.addWidget(title)
+
+        self.shortcut_check = QCheckBox(
+            "Create a desktop shortcut to the game after installing"
+        )
+        self.shortcut_check.setChecked(
+            bool(load_prefs().get("create_desktop_shortcut", False))
+        )
+        self.shortcut_check.toggled.connect(self._on_shortcut_pref_toggled)
+        lay.addWidget(self.shortcut_check)
+
+        hint = QLabel(
+            "When on, a shortcut to the game's main program is placed on your "
+            "Desktop once an install finishes, so you can launch the game with "
+            "a double-click. The app picks the main .exe automatically. "
+            "Off by default."
+        )
+        hint.setObjectName("SubInfo")
+        hint.setWordWrap(True)
+        lay.addWidget(hint)
+
+        lay.addStretch(1)
+        return page
+
+    def _on_shortcut_pref_toggled(self, checked):
+        prefs = load_prefs()
+        prefs["create_desktop_shortcut"] = bool(checked)
+        save_prefs(prefs)
 
     # -- manifest loading ---------------------------------------------------
     def load_manifest(self):
