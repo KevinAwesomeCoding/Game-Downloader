@@ -429,6 +429,25 @@
     }
   },
   {
+    "id": "game-of-life-2",
+    "name": "The Game of Life 2",
+    "description": "The official sequel to the hit board game played by 50 million fans! Adds vibrant 3D animation and brand-new choices every turn. Customise your peg, spin the spinner, and build your best life.",
+    "version": "1.0",
+    "size": "600 MB",
+    "players": "1-4 players (local or online)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1455630/7e459241dc9cdd601baa81e8d576bc563cd5765b/header.jpg?t=1779870109",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1iSzffpCCGLFoLskwpO066V3-IBkrDONp&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1oGzbeiRn1C5ssn95w9Ie5bsflTZ0N1BE&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 7 64-bit",
+      "cpu": "2 GHz single core",
+      "ram": "4 GB",
+      "gpu": "DirectX 10 class GPU (1280x720)",
+      "directx": "Version 10",
+      "storage": "600 MB"
+    }
+  },
+  {
     "id": "fears-to-fathom-scratch-creek",
     "name": "Fears to Fathom - Scratch Creek",
     "description": "A psychological co-op horror game where players assume the roles of Tessa Langley and Marcus Reed, a young couple whose journey to relocate takes an unexpected detour through the eerie town of Scratch Creek, told with the series' signature VHS-era atmosphere.",
