@@ -142,6 +142,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate Secrets Configuration
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+        run: |
+          if [ -z "$MACOS_CERTIFICATE" ]; then
+            echo "::error::GitHub Secrets are missing! Please ensure you have added MACOS_CERTIFICATE, MACOS_CERTIFICATE_PWD, and others to your repository settings as detailed in the walkthrough."
+            exit 1
+          fi
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
