@@ -796,6 +796,11 @@ class Game:
         self.entry_type = str(raw.get("type", "game")).strip().lower()
         _reqs = raw.get("requirements")
         self.requirements = _reqs if isinstance(_reqs, dict) else {}
+        # macCompatibility is injected by the publish-time batch classifier
+        # (compat/batchClassify.py). The app only reads — never computes — this.
+        _compat = raw.get("macCompatibility")
+        self.mac_compat: dict | None = _compat if isinstance(_compat, dict) else None
+
 
     @property
     def is_available(self) -> bool:
@@ -2632,6 +2637,89 @@ class InstallWorker(QObject):
 
 
 # ---------------------------------------------------------------------------
+# macCompatibility badge helper  (publish-time data — app only reads)
+# ---------------------------------------------------------------------------
+_COMPAT_TIER_META = {
+    # tier string -> (emoji, object-name-suffix)
+    "Native":               ("\U0001f34f", "Native"),    # 🍏 green apple
+    "Runs great":           ("\U0001f7e2", "Great"),     # 🟢
+    "Runs with a recipe":   ("\U0001f7e1", "Recipe"),    # 🟡
+    "Partial":              ("\U0001f7e0", "Partial"),   # 🟠
+    "Not yet":              ("\U0001f534", "NotYet"),    # 🔴
+}
+
+
+def _build_compat_badge(game: "Game") -> "QLabel | None":
+    """
+    Build a compat-tier QLabel for *game*, or return None if no data.
+
+    Badge object names (for QSS styling):
+      CompatBadge_Native    — native macOS build confirmed
+      CompatBadge_Great     — Runs great
+      CompatBadge_Recipe    — Runs with a recipe
+      CompatBadge_Partial   — Partial (standard risk)
+      CompatBadge_PartialHigh — Partial, riskLevel = High
+      CompatBadge_NotYet    — Not yet
+      CompatBadge_Unknown   — fallback
+
+    All badges receive an additional data property "confidence" so CSS
+    pseudo-class variants can be added without extra widget types.
+    Low-confidence entries append "(estimated)" to the badge text.
+    """
+    if game.mac_compat is None:
+        return None
+
+    tier       = game.mac_compat.get("tier", "")
+    risk_level = game.mac_compat.get("riskLevel", "Standard")
+    confidence = game.mac_compat.get("confidence", "")
+    reasoning  = game.mac_compat.get("reasoning", "")
+
+    emoji, suffix = _COMPAT_TIER_META.get(tier, ("\u26aa", "Unknown"))  # ⚪ fallback
+
+    # High-risk Partial gets its own object name for distinct QSS coloring
+    if tier == "Partial" and risk_level == "High":
+        suffix = "PartialHigh"
+
+    # Low-confidence entries append an "estimated" caveat to the badge text
+    estimated_tag = " · estimated" if confidence == "Low" else ""
+    text = f"{emoji} {tier}{estimated_tag}"
+
+    lbl = QLabel(text)
+    lbl.setObjectName(f"CompatBadge_{suffix}")
+    lbl.setProperty("confidence", confidence)   # allows CSS :hover etc.
+    if reasoning:
+        lbl.setToolTip(reasoning)
+    lbl.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+    return lbl
+
+
+def _build_compat_reasoning(game: "Game") -> "QLabel | None":
+    """
+    Build a one-line reasoning QLabel for the install dialog.
+    Low-confidence entries append '(unconfirmed — estimated)' to the text.
+    Returns None if no data or no reasoning.
+    """
+    if game.mac_compat is None:
+        return None
+
+    reasoning  = game.mac_compat.get("reasoning", "").strip()
+    confidence = game.mac_compat.get("confidence", "")
+
+    if not reasoning:
+        return None
+
+    if confidence == "Low":
+        reasoning = f"{reasoning} (unconfirmed \u2014 estimated)"
+
+    lbl = QLabel(f"\U0001f4bb  {reasoning}")
+    obj_name = "CompatReasoning_Low" if confidence == "Low" else "CompatReasoning"
+    lbl.setObjectName(obj_name)
+    lbl.setWordWrap(True)
+    return lbl
+
+
+
+# ---------------------------------------------------------------------------
 # Game card widget
 # ---------------------------------------------------------------------------
 class GameCard(QFrame):
@@ -2672,6 +2760,11 @@ class GameCard(QFrame):
         desc.setWordWrap(True)
         body.addWidget(desc)
 
+        # macCompatibility tier badge (publish-time data, no live computation)
+        _compat_badge = _build_compat_badge(game)
+        if _compat_badge is not None:
+            body.addWidget(_compat_badge)
+
         meta_bits = []
         if game.version:
             meta_bits.append(f"v{game.version}")
@@ -2681,6 +2774,7 @@ class GameCard(QFrame):
         meta = QLabel("  •  ".join(meta_bits))
         meta.setObjectName("CardMeta")
         body.addWidget(meta)
+
 
         if game.players:
             players_lbl = QLabel(f"👥 {game.players}")
@@ -2796,6 +2890,14 @@ class InstallDialog(QDialog):
         desc.setWordWrap(True)
         root.addWidget(desc)
 
+        # macCompatibility tier badge + reasoning (publish-time data, read-only)
+        _compat_badge = _build_compat_badge(game)
+        if _compat_badge is not None:
+            root.addWidget(_compat_badge)
+        _compat_reasoning = _build_compat_reasoning(game)
+        if _compat_reasoning is not None:
+            root.addWidget(_compat_reasoning)
+
         meta_bits = []
         if game.version:
             meta_bits.append(f"Version {game.version}")
@@ -2809,6 +2911,7 @@ class InstallDialog(QDialog):
             meta = QLabel("   •   ".join(meta_bits))
             meta.setObjectName("CardMeta")
             root.addWidget(meta)
+
 
         # "Will it run on your PC?" — compared against this game's requirements.
         self._build_system_check(root)
@@ -4302,6 +4405,59 @@ QLabel { background-color: transparent; }
     color: #fbbf24; font-size: 12px; font-weight: 700;
     background-color: #3a2f12; border-radius: 6px; padding: 3px 8px;
 }
+
+/* macCompatibility tier badges (data written at publish time) */
+
+/* Tier 0 — Native macOS build */
+#CompatBadge_Native {
+    color: #4ade80; font-size: 12px; font-weight: 700;
+    background-color: #052e16; border-radius: 6px; padding: 3px 8px;
+    border: 1px solid #166534;
+}
+/* Tier 1 — Runs great */
+#CompatBadge_Great {
+    color: #22c55e; font-size: 12px; font-weight: 700;
+    background-color: #0d2b1a; border-radius: 6px; padding: 3px 8px;
+}
+/* Tier 2 — Runs with a recipe */
+#CompatBadge_Recipe {
+    color: #fbbf24; font-size: 12px; font-weight: 700;
+    background-color: #2e2510; border-radius: 6px; padding: 3px 8px;
+}
+/* Tier 3 — Partial, standard risk */
+#CompatBadge_Partial {
+    color: #fb923c; font-size: 12px; font-weight: 700;
+    background-color: #2a1a08; border-radius: 6px; padding: 3px 8px;
+}
+/* Tier 3 — Partial, HIGH risk (DX12/Vulkan + known bad engine) */
+#CompatBadge_PartialHigh {
+    color: #f97316; font-size: 12px; font-weight: 700;
+    background-color: #3b1407; border-radius: 6px; padding: 3px 8px;
+    border: 1px solid #c2410c;
+}
+/* Tier 4 — Not yet */
+#CompatBadge_NotYet {
+    color: #f87171; font-size: 12px; font-weight: 700;
+    background-color: #2b0f0f; border-radius: 6px; padding: 3px 8px;
+}
+/* Fallback */
+#CompatBadge_Unknown {
+    color: #8b93a7; font-size: 12px; font-weight: 700;
+}
+
+/* Reasoning label — standard */
+#CompatReasoning {
+    color: #8b93a7; font-size: 12px;
+    background-color: #131826; border-radius: 6px;
+    padding: 5px 8px;
+}
+/* Reasoning label — Low confidence (muted + italic to signal "estimated") */
+#CompatReasoning_Low {
+    color: #6b7280; font-size: 12px; font-style: italic;
+    background-color: #0f131e; border-radius: 6px;
+    padding: 5px 8px; border: 1px dashed #374151;
+}
+
 
 #SysCheckBox {
     background-color: #161b2e;

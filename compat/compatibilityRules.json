@@ -1,0 +1,122 @@
+{
+  "_comment": "Compatibility rules for the MacWarp classifier v2. Edit signals here and re-run batchClassify.py --force to refresh all entries. Do NOT touch classifyCompatibility.py to adjust rule data.",
+
+  "native": {
+    "_comment": "Signals relevant to the Native tier and Rosetta 2 sub-notes.",
+    "apple_silicon_keywords": [
+      "Apple Silicon", "M1", "M2", "M3", "M4", "Apple M1", "Apple M2",
+      "Apple M3", "Rosetta", "Universal Binary", "arm64"
+    ]
+  },
+
+  "not_yet": {
+    "_comment": "Any signal matching here wins immediately (priority 2 after Native).",
+    "antiCheat": [
+      "EasyAntiCheat", "Easy Anti-Cheat", "BattlEye", "Battleye",
+      "Vanguard", "nProtect", "GameGuard", "ESEA", "FairFight",
+      "PunkBuster", "VAC", "Kernel Anti-Cheat"
+    ],
+    "winrt_keywords": [
+      "WinRT", "UWP", "MSIX", "Windows Store", "Microsoft Store",
+      "AppX", "Universal Windows Platform"
+    ],
+    "opengl4_keywords": [
+      "OpenGL 4", "OpenGL4", "requires OpenGL 4", "OpenGL 4.x",
+      "OpenGL 4.1", "OpenGL 4.2", "OpenGL 4.3", "OpenGL 4.4",
+      "OpenGL 4.5", "OpenGL 4.6"
+    ],
+    "desktop_customizer_keywords": [
+      "taskbar", "shell extension", "desktop customizer",
+      "desktop enhancement", "Start menu", "system tray",
+      "Windows shell", "Explorer shell", "Windows desktop"
+    ],
+    "kernel_driver_keywords": [
+      "kernel driver", "kernel-mode driver", "kernel mode driver",
+      "KMDF", "ring 0", "hypervisor"
+    ],
+    "vulkan_only_keywords": [
+      "Vulkan support required", "Vulkan required", "Vulkan only",
+      "requires Vulkan", "Vulkan renderer"
+    ]
+  },
+
+  "partial": {
+    "_comment": "Checked after not_yet. DX12 or Vulkan-present-alongside-DX land here.",
+    "directx": [
+      "Version 12", "DirectX 12", "DX12", "Direct3D 12", "D3D12"
+    ],
+    "vulkan_keywords": [
+      "Vulkan"
+    ]
+  },
+
+  "partial_high_risk": {
+    "_comment": "When a Partial trigger fires AND any of these signals are present, riskLevel becomes 'High'. These represent engines or publishers with confirmed poor Vulkan/D3D12 translation on macOS.",
+    "engine_keywords": [
+      "CryEngine", "CRYENGINE", "id Tech 7", "idTech 7",
+      "Decima", "Snowdrop", "Dunia", "IW 9", "IW9",
+      "Frostbite", "Fox Engine"
+    ],
+    "publisher_risk_keywords": [
+      "poor Vulkan", "poor macOS", "no macOS support",
+      "Parallels recommended", "OpenGL fallback", "Vulkan issues",
+      "macOS disclaimer", "not supported on Mac"
+    ]
+  },
+
+  "runs_with_recipe": {
+    "_comment": "Checked after partial. Explicit runtime dependencies trigger this tier.",
+    "dotnet_keywords": [
+      ".NET Framework", ".NET 4", ".NET 3", ".NET 2",
+      "Microsoft .NET", "dotnet framework"
+    ],
+    "accessdb_keywords": [
+      "Access Database", "Access DB", "Microsoft Access",
+      "Access Runtime", "ACE.OLEDB"
+    ],
+    "runtime_keywords": [
+      "vcredist", "Visual C++ Redistributable",
+      "DirectPlay", "Direct2D editor",
+      "MSVC Redist", "D3DX", "xinput", "XAudio",
+      "Proton-GE", "wine-ge", "mic-capture", "casting fix"
+    ]
+  },
+
+  "directx_great": {
+    "_comment": "These DirectX versions cleanly map to 'Runs great'.",
+    "versions": [
+      "Version 9", "Version 10", "Version 11",
+      "DirectX 9", "DirectX 10", "DirectX 11",
+      "DX9", "DX10", "DX11",
+      "Direct3D 9", "Direct3D 10", "Direct3D 11",
+      "D3D9", "D3D10", "D3D11"
+    ]
+  },
+
+  "engine_detection": {
+    "_comment": "Engine keywords used to bump confidence to Medium when no direct compat report exists. Does NOT affect tier — only confidence.",
+    "unity_keywords": [
+      "Unity", "Unity Engine", "Unity3D"
+    ],
+    "unreal_keywords": [
+      "Unreal Engine", "UE4", "UE5", "Unreal Engine 4", "Unreal Engine 5",
+      "Unreal Engine 3", "UE3"
+    ],
+    "godot_keywords": [
+      "Godot", "Godot Engine", "GDScript"
+    ],
+    "other_well_known_keywords": [
+      "GameMaker", "Game Maker Studio", "RPG Maker", "Pygame",
+      "Monogame", "MonoGame", "LÖVE", "Love2D", "Construct 3",
+      "Source Engine", "Source 2"
+    ]
+  },
+
+  "early_access_detection": {
+    "_comment": "Keywords that mark a game as Early Access, which lowers confidence to Low when no other High/Medium signals are present.",
+    "keywords": [
+      "Early Access", "Early-Access", "EA ", "Alpha", "Beta Build",
+      "Pre-Release", "Preview", "Demo"
+    ]
+  }
+}

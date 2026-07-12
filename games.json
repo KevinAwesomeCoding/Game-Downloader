@@ -16,6 +16,13 @@
       "gpu": "Nvidia 8800 GT / AMD 5670 / Intel HD 3000",
       "directx": "Version 10",
       "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -34,6 +41,13 @@
       "ram": "8 GB",
       "gpu": "NVIDIA GTX 1050 Ti 4GB / AMD RX 570 4GB",
       "storage": "4 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs great",
+      "riskLevel": "Standard",
+      "reasoning": "No DirectX requirement detected — likely a Win32/GDI application or uses an older graphics API fully supported by Wine.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -52,6 +66,13 @@
       "ram": "1 GB",
       "gpu": "GeForce GT 740 2GB / Radeon HD 5770",
       "storage": "500 MB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -71,6 +92,13 @@
       "gpu": "NVIDIA GTX 970",
       "directx": "Version 11",
       "storage": "3 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -89,6 +117,13 @@
       "cpu": "Intel Core i5",
       "gpu": "DirectX 11 or 12 compatible graphics card",
       "directx": "Version 11"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -106,6 +141,13 @@
       "cpu": "Intel Core i3-4330",
       "ram": "1 GB",
       "gpu": "Intel HD Graphics 4600"
+    },
+    "macCompatibility": {
+      "tier": "Runs great",
+      "riskLevel": "Standard",
+      "reasoning": "No DirectX requirement detected — likely a Win32/GDI application or uses an older graphics API fully supported by Wine.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -125,6 +167,13 @@
       "gpu": "NVIDIA GeForce GTX 1050 4GB",
       "directx": "Version 11",
       "storage": "5 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -144,6 +193,13 @@
       "gpu": "NVIDIA GTX 1050 2GB / AMD RX 460 4GB / Intel Arc A380 6GB",
       "directx": "Version 11",
       "storage": "15 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -164,6 +220,13 @@
       "gpu": "DirectX 11 compatible with at least 2GB VRAM",
       "directx": "Version 11",
       "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -183,6 +246,13 @@
       "gpu": "GeForce GTX 1050 Ti / AMD R9 270X",
       "directx": "Version 11",
       "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -201,6 +271,13 @@
       "ram": "8 GB",
       "gpu": "GeForce GTX 1060 / Radeon RX 580",
       "storage": "8 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -220,6 +297,13 @@
       "gpu": "NVIDIA GeForce GTX 770 / AMD R9 380",
       "directx": "Version 12",
       "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Partial",
+      "riskLevel": "Standard",
+      "reasoning": "Requires DirectX 12 — Wine's D3D12 translation is experimental; game installs and runs but rendering quality varies.",
+      "confidence": "High",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -239,6 +323,13 @@
       "gpu": "Nvidia GTX 960 / AMD R9 280",
       "directx": "Version 10",
       "storage": "5 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -258,6 +349,13 @@
       "gpu": "256MB DirectX 9 compatible",
       "directx": "Version 9",
       "storage": "1 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -277,6 +375,13 @@
       "gpu": "2 GB VRAM or more",
       "directx": "Version 12",
       "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Partial",
+      "riskLevel": "Standard",
+      "reasoning": "Requires DirectX 12 — Wine's D3D12 translation is experimental; game installs and runs but rendering quality varies.",
+      "confidence": "High",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -296,6 +401,13 @@
       "gpu": "NVIDIA GeForce GTX 1060",
       "directx": "Version 11",
       "storage": "1 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -314,6 +426,13 @@
       "ram": "4 GB",
       "gpu": "GeForce 500+ / Radeon 5000+ or greater",
       "storage": "3 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -333,6 +452,13 @@
       "gpu": "NVIDIA GTX 970",
       "directx": "Version 10",
       "storage": "1 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -351,6 +477,13 @@
       "ram": "2 GB",
       "gpu": "Modern dedicated GPU (Vulkan support required)",
       "storage": "500 MB"
+    },
+    "macCompatibility": {
+      "tier": "Not yet",
+      "riskLevel": "Standard",
+      "reasoning": "GPU requires Vulkan with no DirectX fallback ('Vulkan support required') — Wine's MoltenVK layer is not reliable enough for this title.",
+      "confidence": "High",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -369,6 +502,13 @@
       "ram": "4 GB",
       "gpu": "NVIDIA GTX 760 / AMD Radeon R9 290",
       "storage": "7 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -388,6 +528,13 @@
       "gpu": "NVIDIA GeForce GTX 960 2GB",
       "directx": "Version 11",
       "storage": "6 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -407,6 +554,13 @@
       "gpu": "NVIDIA GTX 1060 / AMD RX 580",
       "directx": "Version 11",
       "storage": "8 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -426,6 +580,13 @@
       "gpu": "NVIDIA GTX 960 / AMD Radeon R9 280",
       "directx": "Version 11",
       "storage": "4 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.805689-05:00"
     }
   },
   {
@@ -445,6 +606,13 @@
       "gpu": "DirectX 10 class GPU (1280x720)",
       "directx": "Version 10",
       "storage": "600 MB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-12T11:58:40.806692-05:00"
     }
   },
   {
@@ -464,8 +632,13 @@
       "gpu": "NVIDIA GTX 1050 Ti / AMD RX 580 / Intel Arc A380",
       "directx": "Version 12",
       "storage": "14 GB"
+    },
+    "macCompatibility": {
+      "tier": "Partial",
+      "riskLevel": "Standard",
+      "reasoning": "Requires DirectX 12 — Wine's D3D12 translation is experimental; game installs and runs but rendering quality varies.",
+      "confidence": "High",
+      "classifiedAt": "2026-07-12T11:58:40.806692-05:00"
     }
   }
 ]
-
-
