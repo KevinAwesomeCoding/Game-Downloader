@@ -135,3 +135,155 @@ jobs:
             Requires CrossOver 24+ (Wine 9+) for the bundled Qt runtime to load correctly.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install "pyinstaller>=6.0"
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          VERSION=$(cat VERSION | xargs)
+          DATE=$(date +"%Y%m%d")
+          RUN="${{ github.run_number }}"
+          TAG="v$VERSION-$DATE-$RUN"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Inject VERSION into main.py
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          sed -i '' "s/^VERSION = \".*\"$/VERSION = \"$TAG\"/" main.py
+
+      - name: Build MacWarp.app
+        run: |
+          pyinstaller \
+            --windowed \
+            --noupx \
+            --collect-all PyQt6 \
+            --hidden-import PyQt6.sip \
+            --name "MacWarp" \
+            main.py
+
+      - name: Import signing certificate
+        # 1. Import signing certificate
+        # - Decode a base64-encoded Developer ID Application certificate (.p12) from a GitHub Secret into a temporary keychain on the runner
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          rm -f certificate.p12
+
+      - name: Code sign the .app
+        # 2. Code sign the .app
+        # - Run codesign with --options runtime (hardened runtime, required for notarization) and --timestamp
+        env:
+          MACOS_IDENTITY: ${{ secrets.MACOS_IDENTITY }}
+        run: |
+          codesign --deep --force --options runtime --timestamp --sign "$MACOS_IDENTITY" dist/MacWarp.app
+          codesign --verify --deep --strict --verbose dist/MacWarp.app
+
+      - name: Install create-dmg
+        # If any step's tool isn't preinstalled on the runner (e.g., create-dmg), add an install step
+        run: brew install create-dmg
+
+      - name: Create DMG
+        # 3. Create the DMG
+        # - Use the create-dmg tool to package MacWarp.app into MacWarp.dmg
+        run: |
+          if [ -f "assets/dmg-background.png" ]; then
+            BG_ARGS="--background assets/dmg-background.png"
+          else
+            BG_ARGS=""
+          fi
+          
+          create-dmg \
+            --volname "MacWarp" \
+            --volicon "dist/MacWarp.app/Contents/Resources/icon-windowed.icns" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "MacWarp.app" 175 120 \
+            --hide-extension "MacWarp.app" \
+            --app-drop-link 425 120 \
+            $BG_ARGS \
+            "MacWarp-${{ steps.tag.outputs.tag }}.dmg" \
+            "dist/MacWarp.app"
+
+      - name: Notarize the DMG
+        # 4. Notarize the DMG
+        # - Use xcrun notarytool submit --wait to submit the DMG to Apple
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          echo "$ASC_KEY_P8" > AuthKey_${ASC_KEY_ID}.p8
+          
+          echo "Submitting to notarytool..."
+          xcrun notarytool submit "MacWarp-${{ steps.tag.outputs.tag }}.dmg" \
+            --key AuthKey_${ASC_KEY_ID}.p8 \
+            --key-id "$ASC_KEY_ID" \
+            --issuer "$ASC_ISSUER_ID" \
+            --wait > notary_output.txt 2>&1 || true
+            
+          cat notary_output.txt
+          
+          rm -f AuthKey_${ASC_KEY_ID}.p8
+          
+          if grep -q "status: Invalid" notary_output.txt; then
+            echo "Notarization failed (Invalid)."
+            exit 1
+          fi
+
+      - name: Staple the notarization ticket
+        # 5. Staple the notarization ticket
+        run: |
+          xcrun stapler staple "MacWarp-${{ steps.tag.outputs.tag }}.dmg"
+          xcrun stapler validate "MacWarp-${{ steps.tag.outputs.tag }}.dmg"
+
+      - name: Upload DMG Artifact
+        # 6. Upload artifact (GitHub Actions artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: MacWarp-DMG
+          path: MacWarp-${{ steps.tag.outputs.tag }}.dmg
+
+      - name: Upload to GitHub Release
+        # 6. Upload artifact (GitHub Release)
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          files: MacWarp-${{ steps.tag.outputs.tag }}.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup temporary keychain
+        # Clean up the temporary keychain at the end of the job even if later steps fail
+        if: always()
+        run: |
+          security delete-keychain build.keychain || true
