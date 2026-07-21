@@ -608,7 +608,7 @@
       "storage": "600 MB"
     },
     "macCompatibility": {
-      "tier": "Runs with a recipe",
+      "tier": "Runs with recipe",
       "riskLevel": "Standard",
       "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
       "confidence": "Medium",
