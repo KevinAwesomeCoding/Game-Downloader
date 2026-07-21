@@ -640,5 +640,159 @@
       "confidence": "High",
       "classifiedAt": "2026-07-12T11:58:40.806692-05:00"
     }
+  },
+  {
+    "id": "funnel-runners",
+    "name": "Funnel Runners",
+    "description": "A first-person co-op survival game where you and up to 7 friends scavenge parts, repair a van, and escape a brutal, escalating tornado in a doomed city with fully destructible environments.",
+    "version": "Early Access",
+    "size": "10 GB",
+    "players": "1-8 players (solo or online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3712080/5e03554f7fd68edf54813a8d5a576a8791672227/header.jpg?t=1784567934",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1oPy1kSoDU0nZMpLroMErN4jClaQXlBqp&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1Wf98FmAmV12gLv8tZTGy6gY-dEL0z_rH&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10/11 64-bit",
+      "cpu": "Intel Core i5-10400F / AMD Ryzen 5 3600X",
+      "ram": "16 GB",
+      "gpu": "NVIDIA GTX 1070 8GB / AMD RX 580 8GB",
+      "storage": "10 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs great",
+      "riskLevel": "Standard",
+      "reasoning": "No DirectX requirement detected — likely a Win32/GDI application or uses an older graphics API fully supported by Wine.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-21T00:00:00.000000-05:00"
+    }
+  },
+  {
+    "id": "forest-escape-last-train",
+    "name": "Forest Escape: Last Train",
+    "description": "A co-op surreal horror game for 1-4 players. Explore bizarre nightmare locations, gather resources, solve puzzles, and keep your locomotive running as you escape a crazy Warden's twisted realm.",
+    "version": "0.48",
+    "size": "6 GB",
+    "players": "1-4 players (solo or online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4090360/b9e41870c9bd8686298faa22d64041e220ec5727/header_alt_assets_2.jpg?t=1784587101",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1IHcoAvtIxmxak5YjO3147F4whpyza4g2&export=download&confirm=t, https://drive.usercontent.google.com/download?id=11DyP3v2itOvKWA2ONeDBjIs9d4zjgh12&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1lNHymenbDOvC8IsjF7tgDemJUasi7DvW&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i5 8400",
+      "ram": "16 GB",
+      "gpu": "NVIDIA GeForce GTX 1050",
+      "directx": "Version 12",
+      "storage": "6 GB"
+    },
+    "macCompatibility": {
+      "tier": "Partial",
+      "riskLevel": "Standard",
+      "reasoning": "Requires DirectX 12 — Wine's D3D12 translation is experimental; game installs and runs but rendering quality varies.",
+      "confidence": "High",
+      "classifiedAt": "2026-07-21T00:00:00.000000-05:00"
+    }
+  },
+  {
+    "id": "backrooms-rescue-expedition",
+    "name": "The Backrooms: Rescue Expedition",
+    "description": "A realistic first-person horror game for up to 4 players. Your team must rescue the missing expedition unit Echo-7 North from the ruthless entities and madness of the infinite halls.",
+    "version": "1.0",
+    "size": "25 GB",
+    "players": "1-4 players (solo or online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3267550/84d40a8ae6ff5d504375d5ec616422caf3947f9a/header.jpg?t=1774547275",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1BMJZr23qAWv8qGoEwvP5Qitr8OhMnSxN&export=download&confirm=t, https://drive.usercontent.google.com/download?id=1Ek8VrvYHmhWTLzztdefrp879Wbe2comd&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1_8wH7e8QurSQH9K3oBALbharhWiqVmWI&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "AMD Ryzen 5 1600X / Intel Core i5-4430",
+      "ram": "16 GB",
+      "gpu": "Radeon RX 5700 / NVIDIA GeForce RTX 2060",
+      "directx": "Version 12",
+      "storage": "25 GB"
+    },
+    "macCompatibility": {
+      "tier": "Partial",
+      "riskLevel": "Standard",
+      "reasoning": "Requires DirectX 12 — Wine's D3D12 translation is experimental; game installs and runs but rendering quality varies.",
+      "confidence": "High",
+      "classifiedAt": "2026-07-21T00:00:00.000000-05:00"
+    }
+  },
+  {
+    "id": "happys-humble-burger-cult",
+    "name": "Happy's Humble Burger Cult",
+    "description": "An unhinged co-op horror cooking experience for 1-4 players. Grill burgers, fry sides, and hit your quota before the kitchen turns into a nightmare and Asset Joy starts her hunt.",
+    "version": "1.0.25",
+    "size": "10 GB",
+    "players": "1-4 players (solo or online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3453910/9cc27ec2c690ca34d4440b9ca8eb03e15b963fb1/header.jpg?t=1784365074",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1Jr2x4HBkQv-pICukQwcEHl4cUkK0H6NY&export=download&confirm=t, https://drive.usercontent.google.com/download?id=1q4hPZNkwC93y1tfeKIvqGrFuW1NHYkF6&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1i3V-pcaswQenGMprHHlAWYz9zlFYEK64&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i7-3820 or equivalent",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GTX 1070 or equivalent",
+      "directx": "Version 11",
+      "storage": "10 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-21T00:00:00.000000-05:00"
+    }
+  },
+  {
+    "id": "scamper",
+    "name": "Scamper",
+    "description": "You are a rat, and your fear response will be tested. Find a lost rat and guide it to safety through tense environments, solo or cooperatively with up to three other players.",
+    "version": "1.0",
+    "size": "3 GB",
+    "players": "1-4 players (solo or online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2481930/73a7159a1472f2e6a27dbc826fc877ed524ec578/header.jpg?t=1746296371",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1LqXdRGA-d711wuBlIMkA7s4s9JJQB0Ih&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1Dpt3eiEh-HHpcTsteOoTP4eI-NoEKotL&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i5-4590 / AMD FX 8350",
+      "ram": "4 GB",
+      "gpu": "NVIDIA GTX 970 / AMD Radeon R9 290",
+      "storage": "3 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs great",
+      "riskLevel": "Standard",
+      "reasoning": "No DirectX requirement detected — likely a Win32/GDI application or uses an older graphics API fully supported by Wine.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-21T00:00:00.000000-05:00"
+    }
+  },
+  {
+    "id": "pyramidion",
+    "name": "Pyramidion",
+    "description": "A punishing 2-player co-op physics game. Pick your role — Worker or Foreman — and haul a massive stone block from the base to the summit of a monolith, staying in sync every step of the way.",
+    "version": "Early Access",
+    "size": "1 GB",
+    "players": "Up to 2 players (online or LAN co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4024600/c95119865f21441535386af017872f90a6343a81/header.jpg?t=1780968306",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1dzMCHKMBuC1YT2YBHNt2pcQdxpBi67_C&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1ADlD2S-DQgmd6Phxu6y7L_5ZurJQaZFl&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i3",
+      "ram": "4 GB",
+      "gpu": "NVIDIA GTX 1050",
+      "directx": "Version 11",
+      "storage": "1 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-21T00:00:00.000000-05:00"
+    }
   }
 ]
