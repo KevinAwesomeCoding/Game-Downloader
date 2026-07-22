@@ -2824,6 +2824,23 @@ class InstallWorker(QObject):
         _log.debug("_find_content_root  direct root  entries=%d", len(entries))
         return staging
 
+    @staticmethod
+    def _copy_file_tolerant(src, target):
+        """Copy src -> target (overwriting), preserving timestamps when the OS
+        allows but never failing over them.
+
+        shutil.copy2 copies the modification time too, and Windows rejects the
+        bogus/zeroed timestamps that OnlineFix crack files (e.g. OnlineFix64.dll)
+        often carry with '[Errno 22] Invalid argument', which used to abort the
+        whole fix. Copying data + mode first (shutil.copy never calls utime) and
+        then attempting the timestamp separately keeps the merge robust: a junk
+        timestamp is silently skipped instead of killing the install."""
+        shutil.copy(src, target)
+        try:
+            shutil.copystat(src, target)
+        except OSError:
+            pass
+
     def _merge_tree(self, source_root, dest_dir,
                     progress_signal=None, stage_idx=3,
                     status_text="Applying fix") -> bool:
@@ -2855,7 +2872,7 @@ class InstallWorker(QObject):
             rel = os.path.relpath(src, source_root)
             target = os.path.join(dest_dir, rel)
             os.makedirs(os.path.dirname(target), exist_ok=True)
-            shutil.copy2(src, target)  # overwrites if it already exists
+            self._copy_file_tolerant(src, target)  # overwrites if it exists
             pct = int(index * 100 / total)
             _sig.emit(pct)
             self._stage_progress[stage_idx] = pct
