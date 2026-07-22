@@ -458,6 +458,72 @@ def create_desktop_shortcut(target_exe: str, shortcut_name: str):
     return lnk_path if os.path.isfile(lnk_path) else None
 
 
+def create_shortcuts_for_installed(base_dir, progress=None, cancel=None):
+    """Walk ``base_dir``'s immediate subfolders — each one an installed game —
+    and drop a Desktop shortcut for every folder that has a launchable .exe.
+
+    This is the retroactive counterpart to the per-install shortcut option: it
+    lets someone create shortcuts for games they installed before that option
+    existed. The main .exe of each folder is picked with the same scoring used
+    right after an install.
+
+    Returns ``(created, skipped)`` where ``created`` is a list of game names
+    that got a shortcut and ``skipped`` is a list of ``(name, reason)``.
+    ``progress(name)`` — if given — is called before each folder is processed;
+    ``cancel`` may be a threading.Event / zero-arg callable to stop early.
+    """
+    created, skipped = [], []
+
+    def cancelled() -> bool:
+        if cancel is None:
+            return False
+        return cancel.is_set() if hasattr(cancel, "is_set") else bool(cancel())
+
+    try:
+        entries = sorted(os.listdir(base_dir))
+    except OSError:
+        return created, skipped
+
+    for name in entries:
+        if cancelled():
+            break
+        folder = os.path.join(base_dir, name)
+        if not os.path.isdir(folder):
+            continue
+        if progress is not None:
+            progress(name)
+        exe = find_main_executable(folder, name)
+        if not exe:
+            skipped.append((name, "no program found"))
+            continue
+        if create_desktop_shortcut(exe, name):
+            created.append(name)
+        else:
+            skipped.append((name, "could not create shortcut"))
+    return created, skipped
+
+
+class ShortcutSweepWorker(QObject):
+    """Runs create_shortcuts_for_installed off the UI thread so scanning large
+    game folders doesn't freeze the window."""
+    progress = pyqtSignal(str)          # folder currently being processed
+    done = pyqtSignal(list, list)       # created names, skipped (name, reason)
+
+    def __init__(self, base_dir):
+        super().__init__()
+        self.base_dir = base_dir
+        self._cancel = threading.Event()
+
+    def cancel(self):
+        self._cancel.set()
+
+    @pyqtSlot()
+    def run(self):
+        created, skipped = create_shortcuts_for_installed(
+            self.base_dir, progress=self.progress.emit, cancel=self._cancel)
+        self.done.emit(created, skipped)
+
+
 # ---------------------------------------------------------------------------
 # Spacewar helpers
 # ---------------------------------------------------------------------------
@@ -4184,6 +4250,8 @@ class MainWindow(QMainWindow):
         self._spacewar_check_done = False  # fires at most once per session
         self._update_thread = None
         self._update_worker = None
+        self._sweep_thread = None
+        self._sweep_worker = None
         self._current_games: list = []
 
         central = QWidget()
@@ -4223,6 +4291,11 @@ class MainWindow(QMainWindow):
         if self._update_thread is not None:
             self._update_thread.quit()
             self._update_thread.wait()
+        if self._sweep_thread is not None:
+            if self._sweep_worker is not None:
+                self._sweep_worker.cancel()
+            self._sweep_thread.quit()
+            self._sweep_thread.wait(3000)
         super().closeEvent(event)
 
     # -- self-update ----------------------------------------------------------
@@ -4395,6 +4468,27 @@ class MainWindow(QMainWindow):
         hint.setWordWrap(True)
         lay.addWidget(hint)
 
+        # --- Retroactive: shortcuts for games installed earlier -------------
+        self.bulk_shortcut_btn = QPushButton("Create shortcuts for installed games")
+        self.bulk_shortcut_btn.setObjectName("SpacewarButton")
+        self.bulk_shortcut_btn.clicked.connect(self._on_bulk_shortcuts_clicked)
+        lay.addWidget(self.bulk_shortcut_btn)
+
+        self.bulk_shortcut_status = QLabel("")
+        self.bulk_shortcut_status.setObjectName("SubInfo")
+        self.bulk_shortcut_status.setWordWrap(True)
+        lay.addWidget(self.bulk_shortcut_status)
+
+        bulk_hint = QLabel(
+            "Scans your install folder and adds a Desktop shortcut for every "
+            "game already in it — handy for games you installed before the "
+            "option above existed. You'll be asked to pick/confirm the folder "
+            "first, and any shortcut that already exists is simply refreshed."
+        )
+        bulk_hint.setObjectName("SubInfo")
+        bulk_hint.setWordWrap(True)
+        lay.addWidget(bulk_hint)
+
         lay.addStretch(1)
         return page
 
@@ -4402,6 +4496,53 @@ class MainWindow(QMainWindow):
         prefs = load_prefs()
         prefs["create_desktop_shortcut"] = bool(checked)
         save_prefs(prefs)
+
+    # -- bulk shortcut creation for already-installed games -----------------
+    def _on_bulk_shortcuts_clicked(self):
+        if self._sweep_thread is not None:
+            return  # a sweep is already running
+        start = load_prefs().get("install_path", "").strip()
+        if not start or not os.path.isdir(start):
+            start = os.path.expanduser("~")
+        base = QFileDialog.getExistingDirectory(
+            self, "Select the folder your games are installed in", start)
+        if not base:
+            return
+        self.bulk_shortcut_btn.setEnabled(False)
+        self.bulk_shortcut_status.setText("Scanning…")
+        self._sweep_thread = QThread()
+        self._sweep_worker = ShortcutSweepWorker(base)
+        self._sweep_worker.moveToThread(self._sweep_thread)
+        self._sweep_thread.started.connect(self._sweep_worker.run)
+        self._sweep_worker.progress.connect(
+            lambda name: self.bulk_shortcut_status.setText(f"Processing {name}…"))
+        self._sweep_worker.done.connect(self._on_bulk_shortcuts_done)
+        self._sweep_thread.start()
+
+    @pyqtSlot(list, list)
+    def _on_bulk_shortcuts_done(self, created, skipped):
+        if self._sweep_thread is not None:
+            self._sweep_thread.quit()
+            self._sweep_thread.wait()
+            self._sweep_worker.deleteLater()
+            self._sweep_thread.deleteLater()
+            self._sweep_worker = None
+            self._sweep_thread = None
+        self.bulk_shortcut_btn.setEnabled(True)
+
+        n = len(created)
+        summary = f"Created {n} shortcut{'' if n == 1 else 's'} on your Desktop."
+        if skipped:
+            summary += f"  Skipped {len(skipped)}."
+        self.bulk_shortcut_status.setText(summary)
+
+        lines = [summary]
+        if created:
+            lines += [""] + [f"✓  {name}" for name in created]
+        if skipped:
+            lines += ["", "Skipped (no game program found):"]
+            lines += [f"•  {name}" for name, _reason in skipped]
+        QMessageBox.information(self, "Desktop shortcuts", "\n".join(lines))
 
     # -- manifest loading ---------------------------------------------------
     def load_manifest(self):
