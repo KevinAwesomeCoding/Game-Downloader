@@ -25,6 +25,7 @@ extraction/merge loops — the thread is never force-killed.
 """
 
 import ctypes
+import hashlib
 import logging
 import os
 import sys
@@ -284,6 +285,64 @@ def save_prefs(data: dict):
             json.dump(data, fh, indent=2)
     except OSError:
         pass
+
+
+# ---------------------------------------------------------------------------
+# Persistent download cache — partially-downloaded archives live here (keyed by
+# game + stage + source URLs) so that a failed or interrupted download can be
+# *resumed* on the next attempt instead of restarting from zero. This is on
+# %LOCALAPPDATA% (not %TEMP%) so it survives reboots; entries are removed when a
+# game finishes installing, and a startup sweep evicts anything left stale.
+# ---------------------------------------------------------------------------
+CACHE_MAX_AGE_DAYS = 14  # stale partials older than this are swept on startup
+
+
+def _cache_root() -> str:
+    base = (os.environ.get("LOCALAPPDATA")
+            or os.environ.get("APPDATA")
+            or app_dir())
+    d = os.path.join(base, "GameInstaller", "cache")
+    try:
+        os.makedirs(d, exist_ok=True)
+    except OSError:
+        pass
+    return d
+
+
+def cache_set_dir(game_id: str, kind: str, parts) -> str:
+    """Return (creating if needed) the folder that holds every volume of one
+    download set. Stable across retries for the same game+stage+URLs, so the
+    ``.part`` files from an earlier attempt are found and resumed.
+
+    All volumes of a multi-part set share this one folder, which is also what
+    7-Zip needs to pair sibling ``.partN.rar`` files during extraction.
+    """
+    urls = "|".join((p.get("url") or "") for p in (parts or []))
+    key = hashlib.sha1(f"{game_id}|{kind}|{urls}".encode("utf-8")).hexdigest()[:16]
+    d = os.path.join(_cache_root(), key)
+    try:
+        os.makedirs(d, exist_ok=True)
+    except OSError:
+        pass
+    return d
+
+
+def sweep_cache(max_age_days: int = CACHE_MAX_AGE_DAYS):
+    """Delete cache subfolders not touched in ``max_age_days`` days. Best-effort;
+    called once at startup so abandoned partials don't accumulate forever."""
+    root = _cache_root()
+    cutoff = time.time() - max_age_days * 86400
+    try:
+        entries = os.listdir(root)
+    except OSError:
+        return
+    for name in entries:
+        path = os.path.join(root, name)
+        try:
+            if os.path.isdir(path) and os.path.getmtime(path) < cutoff:
+                shutil.rmtree(path, ignore_errors=True)
+        except OSError:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -1511,7 +1570,7 @@ def _validate_not_html(path: str) -> bool:
 
 def download_gdrive(file_id: str, dest_path: str, progress_callback=None, *,
                     api_key: str = None, session: "requests.Session" = None,
-                    cancel=None) -> bool:
+                    cancel=None, resume_offset: int = 0) -> bool:
     """Download a *public* Google Drive file by id, handling the large-file
     virus-scan interstitial automatically.
 
@@ -1523,6 +1582,13 @@ def download_gdrive(file_id: str, dest_path: str, progress_callback=None, *,
     server doesn't report a Content-Length.
     Optional: api_key enables the Drive-API fallback; cancel may be a
     threading.Event or a zero-arg callable returning True to abort.
+
+    resume_offset > 0 asks the server (via a Range header) to continue an
+    earlier partial download that already wrote that many bytes to dest_path;
+    the bytes are appended. If the server ignores the range (responds 200
+    instead of 206) the file is truncated and re-fetched from the start, which
+    is always safe. The caller is responsible for validating/renaming dest_path
+    afterwards.
     """
     api_key = api_key or None  # treat "" (unset key) as no API fallback
     owns_session = session is None
@@ -1539,11 +1605,22 @@ def download_gdrive(file_id: str, dest_path: str, progress_callback=None, *,
         return cancel.is_set() if hasattr(cancel, "is_set") else bool(cancel())
 
     def stream_to_disk(resp) -> bool:
-        total = resp.headers.get("Content-Length")
-        total = int(total) if total and total.isdigit() else 0
-        done = 0
+        # A 206 means the server honoured our Range header: append to the
+        # existing partial. Anything else (200) is a full body, so start over.
+        resumed = resume_offset > 0 and resp.status_code == 206
+        if resumed:
+            cr = resp.headers.get("Content-Range", "")
+            m = re.search(r"/\s*(\d+)\s*$", cr)
+            total = int(m.group(1)) if m else 0
+            done = resume_offset
+            mode = "ab"
+        else:
+            total = resp.headers.get("Content-Length")
+            total = int(total) if total and total.isdigit() else 0
+            done = 0
+            mode = "wb"
         first = True
-        with open(dest_path, "wb") as out:
+        with open(dest_path, mode) as out:
             for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK):
                 if cancelled():
                     return False
@@ -1551,19 +1628,26 @@ def download_gdrive(file_id: str, dest_path: str, progress_callback=None, *,
                     continue
                 if first:
                     first = False
-                    if _looks_like_html(chunk[:64]):
+                    # Only the fresh (non-resumed) first chunk can be the HTML
+                    # warning page; a resumed stream continues already-validated
+                    # binary content mid-file.
+                    if not resumed and _looks_like_html(chunk[:64]):
                         return False          # headers lied; it's the warning page
                 out.write(chunk)
                 done += len(chunk)
                 if progress_callback is not None:
                     progress_callback(done, total)
-        return done > 0
+        return done > (resume_offset if resumed else 0)
 
     def fetch(url, params=None):
         """-> ('file', ok) after streaming, ('html', text), or ('error', None)."""
+        headers = {"Range": f"bytes={resume_offset}-"} if resume_offset > 0 else None
         try:
-            with session.get(url, params=params, stream=True,
+            with session.get(url, params=params, headers=headers, stream=True,
                              timeout=REQUEST_TIMEOUT, allow_redirects=True) as resp:
+                # 416 = we already hold the whole file; treat as a finished download.
+                if resp.status_code == 416:
+                    return "file", True
                 resp.raise_for_status()
                 if "text/html" in resp.headers.get("Content-Type", "").lower():
                     return "html", resp.text
@@ -1579,7 +1663,7 @@ def download_gdrive(file_id: str, dest_path: str, progress_callback=None, *,
     kind, payload = fetch("https://drive.usercontent.google.com/download",
                           {"id": file_id, "export": "download", "confirm": "t"})
     if kind == "file" and payload:
-        return _validate_not_html(dest_path)
+        return True
     html = payload if kind == "html" else ""
 
     # 2) scrape the interstitial form and resubmit (carries the required uuid/at)
@@ -1590,7 +1674,7 @@ def download_gdrive(file_id: str, dest_path: str, progress_callback=None, *,
         kind, payload = fetch("https://drive.google.com/uc",
                               {"export": "download", "id": file_id})
         if kind == "file" and payload:
-            return _validate_not_html(dest_path)
+            return True
         html = payload if kind == "html" else ""
         if is_quota(html):
             return False
@@ -1598,14 +1682,14 @@ def download_gdrive(file_id: str, dest_path: str, progress_callback=None, *,
     if action:
         kind, payload = fetch(action, fields)
         if kind == "file" and payload:
-            return _validate_not_html(dest_path)
+            return True
 
     # 3) Drive API alt=media — most stable transport, needs api_key + public file
     if api_key:
         kind, payload = fetch(f"https://www.googleapis.com/drive/v3/files/{file_id}",
                               {"alt": "media", "key": api_key})
         if kind == "file" and payload:
-            return _validate_not_html(dest_path)
+            return True
 
     return False
 
@@ -1626,6 +1710,7 @@ class InstallWorker(QObject):
     success = pyqtSignal(str)                 # final install path
     error = pyqtSignal(str)
     canceled = pyqtSignal()
+    main_installed = pyqtSignal()             # main game fully installed to disk
 
     def __init__(self, game: Game, dest_path: str, fix_only: bool = False,
                  remove_temp_exclusion: bool = False):
@@ -1638,6 +1723,7 @@ class InstallWorker(QObject):
         self._temp_files = []
         self._temp_dirs = []
         self._last_part_paths = []  # volumes from the most recent _download_parts
+        self._cache_sets = []       # persistent cache dirs used by this install
         # Progress tracking
         self._start_time = None  # time.monotonic()
         self._stage_start = None  # per-stage start time
@@ -1726,6 +1812,14 @@ class InstallWorker(QObject):
             self._remove_temp_exclusion = False
             remove_defender_exclusion(tempfile.gettempdir())
 
+    def _purge_cache(self):
+        """Delete this install's persistent download-cache folders. Called only
+        on full success — on failure the folders (and their .part files) are
+        intentionally left behind so a retry can resume."""
+        for path in self._cache_sets:
+            shutil.rmtree(path, ignore_errors=True)
+        self._cache_sets = []
+
     def _abort(self):
         self._cleanup_temp()
         self.canceled.emit()
@@ -1770,7 +1864,7 @@ class InstallWorker(QObject):
                 self._stage_start = time.monotonic()
                 fix_archive = self._download_parts(
                     self.game.fix_parts, "Downloading fix",
-                    self.fix_download_progress, stage_idx=2)
+                    self.fix_download_progress, stage_idx=2, kind="fix")
                 if fix_archive is None:
                     return
                 if self._cancelled():
@@ -1783,6 +1877,7 @@ class InstallWorker(QObject):
                 if self._cancelled():
                     return
                 self._finish_cleanup()
+                self._purge_cache()
                 elapsed = time.monotonic() - self._start_time
                 self.elapsed_text.emit(self._fmt_time(elapsed))
                 self.status.emit(f"Fix applied in {self._fmt_time(elapsed)}")
@@ -1800,7 +1895,7 @@ class InstallWorker(QObject):
             self._stage_start = time.monotonic()
             main_archive = self._download_parts(
                 self.game.zip_parts, "Downloading game",
-                self.download_progress, stage_idx=0)
+                self.download_progress, stage_idx=0, kind="main")
             if main_archive is None:
                 return
             if self._cancelled():
@@ -1840,6 +1935,11 @@ class InstallWorker(QObject):
             if self._cancelled():
                 return
 
+            # The main game is now fully installed to dest_path. Signal this so a
+            # later failure (e.g. in the fix stage) can be retried as fix-only —
+            # the installed files persist, so only the fix needs redoing.
+            self.main_installed.emit()
+
             # --- 2) Optional fix / repair patch -----------------------------
             if self.game.has_fix:
                 _log.debug(
@@ -1849,7 +1949,7 @@ class InstallWorker(QObject):
                 self._stage_start = time.monotonic()
                 fix_archive = self._download_parts(
                     self.game.fix_parts, "Downloading fix",
-                    self.fix_download_progress, stage_idx=2)
+                    self.fix_download_progress, stage_idx=2, kind="fix")
                 if fix_archive is None:
                     return
                 _log.debug("run FIX ARCHIVE  path=%s", fix_archive)
@@ -1864,6 +1964,7 @@ class InstallWorker(QObject):
 
             # --- Done -------------------------------------------------------
             self._finish_cleanup()
+            self._purge_cache()
             elapsed = time.monotonic() - self._start_time
             self.elapsed_text.emit(self._fmt_time(elapsed))
             self.status.emit(f"Install completed successfully in {self._fmt_time(elapsed)}")
@@ -1905,6 +2006,16 @@ class InstallWorker(QObject):
     # -- download -----------------------------------------------------------
     def _download(self, url, dest_file, status_text, progress_signal, stage_idx=0,
                   frac_base=0.0, frac_span=1.0) -> bool:
+        """Download ``url`` to ``dest_file`` (a persistent cache path), resuming
+        an interrupted attempt when possible.
+
+        Bytes stream into ``dest_file + '.part'`` and are promoted to the final
+        name only once the whole file has arrived. On failure the ``.part`` is
+        left in place so the next attempt continues from where this one stopped
+        (via an HTTP Range request) instead of re-downloading from zero. A
+        ``dest_file`` that already exists is treated as a completed download and
+        skipped outright.
+        """
         _log.debug("_download ENTER  stage=%d  url=%s", stage_idx, url)
 
         # When this download is one volume of a multi-part set, frac_base /
@@ -1919,20 +2030,48 @@ class InstallWorker(QObject):
 
         _emit_pct(0)
         self._update_overall_progress()
-        self._emit_status(status_text, -1)
+
+        # Fully downloaded on a previous attempt → nothing to fetch.
+        try:
+            if os.path.exists(dest_file) and os.path.getsize(dest_file) > 0:
+                _log.debug("_download SKIP cached-complete  stage=%d  %s",
+                           stage_idx, dest_file)
+                _emit_pct(100)
+                self._update_overall_progress()
+                return True
+        except OSError:
+            pass
+
+        part_file = dest_file + ".part"
+        try:
+            resume_offset = os.path.getsize(part_file) if os.path.exists(part_file) else 0
+        except OSError:
+            resume_offset = 0
+        _log.debug("_download stage=%d  resume_offset=%d  part=%s",
+                   stage_idx, resume_offset, part_file)
+        if resume_offset > 0:
+            self._emit_status(f"{status_text} (resuming)", -1)
+        else:
+            self._emit_status(status_text, -1)
+
+        def _finalize():
+            """Promote the completed .part to its final name."""
+            try:
+                os.replace(part_file, dest_file)
+            except OSError as exc:
+                _log.debug("_download finalize replace failed  %s", exc)
+
         session = requests.Session()
         session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 
         # Google Drive links route through the dedicated handler, which deals
         # with the large-file virus-scan interstitial and validates that we got
         # the file (not the HTML warning page). All other URLs fall through to
-        # the generic streaming path below. (_gdrive_confirm is retained above
-        # for rollback but no longer called.)
+        # the generic streaming path below.
         if _is_gdrive_url(url):
             file_id = _gdrive_file_id(url)
             _log.debug("_download GDRIVE route  file_id=%r  url=%s", file_id, url)
             if not file_id:
-                self._cleanup_temp()
                 self.error.emit("Could not read the Google Drive file ID from the link.")
                 return False
 
@@ -1948,7 +2087,8 @@ class InstallWorker(QObject):
                 if total > 0:
                     pct = int(done * 100 / total)
                     _emit_pct(pct)
-                    speed = done / elapsed if elapsed > 0 else 0
+                    moved = max(done - resume_offset, 1)
+                    speed = moved / elapsed if elapsed > 0 else 0
                     remaining = total - done
                     eta = remaining / speed if speed > 0 else 0
                     speed_str = f"{speed / 1e6:.1f} MB/s" if speed > 0 else "calculating..."
@@ -1963,21 +2103,22 @@ class InstallWorker(QObject):
                     self._emit_status(status_text, -1, f"{self._fmt_bytes(done)}")
 
             try:
-                ok = download_gdrive(file_id, dest_file, _gd_progress,
+                ok = download_gdrive(file_id, part_file, _gd_progress,
                                      session=session,
                                      cancel=self._cancel,
-                                     api_key=GDRIVE_API_KEY)
+                                     api_key=GDRIVE_API_KEY,
+                                     resume_offset=resume_offset)
             except OSError as exc:
                 _log.debug("_download GDRIVE OSError  stage=%d  %s", stage_idx, exc)
-                self._cleanup_temp()
                 self.error.emit(f"Could not write the downloaded file:\n{exc}")
                 return False
 
             if self._cancel.is_set():
                 self._abort()
                 return False
-            if not ok:
-                self._cleanup_temp()
+            # _validate_not_html deletes the .part if Google handed us the HTML
+            # warning page, so a retry starts clean rather than resuming garbage.
+            if not ok or not _validate_not_html(part_file):
                 self.error.emit(
                     "Google Drive download failed.\n\n"
                     "The file may be private, the per-file download quota may be "
@@ -1986,6 +2127,7 @@ class InstallWorker(QObject):
                 )
                 return False
 
+            _finalize()
             _emit_pct(100)
             self._update_overall_progress()
             try:
@@ -1997,24 +2139,45 @@ class InstallWorker(QObject):
                 pass
             return True
 
+        headers = {"Range": f"bytes={resume_offset}-"} if resume_offset > 0 else None
         try:
-            with session.get(url, stream=True, timeout=REQUEST_TIMEOUT) as resp:
+            with session.get(url, headers=headers, stream=True,
+                             timeout=REQUEST_TIMEOUT) as resp:
                 _log.debug(
                     "_download RESPONSE  status=%d  content-type=%r  "
-                    "content-length=%r  url-after-redirects=%s",
+                    "content-length=%r  content-range=%r  url-after-redirects=%s",
                     resp.status_code,
                     resp.headers.get("Content-Type"),
                     resp.headers.get("Content-Length"),
+                    resp.headers.get("Content-Range"),
                     resp.url,
                 )
+                # 416 = the partial already covers the whole file → it's done.
+                if resp.status_code == 416:
+                    _finalize()
+                    _emit_pct(100)
+                    self._update_overall_progress()
+                    return True
                 resp.raise_for_status()
-                total = resp.headers.get("Content-Length")
-                total = int(total) if total and total.isdigit() else 0
-                done = 0
+
+                # 206 means the server honoured Range: append to the partial.
+                # Anything else is a full body, so overwrite from the start.
+                resumed = resume_offset > 0 and resp.status_code == 206
+                if resumed:
+                    cr = resp.headers.get("Content-Range", "")
+                    m = re.search(r"/\s*(\d+)\s*$", cr)
+                    total = int(m.group(1)) if m else 0
+                    done = resume_offset
+                    mode = "ab"
+                else:
+                    total = resp.headers.get("Content-Length")
+                    total = int(total) if total and total.isdigit() else 0
+                    done = 0
+                    mode = "wb"
                 stage_start = time.monotonic()
                 last_update = stage_start
 
-                with open(dest_file, "wb") as out:
+                with open(part_file, mode) as out:
                     for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK):
                         if self._cancel.is_set():
                             self._abort()
@@ -2034,8 +2197,9 @@ class InstallWorker(QObject):
                         if total > 0:
                             pct = int(done * 100 / total)
                             _emit_pct(pct)
-                            # Compute speed and ETA
-                            speed = done / elapsed if elapsed > 0 else 0
+                            # Speed/ETA over bytes moved this session, not total.
+                            moved = max(done - (resume_offset if resumed else 0), 1)
+                            speed = moved / elapsed if elapsed > 0 else 0
                             remaining = total - done
                             eta = remaining / speed if speed > 0 else 0
                             speed_str = f"{speed / 1e6:.1f} MB/s" if speed > 0 else "calculating..."
@@ -2049,6 +2213,7 @@ class InstallWorker(QObject):
                             progress_signal.emit(-1)  # indeterminate
                             self._emit_status(status_text, -1, f"{self._fmt_bytes(done)}")
 
+            _finalize()
             _emit_pct(100)
             self._update_overall_progress()
             try:
@@ -2062,19 +2227,18 @@ class InstallWorker(QObject):
                 pass
             return True
 
+        # On every failure below the .part file is deliberately left on disk so
+        # the next attempt resumes instead of restarting.
         except requests.exceptions.MissingSchema:
             _log.debug("_download ERROR  stage=%d  MissingSchema  url=%s", stage_idx, url)
-            self._cleanup_temp()
             self.error.emit("The download URL is invalid.")
             return False
         except requests.exceptions.InvalidURL:
             _log.debug("_download ERROR  stage=%d  InvalidURL  url=%s", stage_idx, url)
-            self._cleanup_temp()
             self.error.emit("The download URL is invalid.")
             return False
         except requests.exceptions.ConnectionError as exc:
             _log.debug("_download ERROR  stage=%d  ConnectionError  %s", stage_idx, exc)
-            self._cleanup_temp()
             self.error.emit(
                 "Network error: could not reach the download server.\n"
                 "Check your connection and try again."
@@ -2082,43 +2246,46 @@ class InstallWorker(QObject):
             return False
         except requests.exceptions.Timeout as exc:
             _log.debug("_download ERROR  stage=%d  Timeout  %s", stage_idx, exc)
-            self._cleanup_temp()
             self.error.emit("The download timed out. Please try again.")
             return False
         except requests.exceptions.HTTPError as exc:
             _log.debug("_download ERROR  stage=%d  HTTPError  %s", stage_idx, exc)
-            self._cleanup_temp()
             self.error.emit(f"Download failed (server returned an error):\n{exc}")
             return False
         except requests.exceptions.RequestException as exc:
             _log.debug("_download ERROR  stage=%d  RequestException  %s", stage_idx, exc)
-            self._cleanup_temp()
             self.error.emit(f"Download failed:\n{exc}")
             return False
         except OSError as exc:
             _log.debug("_download ERROR  stage=%d  OSError  %s", stage_idx, exc)
-            self._cleanup_temp()
             self.error.emit(f"Could not write the downloaded file:\n{exc}")
             return False
 
     # -- multi-volume download ---------------------------------------------
-    def _download_parts(self, parts, status_text, progress_signal, stage_idx=0):
-        """Download one or more archive volumes into a single shared temp dir
+    def _download_parts(self, parts, status_text, progress_signal, stage_idx=0,
+                        kind="main"):
+        """Download one or more archive volumes into a single shared cache dir
         and return the path of the first volume (the one to hand to the
         extractor), or None on failure / cancellation.
+
+        Volumes go to a *persistent* cache folder (keyed by game + stage + URLs)
+        rather than a throwaway temp dir, so a partially-downloaded set survives
+        a failure and is resumed on the next attempt instead of re-fetched. The
+        folder is removed once the game finishes installing (see _purge_cache).
 
         Multi-volume RAR sets work by placing every ``.partN.rar`` file in the
         same folder; 7-Zip is then pointed at the first volume and pulls in the
         rest by name. A single-archive download is just a one-element list, so
         the common path behaves exactly as before.
         """
-        part_dir = self._new_temp_dir()
+        part_dir = cache_set_dir(self.game.id, kind, parts)
+        if part_dir not in self._cache_sets:
+            self._cache_sets.append(part_dir)
         count = len(parts)
         local_paths = []
         for index, part in enumerate(parts):
             filename = self._part_filename(part, index, count)
             dest = os.path.join(part_dir, filename)
-            self._temp_files.append(dest)
             suffix = f"  (part {index + 1}/{count})" if count > 1 else ""
             self._stage_start = time.monotonic()
             ok = self._download(
@@ -3450,6 +3617,7 @@ class DownloadCard(QFrame):
         self.defender_thread = None
         self.defender_worker = None
         self._installed_path = None
+        self._main_done = False  # main game installed → a retry can be fix-only
 
         self.setObjectName("DownloadCard")
         root = QVBoxLayout(self)
@@ -3468,6 +3636,10 @@ class DownloadCard(QFrame):
         self.chip = QLabel("Queued")
         self.chip.setObjectName("ChipQueued")
         head.addWidget(self.chip)
+        self.retry_btn = QPushButton("Retry")
+        self.retry_btn.clicked.connect(self._retry)
+        self.retry_btn.setVisible(False)
+        head.addWidget(self.retry_btn)
         self.action_btn = QPushButton("Cancel")
         self.action_btn.clicked.connect(self._action_clicked)
         head.addWidget(self.action_btn)
@@ -3535,6 +3707,7 @@ class DownloadCard(QFrame):
     def start(self):
         """Begin this download. Called by the manager when a slot is free."""
         self.state = "running"
+        self.retry_btn.setVisible(False)
         self._set_chip("Downloading", "Running")
         self.action_btn.setText("Cancel")
         self.action_btn.setEnabled(True)
@@ -3564,11 +3737,15 @@ class DownloadCard(QFrame):
             self._fail(f"Defender exclusion failed: {message}")
 
     def _start_worker(self, remove_temp_exclusion):
+        # If a previous attempt already installed the main game, retry the fix
+        # alone — the installed files persist, so there's nothing to re-download.
+        effective_fix_only = self.fix_only or self._main_done
         self.thread = QThread()
-        self.worker = InstallWorker(self.game, self.target, fix_only=self.fix_only,
+        self.worker = InstallWorker(self.game, self.target, fix_only=effective_fix_only,
                                     remove_temp_exclusion=remove_temp_exclusion)
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
+        self.worker.main_installed.connect(self._on_main_installed)
         self.worker.download_progress.connect(lambda v: self._set_bar(self.dl_bar, v))
         self.worker.extract_progress.connect(lambda v: self._set_bar(self.ex_bar, v))
         self.worker.fix_download_progress.connect(lambda v: self._set_bar(self.fix_dl_bar, v))
@@ -3602,6 +3779,12 @@ class DownloadCard(QFrame):
             self.defender_thread = None
 
     # -- worker slots -------------------------------------------------------
+    @pyqtSlot()
+    def _on_main_installed(self):
+        """Main game landed on disk. Remember it so a later failure retries the
+        fix alone rather than re-downloading and re-extracting the game."""
+        self._main_done = True
+
     @pyqtSlot(str)
     def _on_success(self, path):
         self._installed_path = path
@@ -3657,6 +3840,9 @@ class DownloadCard(QFrame):
         self.status_label.setText("Download canceled.")
         self.speed_label.setText("")
         self.eta_label.setText("")
+        # The partial download is kept, so a resume is possible.
+        self.retry_btn.setVisible(True)
+        self.retry_btn.setEnabled(True)
         self.action_btn.setText("Remove")
         self.action_btn.setEnabled(True)
         self.manager.on_state_changed()
@@ -3667,8 +3853,38 @@ class DownloadCard(QFrame):
         self.status_label.setText(message)
         self.speed_label.setText("")
         self.eta_label.setText("")
+        # Offer a resume: partial downloads were kept, so Retry continues from
+        # where it stopped rather than starting over.
+        self.retry_btn.setVisible(True)
+        self.retry_btn.setEnabled(True)
         self.action_btn.setText("Remove")
         self.action_btn.setEnabled(True)
+        self.manager.on_state_changed()
+
+    def _retry(self):
+        """Re-queue a failed download. Kept partials resume automatically; if the
+        main game was already installed, only the fix is retried."""
+        if self.state not in ("error", "canceled"):
+            return
+        self.retry_btn.setVisible(False)
+        self._set_chip("Queued", "Queued")
+        self.status_label.setText("Waiting to retry…")
+        self.speed_label.setText("")
+        self.eta_label.setText("")
+        self.elapsed_label.setText("")
+        # Completed stages stay full; only the unfinished ones reset to 0.
+        self._set_bar(self.overall_bar, 0)
+        if self._main_done:
+            self._set_bar(self.dl_bar, 100)
+            self._set_bar(self.ex_bar, 100)
+            self._set_bar(self.fix_dl_bar, 0)
+            self._set_bar(self.fix_ap_bar, 0)
+        else:
+            for bar in (self.dl_bar, self.ex_bar, self.fix_dl_bar, self.fix_ap_bar):
+                self._set_bar(bar, 0)
+        self.action_btn.setText("Cancel")
+        self.action_btn.setEnabled(True)
+        self.state = "queued"
         self.manager.on_state_changed()
 
     # -- the context-sensitive button --------------------------------------
@@ -4566,6 +4782,10 @@ def main():
     # Let in-flight thumbnail fetches finish before the interpreter tears down,
     # so Qt-pool threads are never running Python during finalizations much hehe
     app.aboutToQuit.connect(lambda: QThreadPool.globalInstance().waitForDone(3000))
+
+    # Evict abandoned resume-partials from the download cache so they don't pile
+    # up; recent ones are kept so an interrupted download can still be resumed.
+    sweep_cache()
 
     window = MainWindow()
     window.show()
