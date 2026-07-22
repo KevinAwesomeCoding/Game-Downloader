@@ -4,15 +4,18 @@ permissions:
   contents: write
 
 on:
+  # Auto-build + release ONLY when something that changes the built app
+  # actually changes. games.json is deliberately NOT listed: the running app
+  # fetches the game manifest from a URL at runtime, so catalog edits ship to
+  # users without a rebuild. Same reasoning excludes README.md and other docs.
   push:
     branches: [main]
     paths:
       - 'main.py'
       - 'requirements.txt'
-      - 'README.md'
       - 'version_info.txt'
       - '.github/workflows/**'
-    tags: ['v*']
+  # Manual "Run workflow" button for one-off rebuilds.
   workflow_dispatch:
 
 jobs:
