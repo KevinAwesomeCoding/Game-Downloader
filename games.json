@@ -794,5 +794,31 @@
       "confidence": "Medium",
       "classifiedAt": "2026-07-21T00:00:00.000000-05:00"
     }
+  },
+  {
+    "id": "shift-at-midnight",
+    "name": "Shift At Midnight",
+    "description": "An online co-op detective horror game for up to 3 players. Manage an isolated roadside gas station overnight — stock shelves, run the register, and investigate customers, since some are creatures only pretending to be human. If one slips past you, barricade the doors, set traps, and find somewhere to hide.",
+    "version": "1.0.1.0717.2216",
+    "size": "3 GB",
+    "players": "Up to 3 players online co-op (proximity chat) / solo",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3722330/759ecea2ffe1ad3819aefdda79e265b8b332bf8f/header.jpg?t=1784981268",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=19CUAEd65gwHFdpKJLnvL4s-2ZgJtQADj&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=14cr8hB54tWVaNPeZKRrbnkF7ayDDxggd&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10/11 64-bit",
+      "cpu": "Intel Core i5-10400F or equivalent",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GeForce GTX 1050 Ti or equivalent",
+      "directx": "Version 11",
+      "storage": "3 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-07-25T00:00:00.000000-05:00"
+    }
   }
 ]
