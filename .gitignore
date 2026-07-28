@@ -4,4 +4,5 @@ __pycache__/
 dist/
 build/
 *.spec
+project_game_catalog_workflow.md
 Game-Downloader/
