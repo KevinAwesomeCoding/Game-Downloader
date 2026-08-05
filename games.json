@@ -820,5 +820,29 @@
       "confidence": "Medium",
       "classifiedAt": "2026-07-25T00:00:00.000000-05:00"
     }
+  },
+  {
+    "id": "big-walk",
+    "name": "Big Walk",
+    "description": "A cooperative multiplayer adventure about teamwork and talking. Set out with your friends through a wide-open world full of challenges, puzzles, and discoveries.",
+    "version": "1.4.7.2607311502",
+    "size": "3.2 GB",
+    "players": "2-12 players (online co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1478500/62eeee1507dbac905e128a62f2ce690550238db0/header.jpg?t=1785911674",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1bXroZkT9kBSjR2IAl6OAUyHB8ZUn_Tzi&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1pgdcxRn1c6ZodZheX-Bb2s9BsjlvBlfT&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 (64-bit)",
+      "cpu": "Intel Core i7-7700K / AMD Ryzen 5 1600X",
+      "ram": "12 GB",
+      "gpu": "NVIDIA GeForce GTX 750 TI / AMD Radeon R7 370 / Intel Arc A380"
+    },
+    "macCompatibility": {
+      "tier": "Runs great",
+      "riskLevel": "Standard",
+      "reasoning": "No DirectX requirement detected — likely a Win32/GDI application or uses an older graphics API fully supported by Wine.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-08-05T14:10:00.000000-05:00"
+    }
   }
 ]

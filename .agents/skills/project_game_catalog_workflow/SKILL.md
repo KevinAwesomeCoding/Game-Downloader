@@ -39,3 +39,5 @@ For multi-part sets, join the converted URLs into **one comma-separated string**
 **Why:** This sequence was worked out and confirmed across several rounds of adding games (Funnel Runners, then a batch of 5 more from 12 unlabeled Drive links) — the user wants the exact same process repeatable in a fresh session with no prior context.
 
 **How to apply:** Follow this whenever the user drops Drive links (with or without saying which game they're for) and asks to add them to the catalog.
+
+Always put these in the games.json files and before making changes, make sure you read the structure of games.json before procceding
