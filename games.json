@@ -844,5 +844,287 @@
       "confidence": "Medium",
       "classifiedAt": "2026-08-05T14:10:00.000000-05:00"
     }
+  },
+  {
+    "id": "party-animals",
+    "name": "Party Animals",
+    "description": "Fight your friends as puppies, kittens, and other fuzzy creatures in a physics-based party game. Play online or together on the same screen.",
+    "version": "1.17.2.0",
+    "size": "12.4 GB",
+    "players": "Up to 8 players online / 4 local",
+    "thumbnail": "https://cdn.akamai.steamstatic.com/steam/apps/1260320/header.jpg",
+    "zipUrl": "https://pixeldrain.com/api/file/VwEWm2An?download, https://pixeldrain.com/api/file/kWXyxY3r?download, https://pixeldrain.com/api/file/u6PPTaCF?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/Y4or5zsR?download",
+    "requirements": {
+      "os": "Windows 10 64-bit / Windows 11 64-bit",
+      "cpu": "Intel Core i5 / AMD equivalent",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GTX 750-Ti / AMD RX 550 (2 GB VRAM)",
+      "directx": "Version 11",
+      "storage": "12 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-25T00:14:00.000000-05:00"
+    }
+  },
+  {
+    "id": "happy-wheels",
+    "name": "Happy Wheels",
+    "description": "A side-scrolling physics sandbox with community-made levels. This Online-Fix build adds support for up to 4-player co-op.",
+    "version": "1.99.2-s (Online-Fix mod 1.0.0)",
+    "size": "288 MB",
+    "players": "Up to 4 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4705510/acd7fedba57cc1d506f18886ae6c937f754da6c1/header.jpg?t=1791030748",
+    "zipUrl": "https://pixeldrain.com/api/file/LUCs9wvT?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/yPa6v5NH?download",
+    "requirements": {
+      "os": "Windows 10 64-bit or later",
+      "cpu": "Intel Core i3 / AMD equivalent, 2.0 GHz or better",
+      "ram": "4 GB",
+      "gpu": "Any GPU with WebGL / DirectX 11 support (Intel HD Graphics 4000 or better)",
+      "directx": "Version 11",
+      "storage": "1 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-25T00:18:17.000000-05:00"
+    }
+  },
+  {
+    "id": "dub-together",
+    "name": "Dub Together",
+    "description": "Up to six players redub video clips and give them a new meaning, then watch the results together and vote. Includes voice effects, a clip editor, and live voting for Twitch chat.",
+    "version": "Build 26092026",
+    "size": "648 MB",
+    "players": "Up to 6 players online",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5020310/5120fdb5c1622bf7317187323aac962b3034fb93/header.jpg?t=1790943462",
+    "zipUrl": "https://pixeldrain.com/api/file/oZL9RbeH?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/FDuqxzYK?download",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "4 cores, 2.5 GHz",
+      "ram": "4 GB",
+      "gpu": "Vulkan-capable GPU with 1 GB VRAM (GeForce GTX 750 or Radeon RX 460 or better)",
+      "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Not yet",
+      "riskLevel": "High",
+      "reasoning": "The minimum graphics requirement specifies Vulkan without a DirectX fallback, which is not currently supported by the Mac compatibility workflow.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-25T00:22:24.000000-05:00"
+    }
+  },
+  {
+    "id": "how-to-fish",
+    "name": "How to Fish",
+    "description": "A physics-based fishing simulator for 1–4 players. After a boating trip ends on a small island, learn to fish to find your way home.",
+    "version": "1.0.10",
+    "size": "408 MB",
+    "players": "Up to 4 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4001890/45c4ddff4901e32c4b8b643e1b97d0d01898d299/header.jpg?t=1792508550",
+    "zipUrl": "https://pixeldrain.com/api/file/FyK47Rtw?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/WkEbG6uv?download",
+    "requirements": {
+      "os": "Windows 10 or newer",
+      "cpu": "Intel Core i5-5257U / AMD Ryzen 3 1200 or equivalent",
+      "ram": "8 GB",
+      "gpu": "GeForce GTX 1050 / AMD RX 460 or equivalent",
+      "storage": "1 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs great",
+      "riskLevel": "Standard",
+      "reasoning": "No DirectX requirement is listed in the minimum system requirements.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-25T00:22:24.000000-05:00"
+    }
+  },
+  {
+    "id": "machine-party",
+    "name": "Machine Party",
+    "description": "A collection of high-stakes party games where failure is lethal. Gather friends and try to survive its competitive challenges.",
+    "version": "1.0.6",
+    "size": "492 MB",
+    "players": "Up to 4 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4108000/00ae7d0e0fd0ad72635bddb1dd80ee68cc94eed5/header.jpg?t=1790860377",
+    "zipUrl": "https://pixeldrain.com/api/file/nWXkkwbU?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/1NgJ7rke?download",
+    "requirements": {
+      "os": "Windows 11",
+      "cpu": "Dual-core 2.4 GHz",
+      "ram": "8 GB",
+      "gpu": "Radeon RX 6500 XT / NVIDIA GTX 1660",
+      "directx": "Not listed (Vulkan support required)",
+      "storage": "1 GB"
+    },
+    "macCompatibility": {
+      "tier": "Not yet",
+      "riskLevel": "High",
+      "reasoning": "The minimum system requirements require Vulkan support and do not list a DirectX fallback.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-25T00:22:24.000000-05:00"
+    }
+  },
+  {
+    "id": "mimic-party",
+    "name": "Mimic Party",
+    "description": "An online voice party game for 1–5 players. Hear a sound, imitate it together, and compete on pitch and rhythm.",
+    "version": "0.1.60",
+    "size": "182 MB",
+    "players": "Up to 5 players online",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5053820/cb42d784567e89c1c409e49856ece32c9cf8ab36/header.jpg?t=1789831835",
+    "zipUrl": "https://pixeldrain.com/api/file/a2g2uJnC?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/LWMA1jBQ?download",
+    "requirements": {
+      "os": "Not specified by Steam",
+      "cpu": "Not specified by Steam",
+      "ram": "4 GB",
+      "gpu": "Not specified by Steam",
+      "directx": "Version 11",
+      "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "The listed DirectX 11 requirement may need MacWarp’s automatic runtime fix.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-25T00:22:24.000000-05:00"
+    }
+  },
+  {
+    "id": "bombanana",
+    "name": "BOMBANANA!",
+    "description": "A cooperative bomb-disposal game starring three monkeys. Players have different abilities and must communicate to solve puzzles before time runs out.",
+    "version": "1.0.0",
+    "size": "313 MB",
+    "players": "3 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4656000/d26ac7a7fb6e1bcc2a89cbbaefcb359dfd5d1eeb/header_alt_assets_0.jpg?t=1792877964",
+    "zipUrl": "https://pixeldrain.com/api/file/oUb2EprH?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/uwqPCVSG?download",
+    "requirements": {
+      "os": "Windows 10/11 64-bit",
+      "cpu": "Intel Core i3-6100 / AMD Ryzen 3 1200",
+      "ram": "8 GB",
+      "gpu": "Intel HD Graphics 520 / AMD Radeon Vega 3 or equivalent",
+      "storage": "300 MB"
+    },
+    "macCompatibility": {
+      "tier": "Runs great",
+      "riskLevel": "Standard",
+      "reasoning": "No DirectX requirement is listed in the minimum system requirements.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-25T00:22:24.000000-05:00"
+    }
+  },
+  {
+    "id": "scam-with-your-friends",
+    "name": "Scam With Your Friends",
+    "description": "Run a scam call center with friends, trick AI callers, meet daily quotas, and try to survive a chaotic office.",
+    "version": "0.1.82",
+    "size": "3.4 GB",
+    "players": "Up to 8 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4954910/128effac3212fc1b92b4f6cd8891995df0d4b199/header.jpg?t=1792556475",
+    "zipUrl": "https://pixeldrain.com/api/file/4RC4SHrf?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/5dQaRnN5?download",
+    "requirements": {
+      "os": "Windows 10/11 64-bit",
+      "cpu": "Intel Core i5-8400 / AMD Ryzen 5 2600",
+      "ram": "3 GB",
+      "gpu": "NVIDIA GTX 1060 (6 GB) / AMD RX 580",
+      "directx": "Version 11",
+      "storage": "5 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-25T00:22:24.000000-05:00"
+    }
+  },
+  {
+    "id": "how-to-train-your-cock",
+    "name": "How To Train Your Cock",
+    "description": "A relaxed idle game that runs while you do other tasks. Train and grow your cock, decorate its island, collect hats, and compare progress with friends.",
+    "version": "1.3.1",
+    "size": "134 MB",
+    "players": "Up to 2 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3673060/3c70157695f083806dcc7ba0d54a5b7ba3a9a40b/header.jpg?t=1789497863",
+    "zipUrl": "https://pixeldrain.com/api/file/eBRvdnSX?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/Y332nMW4?download",
+    "requirements": {
+      "os": "64-bit OS (specific version not listed)",
+      "cpu": "Not specified",
+      "ram": "Not specified",
+      "gpu": "Not specified",
+      "storage": "400 MB"
+    },
+    "macCompatibility": {
+      "tier": "Runs great",
+      "riskLevel": "Standard",
+      "reasoning": "No DirectX requirement is listed in the minimum system requirements.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-25T00:22:24.000000-05:00"
+    }
+  },
+  {
+    "id": "lucid-cats",
+    "name": "Lucid Cats",
+    "description": "An online co-op horror extraction game. Fall asleep, loot a shared nightmare, and escape with your valuables.",
+    "version": "2.4",
+    "size": "536 MB",
+    "players": "Up to 4 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4778540/a7eca735be2b883b76eb788d1e84dd5ff8de96df/header.jpg?t=1790360738",
+    "zipUrl": "https://pixeldrain.com/api/file/dwitfm8x?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/bMiYDhta?download",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i5-6600",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GeForce GTX 1050 Ti",
+      "directx": "Version 11",
+      "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-25T00:22:24.000000-05:00"
+    }
+  },
+  {
+    "id": "mogged-looksmaxx-or-die",
+    "name": "MOGGED: Looksmaxx or Die",
+    "description": "A co-op survival extraction horror game about meeting a rising looks quota, raiding frat parties for supplies, and avoiding the creature hunting the ugliest player.",
+    "version": "1.0.1.132",
+    "size": "3.5 GB",
+    "players": "Up to 8 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4917440/fa8c5b270baa4d82503897806748376f91e0a340/header.jpg?t=1791114490",
+    "zipUrl": "https://pixeldrain.com/api/file/mmt4ErLv?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/aHppK2Jr?download",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i3-10100 / Intel Core i5-1235U / AMD Ryzen 5 5500U",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GeForce GTX 1650 / AMD Radeon RX 570 / Intel Iris Xe Graphics",
+      "directx": "Version 11",
+      "storage": "6 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "MacWarp applies an automatic fix/patch to resolve runtime dependencies before launching.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-25T00:22:24.000000-05:00"
+    }
   }
 ]
