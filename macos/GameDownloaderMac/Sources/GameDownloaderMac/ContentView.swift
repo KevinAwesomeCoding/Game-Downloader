@@ -592,7 +592,51 @@ private struct CompatBadge: View {
             .foregroundStyle(tint)
             .background(tint.opacity(0.13), in: RoundedRectangle(cornerRadius: 5))
             .lineLimit(1)
-            .help("Catalog prediction. Separate startup, gameplay, hosting, invite and joining tests are required.")
+            .help("See the game details for the evidence and limits behind this Mac compatibility status.")
+    }
+}
+
+private struct RequirementsGroup: View {
+    private struct RequirementRow: Identifiable {
+        let label: String
+        let value: String
+        var id: String { label }
+    }
+
+    let title: String
+    let note: String
+    let requirements: [String: String]
+
+    private var rows: [RequirementRow] {
+        let order = ["os", "cpu", "ram", "gpu", "directx", "graphicsApi", "storage", "additionalNotes"]
+        return order.compactMap { key in
+            guard let value = requirements[key], !value.isEmpty else { return nil }
+            let label = switch key {
+            case "os": "Operating system"
+            case "cpu": "Processor"
+            case "ram": "Memory"
+            case "gpu": "Graphics"
+            case "directx": "DirectX"
+            case "graphicsApi": "Graphics API"
+            case "storage": "Storage"
+            default: "Notes"
+            }
+            return RequirementRow(label: label, value: value)
+        }
+    }
+
+    var body: some View {
+        GroupBox(title) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(note).font(.caption).foregroundStyle(.secondary)
+                ForEach(rows) { row in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(row.label).font(.callout.weight(.semibold)).frame(width: 112, alignment: .leading)
+                        Text(row.value).font(.callout).foregroundStyle(.secondary)
+                    }
+                }
+            }.frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 
@@ -620,7 +664,7 @@ private struct GameDetailsSheet: View {
             .frame(height: 180).frame(maxWidth: .infinity).clipShape(RoundedRectangle(cornerRadius: 10))
             Text(game.description ?? "No description provided.").foregroundStyle(.secondary)
             if let compatibility = game.macCompatibility {
-                GroupBox("Catalog compatibility prediction") {
+                GroupBox("Mac compatibility notes") {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(compatibility.tier ?? "Not yet assessed").font(.headline)
                         if let reason = compatibility.reasoning { Text(reason).foregroundStyle(.secondary) }
@@ -630,6 +674,20 @@ private struct GameDetailsSheet: View {
                         }.font(.caption).foregroundStyle(.secondary)
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }
+            }
+            if let requirements = game.requirements, !requirements.isEmpty {
+                RequirementsGroup(
+                    title: "Windows build minimums",
+                    note: "These publisher-listed requirements apply to the Windows build used with Highball; they are not Mac hardware equivalents.",
+                    requirements: requirements
+                )
+            }
+            if let requirements = game.macRequirements, !requirements.isEmpty {
+                RequirementsGroup(
+                    title: "Native macOS minimums",
+                    note: "Steam lists a separate macOS build for this game. These requirements apply to that native version.",
+                    requirements: requirements
+                )
             }
             HStack(spacing: 16) {
                 if let size = game.size { Label(size, systemImage: "internaldrive") }

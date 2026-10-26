@@ -3309,6 +3309,11 @@ class InstallDialog(QDialog):
         box.setContentsMargins(14, 10, 14, 12)
         box.setSpacing(6)
 
+        platform_note = QLabel("Windows minimum requirements · Mac compatibility is reported separately.")
+        platform_note.setObjectName("SmallLabel")
+        platform_note.setWordWrap(True)
+        box.addWidget(platform_note)
+
         verdict = QLabel(result["summary"])
         verdict.setObjectName({
             "pass": "SysVerdictPass", "warn": "SysVerdictWarn",

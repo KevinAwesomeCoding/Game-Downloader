@@ -16,6 +16,9 @@ struct Game: Codable, Identifiable, Hashable {
     let size: String?
     let players: String?
     let thumbnail: String?
+    let requirementsPlatform: String?
+    let requirements: [String: String]?
+    let macRequirements: [String: String]?
     let zipSource: CatalogLinks?
     let fixSource: CatalogLinks?
     let zipBackupSource: CatalogLinks?
@@ -24,7 +27,8 @@ struct Game: Codable, Identifiable, Hashable {
     let macCompatibility: Compatibility?
 
     enum CodingKeys: String, CodingKey {
-        case id, steamAppId, name, description, version, size, players, thumbnail, type
+        case id, steamAppId, name, description, version, size, players, thumbnail
+        case requirementsPlatform, requirements, macRequirements, type
         case zipSource = "zipUrl"
         case fixSource = "fixZipUrl"
         case zipBackupSource = "zipBackupUrl"
