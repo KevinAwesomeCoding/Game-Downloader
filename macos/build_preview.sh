@@ -26,6 +26,34 @@ if [[ ! -x "$binary" || ! -d "$resource_bundle" ]]; then
   exit 2
 fi
 
+helper_resource="$resource_bundle/Resources/HighballHelper"
+if [[ -d "$helper_resource" ]]; then
+  helper_binary="$helper_resource/highball"
+  if [[ ! -x "$helper_binary" ]]; then
+    echo "The bundled Highball helper is not executable." >&2
+    exit 2
+  fi
+  codesign --force --sign - "$helper_binary"
+  codesign --verify --strict "$helper_binary"
+  python3 - "$helper_binary" "$helper_resource/build-manifest.json" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+binary = Path(sys.argv[1])
+manifest = {
+    "schema_version": 1,
+    "highball_version": "0.10.22",
+    "source_commit": "daa2095b9fd4abad0b9db7c57cacbd4d49a9e06e",
+    "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+    "build": "SwiftPM release build from pinned upstream source",
+    "signature": "ad-hoc; no Developer ID",
+}
+Path(sys.argv[2]).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+PY
+fi
+
 mkdir -p "$HOME/Applications"
 stage="$(mktemp -d "$HOME/Applications/.game-installer-preview.XXXXXX")"
 cleanup() {
@@ -60,7 +88,7 @@ info={
 with open(sys.argv[1],"wb") as f: plistlib.dump(info,f)
 PY
 
-codesign --force --deep --sign - "$stage"
+codesign --force --sign - "$stage"
 codesign --verify --deep --strict "$stage"
 
 backup=""

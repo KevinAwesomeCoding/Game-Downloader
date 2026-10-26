@@ -135,6 +135,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Build the pinned Highball helper and include its source
+        run: bash macos/package_highball_helper.sh
+
       - name: Build native Mac app
         env:
           APP_DISPLAY_NAME: Game Installer
@@ -192,7 +195,9 @@ jobs:
             Download **`GameInstaller-macOS.zip`**, extract it, then open **Game Installer.app**.
             Requires macOS 14 or later. The app is ad-hoc signed, so macOS may require
             opening it from Finder and approving it in Privacy & Security. Highball's
-            version-matched helper and Python 3 are required for the current Mac setup flow.
+            version-matched helper can be installed from Settings. Python 3 is still
+            required for readiness checks and the current Mac setup flow. The app includes
+            the helper's GPL-3.0 license and corresponding source archive.
 
             **Windows single-file option:** `GameInstaller.exe`.
         env:

@@ -9,4 +9,5 @@ macos/GameDownloaderMac/.build/
 macos/GameDownloaderMac/Sources/GameDownloaderMac/Resources/games.json
 macos/GameDownloaderMac/Sources/GameDownloaderMac/Resources/probe.py
 macos/GameDownloaderMac/Sources/GameDownloaderMac/Resources/readiness.py
+macos/GameDownloaderMac/Sources/GameDownloaderMac/Resources/HighballHelper/
 Game-Downloader/

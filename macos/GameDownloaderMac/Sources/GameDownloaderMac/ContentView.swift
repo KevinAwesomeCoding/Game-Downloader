@@ -7,6 +7,8 @@ final class AppModel: ObservableObject {
     @Published var readiness: ReadinessReport?
     @Published var readinessError: String?
     @Published var isChecking = false
+    @Published var isInstallingHelper = false
+    @Published var helperInstallMessage: String?
     @Published var catalogError: String?
     @Published var jobs: [InstallJob] = []
     @Published var downloadEstimates: [String: String] = [:]
@@ -98,6 +100,23 @@ final class AppModel: ObservableObject {
         } catch {
             readiness = nil
             readinessError = error.localizedDescription
+        }
+    }
+
+    func installHighballHelper() async {
+        isInstallingHelper = true
+        helperInstallMessage = nil
+        defer { isInstallingHelper = false }
+        do {
+            let message = try await Task.detached(priority: .userInitiated) {
+                try HighballHelperInstaller.install()
+            }.value
+            helperInstallMessage = message
+            await checkHighball()
+        } catch {
+            readiness = nil
+            readinessError = error.localizedDescription
+            helperInstallMessage = nil
         }
     }
 
@@ -472,11 +491,24 @@ struct ContentView: View {
                             }
                         }
                     } else if error.localizedCaseInsensitiveContains("helper") {
-                        Text("The Mac app requires a separate, version-matched Highball helper. Highball alone is not enough for Game Installer integration yet.")
+                        Text("Game Installer includes the matching Highball helper and its source license. Install it once to enable Highball checks and game registration.")
                             .font(.callout).foregroundStyle(.secondary)
+                        Button {
+                            Task { await model.installHighballHelper() }
+                        } label: {
+                            if model.isInstallingHelper {
+                                Label("Installing helper…", systemImage: "arrow.down.circle")
+                            } else {
+                                Label("Install or repair helper", systemImage: "arrow.down.circle")
+                            }
+                        }
+                        .disabled(model.isInstallingHelper || model.isChecking)
                     }
                 } else {
                     Text("Checking Highball, its engine, and bottles…").foregroundStyle(.secondary)
+                }
+                if let message = model.helperInstallMessage {
+                    Text(message).font(.callout).foregroundStyle(.secondary)
                 }
                 if let runtime = model.readiness?.readiness, runtime.bottles.isEmpty {
                     Text("No environment is ready yet. Finish Highball’s first-run setup, then check again.")
