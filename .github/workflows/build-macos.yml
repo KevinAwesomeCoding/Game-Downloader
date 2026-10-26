@@ -1,5 +1,8 @@
 name: Build Mac Preview
 
+permissions:
+  contents: write
+
 on:
   push:
     branches: [main]
@@ -37,3 +40,20 @@ jobs:
           name: GameInstallerMacPreview
           path: GameInstallerMacPreview.zip
           if-no-files-found: error
+
+      - name: Publish macOS preview release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: mac-v0.1.0-${{ github.run_number }}-${{ github.run_attempt }}
+          name: Game Installer for macOS (Preview) v0.1.0 #${{ github.run_number }}
+          draft: false
+          prerelease: true
+          files: GameInstallerMacPreview.zip
+          body: |
+            macOS preview build of Game Installer.
+
+            **Source commit:** `${{ github.sha }}`
+            **Trigger:** ${{ github.event_name }}
+
+            This preview is ad-hoc signed and intended for testing. It requires macOS 14 or later.
