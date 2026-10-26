@@ -41,6 +41,53 @@ struct Game: Codable, Identifiable, Hashable {
     var isAvailable: Bool { zipURL != nil }
     var hasFix: Bool { fixSource?.firstURL != nil || fixBackupSource?.firstURL != nil }
 
+    var downloadSizeInBytes: Int64? {
+        guard let size else { return nil }
+        let pattern = #"^\s*(\d+(?:\.\d+)?)\s*(MB|GB|TB)\s*$"#
+        guard let match = Self.firstMatch(pattern, in: size), match.count == 3,
+              let amount = Double(match[1]) else { return nil }
+        let multiplier: Double
+        switch match[2].uppercased() {
+        case "MB": multiplier = 1_048_576
+        case "GB": multiplier = 1_073_741_824
+        case "TB": multiplier = 1_099_511_627_776
+        default: return nil
+        }
+        return Int64(amount * multiplier)
+    }
+
+    /// Best maximum player count explicitly stated by the catalog; nil when unbounded or unspecified.
+    var listedMaximumPlayers: Int? {
+        guard let players else { return nil }
+        let versus = Self.allMatches(#"(?i)(\d+)\s*(?:v|vs\.?)\s*(\d+)"#, in: players)
+            .compactMap { match -> Int? in
+                guard match.count == 3, let lhs = Int(match[1]), let rhs = Int(match[2]) else { return nil }
+                return lhs + rhs
+            }
+        let ranges = Self.allMatches(#"(?i)(\d+)\s*(?:-|–|—|to)\s*(\d+)"#, in: players)
+            .compactMap { $0.count == 3 ? Int($0[2]) : nil }
+        let upperBounds = Self.allMatches(#"(?i)up\s+to\s+(\d+)"#, in: players)
+            .compactMap { $0.count == 2 ? Int($0[1]) : nil }
+        let exactCounts = Self.allMatches(#"(?i)(\d+)\s+players?\b"#, in: players)
+            .compactMap { $0.count == 2 ? Int($0[1]) : nil }
+        return (versus + ranges + upperBounds + exactCounts).max()
+    }
+
+    private static func firstMatch(_ pattern: String, in value: String) -> [String]? {
+        allMatches(pattern, in: value).first
+    }
+
+    private static func allMatches(_ pattern: String, in value: String) -> [[String]] {
+        guard let expression = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let range = NSRange(value.startIndex..., in: value)
+        return expression.matches(in: value, range: range).map { match in
+            (0..<match.numberOfRanges).compactMap { index in
+                guard let range = Range(match.range(at: index), in: value) else { return nil }
+                return String(value[range])
+            }
+        }
+    }
+
     static func load() throws -> [Game] {
         guard let url = AppResources.bundle.url(
             forResource: "games", withExtension: "json", subdirectory: "Resources"

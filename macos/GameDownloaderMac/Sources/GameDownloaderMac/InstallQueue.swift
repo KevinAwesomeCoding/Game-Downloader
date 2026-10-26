@@ -93,6 +93,7 @@ extension AppModel {
                 actionMessage = "Saved queue could not be read; it was kept at \(location.path). \(error.localizedDescription)"
             }
         }
+        scanOwnedGames()
     }
 
     func saveQueue() {
@@ -349,6 +350,60 @@ extension AppModel {
         beginOperation(["cleanup", "--job", jobFile.path, "--registered"], jobID: job.id, bottle: selectedBottle)
     }
 
+    func playOwnedGame(_ installation: OwnedGameInstallation) {
+        var job = installation.job
+        if job == nil {
+            var discovered = InstallJob(id: UUID().uuidString, game: installation.game, installFolder: installFolder)
+            discovered.installPath = installation.folderURL.path
+            discovered.status = "installed"
+            discovered.message = "Found in the selected Games folder."
+            discovered.recipeAvailable = false
+            do {
+                let cache = Self.supportFolder.appending(path: discovered.id, directoryHint: .isDirectory)
+                try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
+                let receipt: [String: Any] = [
+                    "jobID": discovered.id,
+                    "gameID": installation.game.id,
+                    "gameName": installation.game.name,
+                    "thumbnail": installation.game.thumbnail ?? "",
+                    "installPath": installation.folderURL.path,
+                    "mainHashes": [String](),
+                    "repairHashes": [String](),
+                    "recordedRecipeAvailable": false
+                ]
+                let receiptData = try JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted])
+                try receiptData.write(to: cache.appending(path: "receipt.json"), options: .atomic)
+                try JSONEncoder().encode(discovered).write(
+                    to: Self.supportFolder.appending(path: "\(discovered.id).json"), options: .atomic
+                )
+                jobs.append(discovered)
+                saveQueue()
+                scanOwnedGames()
+                job = discovered
+            } catch {
+                actionMessage = "Could not prepare this discovered game for Highball: \(error.localizedDescription)"
+                return
+            }
+        }
+
+        guard let job else { return }
+        do {
+            try JSONEncoder().encode(job).write(
+                to: Self.supportFolder.appending(path: "\(job.id).json"), options: .atomic
+            )
+        } catch {
+            actionMessage = "Could not prepare the Highball game entry: \(error.localizedDescription)"
+            return
+        }
+        if job.registered {
+            runHighball(job, launch: true)
+        } else if job.recipeAvailable {
+            runHighball(job)
+        } else {
+            chooseExecutable(job)
+        }
+    }
+
     func runHighball(_ job: InstallJob, manualExecutable: String? = nil, launch: Bool = false) {
         guard operationSession == nil else { actionMessage = "Another Highball action is still running."; return }
         var args = [launch ? "launch" : "register", "--job", Self.supportFolder.appending(path: "\(job.id).json").path,
@@ -435,10 +490,17 @@ extension AppModel {
                 if event.status == "registered", let id = jobID {
                     self.updateJob(id) { $0.registered = true; $0.bottle = bottle; $0.targetBottle = bottle; $0.status = "registered"; $0.message = event.message }
                     self.saveQueue()
+                    self.scanOwnedGames()
                 } else if event.status == "failed", let id = jobID {
                     self.updateJob(id) { $0.status = "installed"; $0.message = event.message }
                 }
                 if event.status == "tools" { self.rarAvailable = event.rarAvailable ?? false }
+                if event.status == "installed", let id = jobID {
+                    if let path = event.installPath {
+                        self.updateJob(id) { $0.installPath = path; $0.status = "installed"; $0.message = event.message; $0.recipeAvailable = event.recipeAvailable ?? false }
+                        self.scanOwnedGames()
+                    }
+                }
             } completion: { [weak self] code, diagnostics in
                 guard let self else { return }
                 if let diagnostics, code != 0 { self.actionMessage = diagnostics }

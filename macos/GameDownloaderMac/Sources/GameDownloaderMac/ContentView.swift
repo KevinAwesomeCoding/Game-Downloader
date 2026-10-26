@@ -13,6 +13,7 @@ final class AppModel: ObservableObject {
     @Published var helperInstallMessage: String?
     @Published var catalogError: String?
     @Published var jobs: [InstallJob] = []
+    @Published var ownedInstallations: [OwnedGameInstallation] = []
     @Published var downloadEstimates: [String: String] = [:]
     @Published var actionMessage: String?
     @Published var actionLogPath: String?
@@ -83,6 +84,7 @@ final class AppModel: ObservableObject {
             UserDefaults.standard.set(false, forKey: "gameFolderAccessGranted")
             gameFolderAccessMessage = "The saved Games folder can no longer be used. Choose it again to restore access. \(error.localizedDescription)"
         }
+        scanOwnedGames()
     }
 
     func requestGameFolderAccess() {
@@ -107,6 +109,7 @@ final class AppModel: ObservableObject {
             gameFolderAccessGranted = true
             gameFolderAccessMessage = nil
             UserDefaults.standard.set(true, forKey: "gameFolderAccessGranted")
+            scanOwnedGames()
         } catch {
             try? FileManager.default.removeItem(at: probe)
             gameFolderAccessGranted = false
@@ -127,11 +130,48 @@ final class AppModel: ObservableObject {
             gameFolderAccessGranted = true
             gameFolderAccessMessage = nil
             UserDefaults.standard.set(true, forKey: "gameFolderAccessGranted")
+            scanOwnedGames()
         } catch {
             gameFolderAccessGranted = false
             UserDefaults.standard.set(false, forKey: "gameFolderAccessGranted")
             gameFolderAccessMessage = "Could not create or use ~/Games/Game Installer. (error.localizedDescription)"
         }
+    }
+
+    func scanOwnedGames() {
+        guard gameFolderAccessGranted else {
+            ownedInstallations = []
+            return
+        }
+        let root = URL(fileURLWithPath: installFolder, isDirectory: true)
+        guard let folders = try? FileManager.default.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            ownedInstallations = []
+            return
+        }
+        let folderByName = Dictionary(folders.compactMap { folder -> (String, URL)? in
+            guard let values = try? folder.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
+                  values.isDirectory == true, values.isSymbolicLink != true,
+                  let contents = try? FileManager.default.contentsOfDirectory(atPath: folder.path),
+                  !contents.isEmpty else { return nil }
+            return (folder.lastPathComponent.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current), folder)
+        }, uniquingKeysWith: { first, _ in first })
+
+        ownedInstallations = games.compactMap { game in
+            let folderName = Self.gameFolderName(game.name)
+                .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            guard let folder = folderByName[folderName] else { return nil }
+            let path = folder.standardizedFileURL.path
+            let job = jobs.first { $0.game.id == game.id && $0.installPath.map { URL(fileURLWithPath: $0).standardizedFileURL.path == path } == true }
+            return OwnedGameInstallation(game: game, folderURL: folder, job: job)
+        }
+    }
+
+    private static func gameFolderName(_ name: String) -> String {
+        let invalid = CharacterSet(charactersIn: "<>:\"/\\|?*\u{0000}-\u{001F}")
+        return name.components(separatedBy: invalid).joined().trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "."))
     }
 
     func updateDownloadEstimate(jobID: String, status: String, done: Int64, total: Int64) {
@@ -173,7 +213,9 @@ final class AppModel: ObservableObject {
 
     func loadCatalog() {
         do {
-            games = Self.sortedGames(try Game.load())
+            // Keep the source catalog order: it represents when entries were added.
+            games = try Game.load()
+            scanOwnedGames()
             catalogError = nil
         } catch {
             catalogError = error.localizedDescription
@@ -200,7 +242,9 @@ final class AppModel: ObservableObject {
                 throw CatalogRefreshError.httpStatus(code)
             }
             let refreshed = try Self.decodeCatalog(data)
-            games = Self.sortedGames(refreshed)
+            // Preserve games.json order so the library's "added" sort reflects the catalog.
+            games = refreshed
+            scanOwnedGames()
             actionMessage = "Catalog refreshed: \(games.count) games."
         } catch {
             catalogError = "Could not refresh the online catalog; showing the bundled copy. \(error.localizedDescription)"
@@ -212,10 +256,6 @@ final class AppModel: ObservableObject {
         guard !decoded.isEmpty else { throw CatalogRefreshError.empty }
         guard Set(decoded.map(\.id)).count == decoded.count else { throw CatalogRefreshError.duplicateIDs }
         return decoded
-    }
-
-    private static func sortedGames(_ games: [Game]) -> [Game] {
-        games.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     private enum CatalogRefreshError: LocalizedError {
@@ -288,6 +328,7 @@ final class AppModel: ObservableObject {
                 installFolder = url.path
                 gameFolderAccessGranted = true
                 gameFolderAccessMessage = nil
+                scanOwnedGames()
                 UserDefaults.standard.set(true, forKey: "gameFolderAccessGranted")
             } catch {
                 try? FileManager.default.removeItem(at: probe)
@@ -297,8 +338,17 @@ final class AppModel: ObservableObject {
     }
 }
 
+struct OwnedGameInstallation: Identifiable {
+    let game: Game
+    let folderURL: URL
+    let job: InstallJob?
+
+    var id: String { game.id }
+}
+
 private enum InstallerPage: String, CaseIterable {
     case library = "Library"
+    case owned = "Games Owned"
     case downloads = "Downloads"
     case settings = "Settings"
 }
@@ -307,16 +357,60 @@ struct ContentView: View {
     @ObservedObject var model: AppModel
     @State private var page: InstallerPage = .library
     @State private var search = ""
+    @AppStorage("librarySortOrder") private var librarySortOrder = LibrarySortOrder.oldestFirst.rawValue
     @State private var selectedGame: Game?
     @State private var cleanupTarget: InstallJob?
 
     private let columns = [GridItem(.adaptive(minimum: 245, maximum: 330), spacing: 18)]
 
     private var filteredGames: [Game] {
-        guard !search.isEmpty else { return model.games }
-        return model.games.filter {
+        let matches = search.isEmpty ? model.games : model.games.filter {
             $0.name.localizedCaseInsensitiveContains(search)
                 || ($0.description?.localizedCaseInsensitiveContains(search) ?? false)
+        }
+        let order = LibrarySortOrder(rawValue: librarySortOrder) ?? .oldestFirst
+        switch order {
+        case .oldestFirst:
+            return matches
+        case .newestFirst:
+            return Array(matches.reversed())
+        case .nameAscending:
+            return matches.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        case .nameDescending:
+            return matches.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending }
+        case .sizeAscending:
+            return sortByCatalogMetric(matches, descending: false, key: \.downloadSizeInBytes)
+        case .sizeDescending:
+            return sortByCatalogMetric(matches, descending: true, key: \.downloadSizeInBytes)
+        case .playersDescending:
+            return sortByCatalogMetric(matches, descending: true, key: \.listedMaximumPlayers)
+        case .playersAscending:
+            return sortByCatalogMetric(matches, descending: false, key: \.listedMaximumPlayers)
+        case .installedFirst:
+            let installedIDs = Set(model.ownedInstallations.map(\.game.id))
+            let catalogPositions = Dictionary(uniqueKeysWithValues: model.games.enumerated().map { ($0.element.id, $0.offset) })
+            return matches.sorted {
+                let leftInstalled = installedIDs.contains($0.id)
+                let rightInstalled = installedIDs.contains($1.id)
+                if leftInstalled != rightInstalled { return leftInstalled }
+                return (catalogPositions[$0.id] ?? .max) < (catalogPositions[$1.id] ?? .max)
+            }
+        }
+    }
+
+    private func sortByCatalogMetric<Value: Comparable>(
+        _ games: [Game], descending: Bool, key: (Game) -> Value?
+    ) -> [Game] {
+        let catalogPositions = Dictionary(uniqueKeysWithValues: model.games.enumerated().map { ($0.element.id, $0.offset) })
+        return games.sorted { left, right in
+            let leftValue = key(left)
+            let rightValue = key(right)
+            if let leftValue, let rightValue, leftValue != rightValue {
+                return descending ? leftValue > rightValue : leftValue < rightValue
+            }
+            if leftValue != nil, rightValue == nil { return true }
+            if leftValue == nil, rightValue != nil { return false }
+            return (catalogPositions[left.id] ?? .max) < (catalogPositions[right.id] ?? .max)
         }
     }
 
@@ -416,7 +510,8 @@ struct ContentView: View {
                         Button {
                             page = item
                         } label: {
-                            Text(item == .downloads && !model.jobs.isEmpty ? "Downloads (\(model.jobs.count))" : item.rawValue)
+                            Text(item == .downloads && !model.jobs.isEmpty ? "Downloads (\(model.jobs.count))" :
+                                (item == .owned && !model.ownedInstallations.isEmpty ? "Games Owned (\(model.ownedInstallations.count))" : item.rawValue))
                                 .font(.system(size: 13, weight: .semibold))
                                 .padding(.horizontal, 13).padding(.vertical, 9)
                                 .background(page == item ? Color.white.opacity(0.12) : .clear,
@@ -455,6 +550,7 @@ struct ContentView: View {
     @ViewBuilder private var pageContent: some View {
         switch page {
         case .library: libraryPage
+        case .owned: ownedGamesPage
         case .downloads: downloadsPage
         case .settings: settingsPage
         }
@@ -586,6 +682,16 @@ struct ContentView: View {
                     .padding(.horizontal, 8).padding(.vertical, 4)
                     .background(Color.white.opacity(0.08), in: Capsule())
                 Spacer()
+                Menu {
+                    Picker("Sort by", selection: $librarySortOrder) {
+                        ForEach(LibrarySortOrder.allCases) { order in
+                            Text(order.label).tag(order.rawValue)
+                        }
+                    }
+                } label: {
+                    Label("Sort: \(LibrarySortOrder(rawValue: librarySortOrder)?.shortLabel ?? LibrarySortOrder.oldestFirst.shortLabel)", systemImage: "arrow.up.arrow.down")
+                }
+                .menuStyle(.borderlessButton)
                 if let error = model.catalogError {
                     Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                         .font(.caption)
@@ -715,6 +821,39 @@ struct ContentView: View {
             }
     }
 
+    private var ownedGamesPage: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Games Owned").font(.largeTitle.bold())
+                    Text("Games found in your selected Games folder.").font(.callout).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button { model.scanOwnedGames() } label: {
+                    Label("Scan folder", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+            }
+            if model.ownedInstallations.isEmpty {
+                ContentUnavailableView("No downloaded catalog games found", systemImage: "folder",
+                                       description: Text("Game Installer checks the selected Games folder. Download a game or choose Scan folder to check again."))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
+                        ForEach(model.ownedInstallations) { installation in
+                            OwnedGameCard(installation: installation,
+                                          play: { model.playOwnedGame(installation) },
+                                          showInFinder: { NSWorkspace.shared.activateFileViewerSelecting([installation.folderURL]) })
+                        }
+                    }
+                }
+            }
+        }
+        .padding(28)
+        .onAppear { model.scanOwnedGames() }
+    }
+
     private var settingsPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
@@ -826,6 +965,94 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
             Label("Highball", systemImage: "wineglass")
+        }
+    }
+}
+
+private enum LibrarySortOrder: String, CaseIterable, Identifiable {
+    case oldestFirst
+    case newestFirst
+    case nameAscending
+    case nameDescending
+    case sizeAscending
+    case sizeDescending
+    case playersDescending
+    case playersAscending
+    case installedFirst
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .oldestFirst: "Oldest added first"
+        case .newestFirst: "Newest added first"
+        case .nameAscending: "Name: A to Z"
+        case .nameDescending: "Name: Z to A"
+        case .sizeAscending: "Download size: smallest first"
+        case .sizeDescending: "Download size: largest first"
+        case .playersDescending: "Player count: most first"
+        case .playersAscending: "Player count: fewest first"
+        case .installedFirst: "Installed games first"
+        }
+    }
+
+    var shortLabel: String {
+        switch self {
+        case .oldestFirst: "Oldest added"
+        case .newestFirst: "Newest added"
+        case .nameAscending: "Name A–Z"
+        case .nameDescending: "Name Z–A"
+        case .sizeAscending: "Smallest download"
+        case .sizeDescending: "Largest download"
+        case .playersDescending: "Most players"
+        case .playersAscending: "Fewest players"
+        case .installedFirst: "Installed first"
+        }
+    }
+}
+
+private struct OwnedGameCard: View {
+    let installation: OwnedGameInstallation
+    let play: () -> Void
+    let showInFinder: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button(action: play) {
+                VStack(alignment: .leading, spacing: 0) {
+                    AsyncImage(url: URL(string: installation.game.thumbnail ?? "")) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            ZStack {
+                                Color(red: 0.04, green: 0.055, blue: 0.095)
+                                Image(systemName: "gamecontroller.fill").font(.system(size: 36)).foregroundStyle(.teal)
+                            }
+                        }
+                    }
+                    .frame(height: 150).frame(maxWidth: .infinity).clipped()
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(installation.game.name).font(.system(size: 16, weight: .bold)).lineLimit(1)
+                            Text(installation.job?.registered == true ? "Ready in Highball" : "Found in Games folder")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "play.circle.fill").font(.system(size: 30)).foregroundStyle(.teal)
+                    }
+                    .foregroundStyle(.white).padding(13)
+                }
+                .background(Color(red: 0.09, green: 0.115, blue: 0.18), in: RoundedRectangle(cornerRadius: 13))
+                .clipShape(RoundedRectangle(cornerRadius: 13))
+                .overlay(RoundedRectangle(cornerRadius: 13).stroke(Color.white.opacity(0.08), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .help("Play \(installation.game.name) in Highball")
+
+            Button(action: showInFinder) {
+                Label("Show in Finder", systemImage: "folder")
+            }
+            .buttonStyle(.bordered).controlSize(.small)
         }
     }
 }
