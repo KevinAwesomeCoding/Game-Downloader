@@ -749,8 +749,8 @@ struct ContentView: View {
                 }
                 GroupBox("Archive support") {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text(model.rarAvailable ? "ZIP and local RAR/7z tools available" : "ZIP supported · RAR/7z needs local unar and lsar tools")
-                        Text("This development build uses Python 3 and optional tools from /opt/homebrew/bin or /usr/local/bin. Unsupported archive methods show an error and keep downloads. No extraction tools are bundled for distribution yet.")
+                        Text(model.rarAvailable ? "ZIP and RAR extraction available" : "ZIP built in · RAR/7z tools unavailable")
+                        Text("Bundled UnRAR extracts complete split RAR sets. Local unar and lsar are still needed for 7z and other RAR formats. Unsupported methods keep the downloaded files so you can retry.")
                             .font(.caption).foregroundStyle(.secondary)
                         Button("Check archive tools") { model.beginOperation(["tools"], jobID: nil, bottle: model.selectedBottle) }
                             .disabled(model.operationBusy)

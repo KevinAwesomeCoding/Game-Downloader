@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path, PurePosixPath
+import re
 import shutil
 import stat
 import subprocess
@@ -36,7 +37,15 @@ def validate_entries(entries):
 
 
 def find_tool(name):
-    # Explicit local development dependency; not silently downloaded or bundled.
+    # The preview bundles the official UnRAR helper for split RAR sets. Other
+    # archive tools remain optional local development dependencies.
+    if name == "unrar":
+        bundled = Path(__file__).resolve().parent / "Tools" / "unrar"
+        if os.access(bundled, os.X_OK):
+            return str(bundled)
+        configured = os.environ.get("GAME_DOWNLOADER_UNRAR", "")
+        if configured and os.access(configured, os.X_OK):
+            return configured
     for directory in ["/opt/homebrew/bin", "/usr/local/bin"]:
         candidate = Path(directory) / name
         if os.access(candidate, os.X_OK):
@@ -64,6 +73,65 @@ def run_tool(command, stop=lambda: False):
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait()
+
+
+def is_rar_volume_set(archives, stop=lambda: False):
+    """Detect a RAR5 volume set from UnRAR's parsed archive metadata."""
+    archives = [Path(item) for item in archives]
+    unrar = find_tool("unrar")
+    if len(archives) < 2 or not unrar:
+        return False
+    for archive in archives:
+        with archive.open("rb") as stream:
+            if not stream.read(8).startswith(b"Rar!\x1a\x07"):
+                return False
+    listing = run_tool([unrar, "l", "-v", f"-p{PASSWORD.decode()}", str(archives[0])], stop)
+    return bool(re.search(r"^Details:\s+RAR\s+\d+,\s+volume\s+1\b", listing, re.IGNORECASE | re.MULTILINE))
+
+
+def extract_rar_volume_set(archives, destination, stop=lambda: False,
+                           progress=lambda done, total: None):
+    """Extract a complete RAR volume set once, starting at its first volume."""
+    archives, destination = [Path(item) for item in archives], Path(destination)
+    unrar, lsar = find_tool("unrar"), find_tool("lsar")
+    if not unrar:
+        raise ValueError("This split RAR build needs the bundled UnRAR helper. Rebuild or reinstall the Game Installer app.")
+    if not lsar:
+        raise ValueError("Split RAR safety checks need local lsar in /opt/homebrew/bin or /usr/local/bin.")
+    if not archives or not is_rar_volume_set(archives, stop):
+        raise ValueError("The supplied files are not a complete RAR volume set.")
+
+    entries = []
+    for archive in archives:
+        listing = json.loads(run_tool(
+            [lsar, "-j", "-nr", "-p", PASSWORD.decode(), str(archive)], stop))
+        listed = listing.get("lsarContents")
+        if not isinstance(listed, list) or not listed:
+            raise ValueError("Archive tool returned an unsupported or empty RAR volume listing.")
+        entries.extend(listed)
+    validate_entries([
+        (entry["XADFileName"], bool(entry.get("XADIsLink") or entry.get("XADLinkDestination") or
+                                     entry.get("XADIsHardLink")))
+        for entry in entries
+    ])
+    required = sum(entry.get("XADFileSize", 0) for entry in entries)
+    destination.mkdir()
+    if required > shutil.disk_usage(destination).free:
+        raise ValueError("Not enough free space to extract this archive.")
+    run_tool([unrar, "x", "-idq", "-o-", f"-p{PASSWORD.decode()}",
+              str(archives[0]), str(destination) + os.sep], stop)
+    for entry in entries:
+        checkpoint(stop)
+        if entry.get("XADIsDirectory"):
+            continue
+        target = destination / safe_path(entry["XADFileName"])
+        if not target.is_file() or target.is_symlink() or target.stat().st_size != entry.get("XADFileSize"):
+            raise ValueError(f"Archive entry did not extract completely: {entry['XADFileName']}")
+    for current, directories, files in os.walk(destination):
+        for name in directories + files:
+            if (Path(current) / name).is_symlink():
+                raise ValueError("Extracted symbolic links are not supported.")
+    progress(len(entries), len(entries))
 
 
 def extract(archive, destination, stop=lambda: False, progress=lambda done, total: None):

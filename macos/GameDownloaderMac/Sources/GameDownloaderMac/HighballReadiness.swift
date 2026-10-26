@@ -115,9 +115,9 @@ enum HighballReadiness {
         }
         let process = Process()
         process.executableURL = python
-        process.arguments = [script.path, "--app", app.path, "--helper", helper.path, "--manifest", manifestURL.path]
+        process.arguments = ["-B", script.path, "--app", app.path, "--helper", helper.path, "--manifest", manifestURL.path]
         process.environment = ProcessInfo.processInfo.environment.merging([
-            "LC_ALL": "C", "TERM": "dumb", "NO_COLOR": "1",
+            "LC_ALL": "C", "TERM": "dumb", "NO_COLOR": "1", "PYTHONDONTWRITEBYTECODE": "1",
         ]) { _, new in new }
         process.standardInput = FileHandle.nullDevice
         let output = Pipe()

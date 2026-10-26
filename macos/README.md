@@ -149,10 +149,12 @@ The demo requires local Python 3 and the previously installed Highball 0.10.22
 development helper at
 `~/Library/Application Support/Game-Downloader/HighballHelper/0.10.22/`. Its
 `build-manifest.json` must match the app and helper bytes. The spike README
-documents its build and GPL requirements. For RAR/7z, `unar` and `lsar` must
-already exist in `/opt/homebrew/bin` or `/usr/local/bin`; Settings reports them.
-No tools or engines are downloaded automatically. The local helper is an ad-hoc
-development build, not a consumer-distribution-ready helper.
+documents its build and GPL requirements. The preview build compiles the pinned
+RARLAB UnRAR source and bundles its license and acknowledgements; it uses UnRAR
+for complete split RAR volume sets. Local `unar` and `lsar` remain necessary for
+other RAR formats and 7z. Settings reports whether RAR extraction is available.
+The Highball helper remains an ad-hoc development build, not a
+consumer-distribution-ready helper.
 
 ## Verification
 
@@ -196,8 +198,9 @@ bash macos/build_preview.sh
   its patch to a pre-existing Steam game is not implemented. There is no update,
   uninstall, overwrite-existing-folder, automated prerequisite installation,
   private Drive authentication or split-ZIP reconstruction flow.
-- ZIP AES/unsupported compression methods stop clearly. RAR/7z requires local
-  tools; shipping needs a reviewed, signed extraction runtime and license notices.
+- ZIP AES/unsupported compression methods stop clearly. Split RAR archives are
+  extracted as a single volume set by UnRAR. The release build still needs
+  Developer ID signing and notarization; the preview uses an ad-hoc signature.
 - Scratch Creek's incomplete package/local assembly workaround is not automated. Other historical
   settings are not guessed from detected DLLs or compatibility predictions.
 - Startup, menu, gameplay, hosting, invites and joining remain separate results.

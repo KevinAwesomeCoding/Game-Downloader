@@ -19,6 +19,22 @@ cp "$ROOT/macos/backend/recipes.json" "$RESOURCES/Backend/recipes.json"
 mkdir -p "$RESOURCES/Backend/HighballRecipes"
 cp "$ROOT/macos/backend/HighballRecipes/"*.json "$RESOURCES/Backend/HighballRecipes/"
 
+# Build the free, official RARLAB UnRAR extractor. Unlike unar, it follows
+# encrypted RAR5 volume sets as a single archive when started from volume 1.
+readonly UNRAR_VERSION="7.3.1"
+readonly UNRAR_SOURCE_SHA256="634900842a3737d9cc15bbcc71d4c74cc713437e0bca296a573424fe5f2660ab"
+unrar_build="$(mktemp -d "${TMPDIR:-/tmp}/game-installer-unrar.XXXXXX")"
+curl -fL --retry 2 -o "$unrar_build/unrar-source.tar.gz" \
+  "https://www.rarlab.com/rar/unrarsrc-${UNRAR_VERSION}.tar.gz"
+printf '%s  %s\n' "$UNRAR_SOURCE_SHA256" "$unrar_build/unrar-source.tar.gz" | shasum -a 256 -c -
+tar -xzf "$unrar_build/unrar-source.tar.gz" -C "$unrar_build"
+make -C "$unrar_build/unrar" -j"$(sysctl -n hw.ncpu)"
+mkdir -p "$RESOURCES/Backend/Tools"
+install -m 755 "$unrar_build/unrar/unrar" "$RESOURCES/Backend/Tools/unrar"
+install -m 644 "$unrar_build/unrar/license.txt" "$RESOURCES/Backend/Tools/unrar-license.txt"
+install -m 644 "$unrar_build/unrar/acknow.txt" "$RESOURCES/Backend/Tools/unrar-acknowledgements.txt"
+rm -rf "$unrar_build"
+
 swift build --package-path "$PROJECT" -c release --product "$PRODUCT"
 
 binary="$PROJECT/.build/release/$PRODUCT"
@@ -55,6 +71,14 @@ manifest = {
 Path(sys.argv[2]).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 PY
 fi
+
+unrar_resource="$resource_bundle/Resources/Backend/Tools/unrar"
+if [[ ! -x "$unrar_resource" ]]; then
+  echo "The bundled UnRAR extraction helper is missing." >&2
+  exit 2
+fi
+codesign --force --sign - "$unrar_resource"
+codesign --verify --strict "$unrar_resource"
 
 mkdir -p "$HOME/Applications"
 stage="$(mktemp -d "$HOME/Applications/.game-installer-preview.XXXXXX")"

@@ -10,7 +10,8 @@ import sys
 import tempfile
 import threading
 
-from archives import content_root, extract, merge_archive_part, merge_repair, safe_path
+from archives import (content_root, extract, extract_rar_volume_set, find_tool,
+                      is_rar_volume_set, merge_archive_part, merge_repair, safe_path)
 from downloads import Downloader, Stopped, atomic_json, checkpoint, fetch_with_backup, parts, sha256
 from highball import Highball
 from universal_setup import apply_universal_setup, recipe_catalog, report_lines
@@ -152,18 +153,27 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None):
         staging = Path(temporary)
         main_parts = archives[0]
         root = None
-        for index, archive in enumerate(main_parts):
-            notify("extracting", f"Extracting game archive {index + 1} of {len(main_parts)}…", done=0, total=0)
-            part_directory = staging / f"main-part-{index + 1}"
-            extract(archive, part_directory, stop,
-                    lambda done, total, i=index: notify(
-                        "extracting", f"Extracting game archive {i + 1} of {len(main_parts)}…",
-                        done=done, total=total))
-            part_root = content_root(part_directory)
-            if root is None:
-                root = part_root
-            else:
-                merge_archive_part(part_root, root)
+        if is_rar_volume_set(main_parts, stop):
+            notify("extracting", f"Extracting one RAR archive across {len(main_parts)} volumes…", done=0, total=0)
+            root = staging / "main-volume-set"
+            extract_rar_volume_set(main_parts, root, stop,
+                                  lambda done, total: notify(
+                                      "extracting", "Extracting the complete RAR volume set…",
+                                      done=done, total=total))
+            root = content_root(root)
+        else:
+            for index, archive in enumerate(main_parts):
+                notify("extracting", f"Extracting game archive {index + 1} of {len(main_parts)}…", done=0, total=0)
+                part_directory = staging / f"main-part-{index + 1}"
+                extract(archive, part_directory, stop,
+                        lambda done, total, i=index: notify(
+                            "extracting", f"Extracting game archive {i + 1} of {len(main_parts)}…",
+                            done=done, total=total))
+                part_root = content_root(part_directory)
+                if root is None:
+                    root = part_root
+                else:
+                    merge_archive_part(part_root, root)
         if repairs:
             notify("repairing", "Extracting and applying the catalog repair…", done=0, total=0)
             extract(archives[1][0], staging / "repair", stop)
@@ -265,8 +275,9 @@ def main():
     threading.Thread(target=control, daemon=True).start()
     try:
         if args.action == "tools":
-            from archives import find_tool
-            emit("tools", "ZIP is built in. RAR/7z uses local unar/lsar.", rarAvailable=bool(find_tool("unar") and find_tool("lsar")))
+            rar_available = bool(find_tool("unrar") or (find_tool("unar") and find_tool("lsar")))
+            emit("tools", "ZIP is built in. Bundled UnRAR handles split RAR volumes; local unar/lsar handle other RAR and 7z archives.",
+                 rarAvailable=rar_available)
             return 0
         if args.action == "steam":
             result = Highball().steam_install(args.bottle, args.uri, lambda message: emit("running", message))
