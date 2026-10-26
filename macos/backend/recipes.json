@@ -112,6 +112,36 @@
         "invites": "friend panel opened with empty list",
         "joining": "untested"
       }
+    },
+    "fears-to-fathom-scratch-creek": {
+      "main": [
+        {
+          "bytes": 5368709120,
+          "sha256": "128018c2addfb39bec2f5fe9e2e31e1b8c25535c06d322032f846624cd6a61b7"
+        },
+        {
+          "bytes": 2189302464,
+          "sha256": "467561ab35bf2bccd6b1d49c3ad149278461b501d8ca264454a740403989eb4a"
+        }
+      ],
+      "repair": [
+        {
+          "bytes": 11604782,
+          "sha256": "e78cfef7d94cf97efd9d65acdd1dbde9977285d2a10ff8913ea23eb7e6b6acae"
+        }
+      ],
+      "engine": "x64-sikarugir10.0_6-r28",
+      "tested": {
+        "date": "2026-10-24",
+        "highball": "0.10.22",
+        "macOS": "26.5.1",
+        "chip": "M5",
+        "startup": "user confirmed",
+        "menu": "user confirmed",
+        "gameplay": "playable main menu confirmed",
+        "invites": "Steam friend chooser opened after local workaround; no invite sent",
+        "joining": "untested"
+      }
     }
   },
   "deltas": {
@@ -136,6 +166,31 @@
       ],
       "extraDirectoriesToVerify": [
         "PartyAnimals_Data"
+      ]
+    },
+    "fears-to-fathom-scratch-creek": {
+      "executable": "Fears to Fathom - Scratch Creek.exe",
+      "requiredRecipes": ["steam", "vcrun2022"],
+      "extraFilesToVerify": [
+        "UnityPlayer.dll",
+        "UnityCrashHandler64.exe",
+        "Fears to Fathom - Scratch Creek_Data/Managed/Assembly-CSharp.dll"
+      ],
+      "extraDirectoriesToVerify": [
+        "MonoBleedingEdge",
+        "Fears to Fathom - Scratch Creek_Data",
+        "Fears to Fathom - Scratch Creek_Data/StreamingAssets"
+      ],
+      "managedPatches": [
+        {
+          "path": "Fears to Fathom - Scratch Creek_Data/Managed/Assembly-CSharp.dll",
+          "sourceSha256": "d8d8892467b52c2a3669640393ff35b0c99371e39384c504045aaddef5aafa5d",
+          "patchedSha256": "0fea5ece59d359d233f9a6cc95007019d334883d06a74956f005e0458656ce1b",
+          "offset": 554584,
+          "originalHex": "7ea21400046f4402000a28ab1400067ea31400046f4402000a28aa140006",
+          "replacementHex": "000000000000000000000000000000000000000000000000000000000000",
+          "backupPath": "Fears to Fathom - Scratch Creek_Data/Managed/Assembly-CSharp.original.dll"
+        }
       ]
     }
   }

@@ -1,10 +1,13 @@
-"""Build-gated, conservative Highball setup shared by recorded game builds.
+"""Build-gated Highball setup and exact-build game patches.
 
 This module prepares renderer, argument, and detected Wine-name DLL override
-settings for Highball registration. It does not fabricate Steam install manifests.
+settings, applies hash-guarded game patches, and never fabricates Steam manifests.
 """
 from pathlib import Path
+import hashlib
 import os
+import stat
+import tempfile
 
 from archives import safe_path
 
@@ -70,8 +73,74 @@ def _report(step, status, detail):
     return {"step": step, "status": status, "detail": detail}
 
 
+def _apply_managed_patch(root, patch):
+    """Apply an exact-build IL patch using hash and byte guards, idempotently."""
+    root = Path(root).resolve()
+    target_relative = safe_path(patch["path"])
+    candidate = root / target_relative
+    if any((root / Path(*target_relative.parts[:index])).is_symlink()
+           for index in range(1, len(target_relative.parts) + 1)):
+        raise ValueError(f"Patch target contains a symbolic link: {patch['path']}")
+    target = candidate.resolve()
+    if not target.is_relative_to(root) or not target.is_file():
+        raise ValueError(f"Patch target is missing or unsafe: {patch['path']}")
+    current = target.read_bytes()
+    current_hash = hashlib.sha256(current).hexdigest()
+    expected = patch["sourceSha256"].lower()
+    patched_hash = patch["patchedSha256"].lower()
+    if current_hash == patched_hash:
+        return "Patch is already applied; no changes made."
+    if current_hash != expected:
+        raise ValueError("Patch source DLL hash does not match the recorded build.")
+
+    offset = patch["offset"]
+    original = bytes.fromhex(patch["originalHex"])
+    replacement = bytes.fromhex(patch["replacementHex"])
+    if len(original) != len(replacement) or current[offset:offset + len(original)] != original:
+        raise ValueError("Patch IL bytes do not match the recorded method body.")
+    changed = bytearray(current)
+    changed[offset:offset + len(replacement)] = replacement
+    output = bytes(changed)
+    if hashlib.sha256(output).hexdigest() != patched_hash:
+        raise ValueError("Patched DLL hash differs from the expected output.")
+
+    backup_relative = safe_path(patch["backupPath"])
+    backup_candidate = root / backup_relative
+    if any((root / Path(*backup_relative.parts[:index])).is_symlink()
+           for index in range(1, len(backup_relative.parts) + 1)):
+        raise ValueError("Patch backup path contains a symbolic link.")
+    backup = backup_candidate.resolve()
+    if not backup.is_relative_to(root) or backup == target:
+        raise ValueError("Patch backup path is unsafe.")
+    if backup.exists():
+        if not backup.is_file() or hashlib.sha256(backup.read_bytes()).hexdigest() != expected:
+            raise ValueError("An unrelated file already occupies the original-DLL backup path.")
+    else:
+        with backup.open("xb") as stream:
+            stream.write(current)
+            stream.flush()
+            os.fsync(stream.fileno())
+
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(prefix=target.name + ".", dir=target.parent,
+                                         delete=False) as stream:
+            temp_path = Path(stream.name)
+            stream.write(output)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(temp_path, stat.S_IMODE(target.stat().st_mode))
+        os.replace(temp_path, target)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+    if hashlib.sha256(target.read_bytes()).hexdigest() != patched_hash:
+        raise ValueError("Patched DLL failed its post-write hash check.")
+    return "Removed the known null-localization message calls before the Steam invite overlay; original DLL backed up."
+
+
 def apply_universal_setup(game):
-    """Return a setup plan and an applied/skipped report for an extracted build.
+    """Prepare setup and apply only exact-build patches for an extracted build.
 
     `game` contains `gameID`, `installPath`, and archive records in `mainArchives`
     and `repairArchives`; each record has byte size and SHA-256. Settings are
@@ -141,6 +210,22 @@ def apply_universal_setup(game):
         detail, status = "Build gate did not pass; folder scan was skipped.", "skipped"
     report.append(_report("DLL overrides", status, detail))
 
+    managed_patches = (delta or {}).get("managedPatches", [])
+    patch_ok = True
+    if managed_patches:
+        if not files_match:
+            patch_ok = False
+            report.append(_report("Game patch", "skipped", "Build or required-file gate did not pass."))
+        else:
+            details = []
+            for patch in managed_patches:
+                try:
+                    details.append(_apply_managed_patch(install_root, patch))
+                except (OSError, ValueError, KeyError) as error:
+                    patch_ok = False
+                    details.append(str(error))
+            report.append(_report("Game patch", "applied" if patch_ok else "failed", "; ".join(details)))
+
     steamapps = _steamapps_path()
     report.append(_report("Steam manifest", "skipped",
                           "The installer does not create or modify Steam install records."))
@@ -151,7 +236,8 @@ def apply_universal_setup(game):
         report.append(_report("Steam bottle", "applied", "Located the selected Steam bottle directory."))
 
     settings = None
-    if files_match:
+    ready_for_highball = files_match and patch_ok
+    if ready_for_highball:
         settings = {
             "renderer": UNIVERSAL_RENDERER,
             "arguments": UNIVERSAL_ARGUMENTS + (delta or {}).get("extraArgs", []),
@@ -161,7 +247,7 @@ def apply_universal_setup(game):
     return {
         "gameID": game_id,
         "buildMatched": bool(build_matches),
-        "readyForHighball": bool(files_match),
+        "readyForHighball": bool(ready_for_highball),
         "settings": settings,
         "report": report,
         "collidingDlls": collisions,

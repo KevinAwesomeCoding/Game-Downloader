@@ -201,8 +201,11 @@ bash macos/build_preview.sh
 - ZIP AES/unsupported compression methods stop clearly. Split RAR archives are
   extracted as a single volume set by UnRAR. The release build still needs
   Developer ID signing and notarization; the preview uses an ad-hoc signature.
-- Scratch Creek's incomplete package/local assembly workaround is not automated. Other historical
-  settings are not guessed from detected DLLs or compatibility predictions.
+- Scratch Creek's invite workaround now applies only to its exact recorded archive
+  and assembly hashes. The installer preserves `Assembly-CSharp.original.dll`,
+  verifies the patched output, and skips Highball setup if any guard fails.
+  Its Unity runtime and game data files are required before the recipe can apply.
+  Other historical settings are not guessed from detected DLLs or compatibility predictions.
 - Startup, menu, gameplay, hosting, invites and joining remain separate results.
   Archive hashes identify tested bytes, not publisher authenticity. Menu arrival,
   an install receipt or a successful CLI exit cannot establish multiplayer.
