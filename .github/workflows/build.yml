@@ -133,8 +133,8 @@ jobs:
             click **More info → Run anyway**, or allow it in Windows Security →
             Virus & threat protection → Protection history.
 
-            ### CrossOver / Wine users (Mac)
+            ### Highball users (Mac)
             Download **`GameInstaller.zip`**, extract it, then run `GameInstaller\GameInstaller.exe` from inside the extracted folder.
-            Requires CrossOver 24+ (Wine 9+) for the bundled Qt runtime to load correctly.
+            Run the installer inside a configured Highball Windows bottle.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
