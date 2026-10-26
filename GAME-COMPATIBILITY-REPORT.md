@@ -1,7 +1,7 @@
 # Game-Downloader compatibility report
 
-**Compiled:** 2026-10-25
-**Catalog:** `games.json` (44 entries)
+**Compiled:** 2026-10-26
+**Catalog:** `games.json` (47 entries)
 **Primary test setup in the saved Mac notes:** Apple M5, 16 GB RAM, macOS 26.5.1, Highball 0.10.22, Games bottle, Wine engine `x64-sikarugir10.0_6-r28`. Most documented launches used Highball’s D3DMetal setting; Buckshot Roulette used Vulkan through MoltenVK. Results describe this setup and the specific downloaded builds, not every Mac or future build.
 
 ## How to read this report
@@ -60,6 +60,9 @@
 | 42 | How To Train Your Cock | Marked as recorded, but the actual launch result was not preserved in the checklist messages available here. | Not verified. | — |
 | 43 | Lucid Cats | Reached its hosting flow. Kevin confirmed hosting worked after native-first DLL overrides were applied. | Host flow works; joining, invitations, and voice were not tested. | Steam was already running in the same Games bottle. The Highball pin lacked overrides for `winmm.dll`, `OnlineFix64.dll`, and `SteamOverlay64.dll`; setting all three to native-first fixed hosting. The installer had skipped setup because this exact archive build was not yet recorded. |
 | 44 | MOGGED: Looksmaxx or Die | Kevin confirmed the game/menu works. | Kevin confirmed the friend-invite check works. | This is user-confirmed; the detailed steps and renderer were not present in the retained summary. |
+| 45 | Needle In A Haystack | No launch result recorded in the available notes. | Not verified. | — |
+| 46 | Cheater's Table | Kevin reports that the game works. | Multiplayer, invites, and voice were not specified. | User-confirmed; exact setup and tested gameplay scope were not specified. |
+| 47 | Supermarket Chaos | Kevin reports that the game works. | Multiplayer, invites, and voice were not specified. | User-confirmed; exact setup and tested gameplay scope were not specified. |
 
 ## Detailed fixes and useful setup records
 
