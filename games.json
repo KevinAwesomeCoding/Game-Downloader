@@ -1258,9 +1258,9 @@
     "size": "",
     "players": "Up to 6 players (online co-op)",
     "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/5085740/c4f0eebd5422df95a4dc9984eaa4304c0f1990c0/header.jpg?t=1791928860",
-    "zipUrl": "steam://install/5085740",
-    "fixZipUrl": "",
-    "type": "steam",
+    "zipUrl": "https://pixeldrain.com/api/file/nCkDAZw7?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/Caspxw1f?download",
+    "type": "game",
     "requirements": {
       "os": "Windows 10/11",
       "cpu": "Intel Core i5-3570 or equivalent",
