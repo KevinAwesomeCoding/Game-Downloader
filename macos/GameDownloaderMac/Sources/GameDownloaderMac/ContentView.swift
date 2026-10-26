@@ -14,7 +14,7 @@ final class AppModel: ObservableObject {
     @Published var actionLogPath: String?
     @Published var operationBusy = false
     @Published var rarAvailable = false
-    @Published var selectedBottle = UserDefaults.standard.string(forKey: "selectedBottle") ?? "Games" {
+    @Published var selectedBottle = UserDefaults.standard.string(forKey: "selectedBottle") ?? "" {
         didSet { UserDefaults.standard.set(selectedBottle, forKey: "selectedBottle") }
     }
     @Published var installFolder = UserDefaults.standard.string(forKey: "installFolder") ?? FileManager.default.homeDirectoryForCurrentUser
@@ -87,6 +87,13 @@ final class AppModel: ObservableObject {
             readiness = result
             if result.readiness == nil {
                 readinessError = result.detail ?? "Highball helper checks need attention."
+            } else if let bottles = result.readiness?.bottles,
+                      !bottles.contains(where: { $0.name == selectedBottle }) {
+                let readyBottles = bottles.filter(\.ready)
+                if readyBottles.count == 1 {
+                    // Highball creates the first environment with its own name; don't assume "Games".
+                    selectedBottle = readyBottles[0].name
+                }
             }
         } catch {
             readiness = nil
@@ -216,6 +223,20 @@ struct ContentView: View {
 
     private var libraryPage: some View {
         VStack(spacing: 0) {
+            if let error = model.readinessError {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "wineglass").foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Finish Highball setup once").font(.headline)
+                        Text(error).font(.callout).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Setup steps") { page = .settings }.buttonStyle(.bordered)
+                }
+                .padding(14)
+                .background(Color.orange.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+                .padding(.horizontal, 25).padding(.top, 14)
+            }
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                 TextField("Search games…", text: $search)
@@ -389,7 +410,14 @@ struct ContentView: View {
                         }
                         Text("Registration adds a separate Game Installer pin. Close Highball before adding programs to avoid stale settings. Existing pins are never replaced.")
                             .font(.caption).foregroundStyle(.secondary)
-                        Button("Open Highball") { NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications/Highball.app")) }
+                        Button("Open Highball") {
+                            let app = URL(fileURLWithPath: "/Applications/Highball.app")
+                            if FileManager.default.fileExists(atPath: app.path) {
+                                NSWorkspace.shared.open(app)
+                            } else if let url = URL(string: "https://gethighball.com/docs/install/") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }
                 GroupBox("Archive support") {
@@ -435,8 +463,24 @@ struct ContentView: View {
                     }
                 } else if let error = model.readinessError {
                     Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    if error.localizedCaseInsensitiveContains("Highball 0.10.22 was not found") {
+                        Text("Install Highball, open it, and press Get started. Highball creates your first Windows environment during setup. Return here and choose Check again when it is ready.")
+                            .font(.callout).foregroundStyle(.secondary)
+                        Button("Get Highball") {
+                            if let url = URL(string: "https://gethighball.com/docs/install/") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
+                    } else if error.localizedCaseInsensitiveContains("helper") {
+                        Text("This preview also requires a separate, version-matched Highball helper. Highball alone is not enough for Game Installer integration yet.")
+                            .font(.callout).foregroundStyle(.secondary)
+                    }
                 } else {
                     Text("Checking Highball, its engine, and bottles…").foregroundStyle(.secondary)
+                }
+                if let runtime = model.readiness?.readiness, runtime.bottles.isEmpty {
+                    Text("No environment is ready yet. Finish Highball’s first-run setup, then check again.")
+                        .font(.callout).foregroundStyle(.secondary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
