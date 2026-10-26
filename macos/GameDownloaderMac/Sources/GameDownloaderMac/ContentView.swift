@@ -1,4 +1,5 @@
 import AppKit
+import Foundation
 import SwiftUI
 
 @MainActor
@@ -7,6 +8,7 @@ final class AppModel: ObservableObject {
     @Published var readiness: ReadinessReport?
     @Published var readinessError: String?
     @Published var isChecking = false
+    @Published var isRefreshingCatalog = false
     @Published var isInstallingHelper = false
     @Published var helperInstallMessage: String?
     @Published var catalogError: String?
@@ -29,6 +31,32 @@ final class AppModel: ObservableObject {
     var stopIntents: [String: String] = [:]
     var queueWritable = true
     private var downloadSamples: [String: (date: Date, bytes: Int64)] = [:]
+
+    var highballAppDetected: Bool {
+        let app = URL(fileURLWithPath: "/Applications/Highball.app", isDirectory: true)
+        return Bundle(url: app)?.infoDictionary?["CFBundleShortVersionString"] as? String
+            == HighballReadiness.version
+    }
+
+    var highballSetupComplete: Bool {
+        guard let readiness,
+              readiness.status == "ready",
+              let runtime = readiness.readiness else { return false }
+        return runtime.bottles.contains(where: \.ready)
+    }
+
+    var setupStatusMessage: String {
+        switch readiness?.status {
+        case "no_engines": return "Open Highball and finish installing its Windows engine. Then check setup again."
+        case "no_bottles": return "Open Highball and finish creating a Windows environment. Then check setup again."
+        case "needs_attention": return "Highball found an environment that needs attention. Open Highball, resolve its engine or renderer setup, then check again."
+        default: return "Highball setup is not ready yet. Finish its first-run setup, then check again."
+        }
+    }
+
+    var helperNeedsSetup: Bool {
+        readinessError?.localizedCaseInsensitiveContains("helper") == true
+    }
 
     init() { loadCatalog(); restoreQueue() }
 
@@ -71,12 +99,62 @@ final class AppModel: ObservableObject {
 
     func loadCatalog() {
         do {
-            games = try Game.load().sorted {
-                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-            }
+            games = Self.sortedGames(try Game.load())
             catalogError = nil
         } catch {
             catalogError = error.localizedDescription
+        }
+    }
+
+    func refreshCatalog() async {
+        guard let url = URL(string: "https://raw.githubusercontent.com/KevinAwesomeCoding/Game-Downloader/main/games.json") else {
+            catalogError = "The catalog URL is invalid. The bundled catalog is still available."
+            return
+        }
+        isRefreshingCatalog = true
+        catalogError = nil
+        defer { isRefreshingCatalog = false }
+
+        do {
+            var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
+                                     timeoutInterval: 20)
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let response = response as? HTTPURLResponse,
+                  (200..<300).contains(response.statusCode) else {
+                let code = (response as? HTTPURLResponse)?.statusCode.description ?? "unknown"
+                throw CatalogRefreshError.httpStatus(code)
+            }
+            let refreshed = try Self.decodeCatalog(data)
+            games = Self.sortedGames(refreshed)
+            actionMessage = "Catalog refreshed: \(games.count) games."
+        } catch {
+            catalogError = "Could not refresh the online catalog; showing the bundled copy. \(error.localizedDescription)"
+        }
+    }
+
+    private static func decodeCatalog(_ data: Data) throws -> [Game] {
+        let decoded = try JSONDecoder().decode([Game].self, from: data)
+        guard !decoded.isEmpty else { throw CatalogRefreshError.empty }
+        guard Set(decoded.map(\.id)).count == decoded.count else { throw CatalogRefreshError.duplicateIDs }
+        return decoded
+    }
+
+    private static func sortedGames(_ games: [Game]) -> [Game] {
+        games.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private enum CatalogRefreshError: LocalizedError {
+        case empty
+        case duplicateIDs
+        case httpStatus(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .empty: return "The online catalog was empty."
+            case .duplicateIDs: return "The online catalog contains duplicate game IDs."
+            case .httpStatus(let code): return "The catalog server returned HTTP \(code)."
+            }
         }
     }
 
@@ -169,7 +247,11 @@ struct ContentView: View {
                     if !model.operationBusy { Button { model.actionMessage = nil } label: { Image(systemName: "xmark") }.buttonStyle(.plain) }
                 }.padding(12).background(Color.teal.opacity(0.12))
             }
-            pageContent
+            if model.highballSetupComplete {
+                pageContent
+            } else {
+                firstLaunchSetup
+            }
         }
         .frame(minWidth: 960, minHeight: 680)
         .background(Color(red: 0.055, green: 0.071, blue: 0.11))
@@ -184,7 +266,9 @@ struct ContentView: View {
         }
         .task {
             await model.checkHighball()
-            if !model.operationBusy { model.beginOperation(["tools"], jobID: nil, bottle: model.selectedBottle) }
+            if model.highballSetupComplete && !model.operationBusy {
+                model.beginOperation(["tools"], jobID: nil, bottle: model.selectedBottle)
+            }
         }
     }
 
@@ -199,34 +283,43 @@ struct ContentView: View {
                     .foregroundStyle(Color(red: 0.55, green: 0.59, blue: 0.68))
             }
             Spacer(minLength: 12)
-            HStack(spacing: 6) {
-                ForEach(InstallerPage.allCases, id: \.self) { item in
-                    Button {
-                        page = item
-                    } label: {
-                        Text(item == .downloads && !model.jobs.isEmpty ? "Downloads (\(model.jobs.count))" : item.rawValue)
-                            .font(.system(size: 13, weight: .semibold))
-                            .padding(.horizontal, 13).padding(.vertical, 9)
-                            .background(page == item ? Color.white.opacity(0.12) : .clear,
-                                        in: RoundedRectangle(cornerRadius: 8))
-                            .foregroundStyle(page == item ? .white : Color.white.opacity(0.72))
+            if model.highballSetupComplete {
+                HStack(spacing: 6) {
+                    ForEach(InstallerPage.allCases, id: \.self) { item in
+                        Button {
+                            page = item
+                        } label: {
+                            Text(item == .downloads && !model.jobs.isEmpty ? "Downloads (\(model.jobs.count))" : item.rawValue)
+                                .font(.system(size: 13, weight: .semibold))
+                                .padding(.horizontal, 13).padding(.vertical, 9)
+                                .background(page == item ? Color.white.opacity(0.12) : .clear,
+                                            in: RoundedRectangle(cornerRadius: 8))
+                                .foregroundStyle(page == item ? .white : Color.white.opacity(0.72))
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                }
+                Button { model.requestSteam("steam://install/480") } label: {
+                    Label("Get Spacewar", systemImage: "gamecontroller.fill")
+                }
+                .buttonStyle(InstallerButtonStyle(tint: Color(red: 0.24, green: 0.38, blue: 0.62)))
+                .help("Hand installation to Windows Steam inside the selected Highball bottle")
+                .disabled(model.operationBusy || model.selectedBottle.isEmpty)
+            }
+            Button {
+                Task {
+                    await model.refreshCatalog()
+                    await model.checkHighball()
+                }
+            } label: {
+                if model.isRefreshingCatalog || model.isChecking {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Label("Refresh", systemImage: "arrow.clockwise")
                 }
             }
-            Button { model.requestSteam("steam://install/480") } label: {
-                Label("Get Spacewar", systemImage: "gamecontroller.fill")
-            }
-            .buttonStyle(InstallerButtonStyle(tint: Color(red: 0.24, green: 0.38, blue: 0.62)))
-            .help("Hand installation to Windows Steam inside the selected Highball bottle")
-            .disabled(model.operationBusy || model.selectedBottle.isEmpty)
-            Button {
-                if page == .library { model.loadCatalog() }
-                Task { await model.checkHighball() }
-            } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
-            }
             .buttonStyle(InstallerButtonStyle(tint: Color(red: 0.08, green: 0.78, blue: 0.67), darkText: true))
+            .disabled(model.isRefreshingCatalog || model.isChecking)
         }
         .padding(.horizontal, 25).padding(.vertical, 16)
         .background(Color(red: 0.075, green: 0.09, blue: 0.145))
@@ -238,6 +331,94 @@ struct ContentView: View {
         case .downloads: downloadsPage
         case .settings: settingsPage
         }
+    }
+
+    private var firstLaunchSetup: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            Label("Set up Highball to continue", systemImage: "wineglass")
+                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+            Text("Game Installer needs Highball and its matching helper before it can download or install games. This one-time setup makes sure Windows games have an environment to install into.")
+                .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+
+            setupStep(number: "1", title: "Install and open Highball", detail: "Install Highball 0.10.22, open it, and finish creating a Windows environment.") {
+                if let url = URL(string: "https://gethighball.com/docs/install/") {
+                    NSWorkspace.shared.open(url)
+                }
+            } actionLabel: {
+                Label("Get Highball", systemImage: "arrow.up.right.square")
+            }
+
+            setupStep(number: "2", title: "Install the Game Installer helper", detail: "The matching helper is included with this app. Install it once after Highball is installed.") {
+                if model.helperNeedsSetup {
+                    Task { await model.installHighballHelper() }
+                }
+            } actionLabel: {
+                if model.helperNeedsSetup {
+                    if model.isInstallingHelper {
+                        Label("Installing helper…", systemImage: "arrow.down.circle")
+                    } else {
+                        Label("Install or repair helper", systemImage: "arrow.down.circle")
+                    }
+                } else {
+                    Label(model.highballAppDetected ? "Helper verified" : "Waiting for Highball", systemImage: model.highballAppDetected ? "checkmark.circle.fill" : "clock")
+                }
+            }
+            .disabled(!model.helperNeedsSetup || model.isInstallingHelper || model.isChecking || !model.highballAppDetected)
+
+            if let error = model.readinessError {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.callout).foregroundStyle(.orange).textSelection(.enabled)
+                if error.localizedCaseInsensitiveContains("Python 3 was not found") {
+                    Text("Python 3 is also required by the Mac download worker. Install it, then check setup again.")
+                        .font(.callout).foregroundStyle(.secondary)
+                    Button("Get Python 3") {
+                        if let url = URL(string: "https://www.python.org/downloads/macos/") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                }
+            } else if let status = model.readiness?.status, status != "ready" {
+                Text(model.setupStatusMessage)
+                    .font(.callout).foregroundStyle(.orange)
+            }
+            if let message = model.helperInstallMessage {
+                Text(message).font(.callout).foregroundStyle(.secondary)
+            }
+            HStack {
+                Button {
+                    Task { await model.checkHighball() }
+                } label: {
+                    if model.isChecking { ProgressView().controlSize(.small) }
+                    else { Label("Check setup", systemImage: "arrow.clockwise") }
+                }
+                .disabled(model.isChecking || model.isInstallingHelper)
+                Spacer()
+                Text("Downloads unlock when Highball, the helper, and a Windows environment are ready.")
+                    .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
+            }
+        }
+        .padding(34)
+        .frame(maxWidth: 690, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func setupStep<LabelView: View>(number: String, title: String, detail: String,
+                                             action: @escaping () -> Void,
+                                             @ViewBuilder actionLabel: () -> LabelView) -> some View {
+        HStack(alignment: .top, spacing: 15) {
+            Text(number).font(.headline).foregroundStyle(.black)
+                .frame(width: 30, height: 30).background(Color.teal, in: Circle())
+            VStack(alignment: .leading, spacing: 7) {
+                Text(title).font(.headline).foregroundStyle(.white)
+                Text(detail).font(.callout).foregroundStyle(.secondary)
+                Button(action: action, label: actionLabel).buttonStyle(.borderedProminent).tint(.teal)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(18)
+        .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08)))
     }
 
     private var libraryPage: some View {

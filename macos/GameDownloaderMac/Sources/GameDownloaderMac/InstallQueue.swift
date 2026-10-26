@@ -88,6 +88,10 @@ extension AppModel {
     }
 
     func enqueue(_ game: Game) {
+        guard highballSetupComplete else {
+            actionMessage = "Finish Highball setup before downloading or installing games."
+            return
+        }
         guard queueWritable else { actionMessage = "The saved queue needs repair before adding downloads. Its original file was preserved."; return }
         if game.isSteamEntry { requestSteam(game.zipURL ?? ""); return }
         guard !jobs.contains(where: { $0.game.id == game.id && $0.status != "cancelled" && $0.installFolder == installFolder }) else {
@@ -100,7 +104,9 @@ extension AppModel {
     }
 
     func startNext() {
-        guard installSession == nil, let job = jobs.first(where: { $0.status == "queued" }) else { return }
+        guard highballSetupComplete,
+              installSession == nil,
+              let job = jobs.first(where: { $0.status == "queued" }) else { return }
         do {
             try FileManager.default.createDirectory(at: Self.supportFolder, withIntermediateDirectories: true)
             let jobFile = Self.supportFolder.appending(path: "\(job.id).json")
