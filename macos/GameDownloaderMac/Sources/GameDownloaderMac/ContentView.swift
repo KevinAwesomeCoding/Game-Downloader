@@ -361,7 +361,7 @@ struct ContentView: View {
     @State private var selectedGame: Game?
     @State private var cleanupTarget: InstallJob?
 
-    private let columns = [GridItem(.adaptive(minimum: 245, maximum: 330), spacing: 18)]
+    private let columns = [GridItem(.adaptive(minimum: 285, maximum: 360), spacing: 22)]
 
     private var filteredGames: [Game] {
         let matches = search.isEmpty ? model.games : model.games.filter {
@@ -447,7 +447,7 @@ struct ContentView: View {
                 selectedGame = nil
                 if !game.isSteamEntry { page = .downloads }
             }
-                .frame(minWidth: 520, minHeight: 440)
+                .frame(minWidth: 720, idealWidth: 820, minHeight: 620, idealHeight: 760)
         }
         .task {
             guard model.gameFolderAccessGranted else { return }
@@ -845,8 +845,11 @@ struct ContentView: View {
                             OwnedGameCard(installation: installation,
                                           play: { model.playOwnedGame(installation) },
                                           showInFinder: { NSWorkspace.shared.activateFileViewerSelecting([installation.folderURL]) })
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
+                    .padding(.horizontal, 2)
+                    .padding(.bottom, 24)
                 }
             }
         }
@@ -1033,11 +1036,14 @@ private struct OwnedGameCard: View {
                     .frame(height: 150).frame(maxWidth: .infinity).clipped()
                     HStack(spacing: 10) {
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(installation.game.name).font(.system(size: 16, weight: .bold)).lineLimit(1)
+                            Text(installation.game.name).font(.system(size: 16, weight: .bold))
+                                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                             Text(installation.job?.registered == true ? "Ready in Highball" : "Found in Games folder")
                                 .font(.caption).foregroundStyle(.secondary)
+                                .lineLimit(1).minimumScaleFactor(0.85)
                         }
-                        Spacer(minLength: 0)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Spacer(minLength: 8)
                         Image(systemName: "play.circle.fill").font(.system(size: 30)).foregroundStyle(.teal)
                     }
                     .foregroundStyle(.white).padding(13)
@@ -1198,8 +1204,12 @@ private struct RequirementsGroup: View {
                 Text(note).font(.caption).foregroundStyle(.secondary)
                 ForEach(rows) { row in
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(row.label).font(.callout.weight(.semibold)).frame(width: 112, alignment: .leading)
+                        Text(row.label).font(.callout.weight(.semibold))
+                            .frame(width: 112, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
                         Text(row.value).font(.callout).foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)
@@ -1217,7 +1227,7 @@ private struct GameDetailsSheet: View {
         ScrollView {
         VStack(alignment: .leading, spacing: 15) {
             HStack {
-                Text(game.name).font(.title.bold())
+                Text(game.name).font(.title.bold()).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 Spacer()
                 Button { dismiss() } label: { Image(systemName: "xmark.circle.fill").font(.title2).foregroundStyle(.secondary) }
                     .buttonStyle(.plain)
@@ -1229,7 +1239,8 @@ private struct GameDetailsSheet: View {
                     .overlay(Image(systemName: "gamecontroller.fill").font(.largeTitle).foregroundStyle(.white.opacity(0.55)))
             }
             .frame(height: 180).frame(maxWidth: .infinity).clipShape(RoundedRectangle(cornerRadius: 10))
-            Text(game.description ?? "No description provided.").foregroundStyle(.secondary)
+            Text(game.description ?? "No description provided.")
+                .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             if let compatibility = game.macCompatibility {
                 GroupBox("Mac compatibility notes") {
                     VStack(alignment: .leading, spacing: 8) {
@@ -1275,7 +1286,8 @@ private struct GameDetailsSheet: View {
         }
         .padding(22).background(Color(red: 0.055, green: 0.071, blue: 0.11))
         }
-        .frame(width: 600, height: 660)
+        .frame(minWidth: 680, idealWidth: 780, maxWidth: 900,
+               minHeight: 580, idealHeight: 720, maxHeight: 900)
         .background(Color(red: 0.055, green: 0.071, blue: 0.11))
     }
 }
