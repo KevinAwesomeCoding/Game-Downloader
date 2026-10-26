@@ -13,7 +13,7 @@ final class WorkerSession {
             .first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             throw HighballReadinessError.pythonMissing
         }
-        guard let script = Bundle.module.url(forResource: "worker", withExtension: "py", subdirectory: "Resources/Backend") else {
+        guard let script = AppResources.bundle.url(forResource: "worker", withExtension: "py", subdirectory: "Resources/Backend") else {
             throw HighballReadinessError.commandFailed("The bundled Mac install worker is missing. Rebuild the preview.")
         }
         process.executableURL = URL(fileURLWithPath: python)

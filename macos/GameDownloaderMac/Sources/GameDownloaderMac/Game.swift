@@ -9,6 +9,7 @@ struct Game: Codable, Identifiable, Hashable {
     }
 
     let id: String
+    let steamAppId: String?
     let name: String
     let description: String?
     let version: String?
@@ -17,23 +18,27 @@ struct Game: Codable, Identifiable, Hashable {
     let thumbnail: String?
     let zipSource: CatalogLinks?
     let fixSource: CatalogLinks?
+    let zipBackupSource: CatalogLinks?
+    let fixBackupSource: CatalogLinks?
     let type: String?
     let macCompatibility: Compatibility?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, description, version, size, players, thumbnail, type
+        case id, steamAppId, name, description, version, size, players, thumbnail, type
         case zipSource = "zipUrl"
         case fixSource = "fixZipUrl"
+        case zipBackupSource = "zipBackupUrl"
+        case fixBackupSource = "fixBackupUrl"
         case macCompatibility
     }
 
-    var zipURL: String? { zipSource?.firstURL }
+    var zipURL: String? { zipSource?.firstURL ?? zipBackupSource?.firstURL }
     var isSteamEntry: Bool { zipURL?.hasPrefix("steam://") == true }
-    var isAvailable: Bool { !(zipURL?.isEmpty ?? true) }
-    var hasFix: Bool { !(fixSource?.firstURL?.isEmpty ?? true) }
+    var isAvailable: Bool { zipURL != nil }
+    var hasFix: Bool { fixSource?.firstURL != nil || fixBackupSource?.firstURL != nil }
 
     static func load() throws -> [Game] {
-        guard let url = Bundle.module.url(
+        guard let url = AppResources.bundle.url(
             forResource: "games", withExtension: "json", subdirectory: "Resources"
         ) else {
             throw CatalogError.missingResource
@@ -54,10 +59,13 @@ enum CatalogLinks: Codable, Hashable {
     case list([Part])
 
     var firstURL: String? {
+        let candidate: String?
         switch self {
-        case .text(let value): return value.components(separatedBy: CharacterSet(charactersIn: ",\n")).first?.trimmingCharacters(in: .whitespaces)
-        case .list(let values): return values.first?.url
+        case .text(let value): candidate = value.components(separatedBy: CharacterSet(charactersIn: ",\n")).first?.trimmingCharacters(in: .whitespaces)
+        case .list(let values): candidate = values.first?.url
         }
+        guard let candidate, !candidate.isEmpty else { return nil }
+        return candidate
     }
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()

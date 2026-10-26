@@ -221,6 +221,41 @@ class Downloader:
                 response.close()
 
 
+def fetch_with_backup(downloader, source, backup_source, destination, on_fallback=None):
+    """Try the primary URL first, then an independent backup URL if it fails.
+
+    Each source has its own partial file and resume metadata. This prevents
+    bytes from different hosts from being combined if one transfer stops part
+    way through.
+    """
+    if not backup_source:
+        return downloader.fetch(source, destination)
+    try:
+        return downloader.fetch(source, destination)
+    except Stopped:
+        raise
+    except Exception as primary_error:
+        if on_fallback:
+            on_fallback(primary_error)
+        destination = Path(destination)
+        backup_destination = destination.with_name(destination.name + ".backup")
+        try:
+            digest = downloader.fetch(backup_source, backup_destination)
+            backup_destination.replace(destination)
+            backup_record = backup_destination.with_name(backup_destination.name + ".json")
+            destination_record = destination.with_name(destination.name + ".json")
+            if backup_record.exists():
+                backup_record.replace(destination_record)
+            return digest
+        except Stopped:
+            raise
+        except Exception as backup_error:
+            raise ValueError(
+                "The primary download failed and the backup link also failed. "
+                f"Primary: {primary_error}; backup: {backup_error}"
+            ) from backup_error
+
+
 def parts(value):
     if not value:
         return []

@@ -110,7 +110,7 @@ enum HighballReadiness {
         }
 
         guard let python = pythonExecutable() else { throw HighballReadinessError.pythonMissing }
-        guard let script = Bundle.module.url(forResource: "readiness", withExtension: "py", subdirectory: "Resources") else {
+        guard let script = AppResources.bundle.url(forResource: "readiness", withExtension: "py", subdirectory: "Resources") else {
             throw HighballReadinessError.reportInvalid("The bundled readiness checker is missing.")
         }
         let process = Process()

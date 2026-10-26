@@ -11,7 +11,7 @@ import tempfile
 import threading
 
 from archives import content_root, extract, merge_archive_part, merge_repair, safe_path
-from downloads import Downloader, Stopped, atomic_json, checkpoint, parts, sha256
+from downloads import Downloader, Stopped, atomic_json, checkpoint, fetch_with_backup, parts, sha256
 from highball import Highball
 from universal_setup import apply_universal_setup, recipe_catalog, report_lines
 
@@ -70,8 +70,17 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None):
     if game.get("type") == "fix" or str(game.get("zipUrl", "")).startswith("steam:"):
         raise ValueError("This entry installs through Windows Steam. Use Open in Windows Steam; repair-only installs are not supported yet.")
     main, repairs = parts(game.get("zipUrl")), parts(game.get("fixZipUrl"))
+    main_backups = parts(game.get("zipBackupUrl"))
+    repair_backups = parts(game.get("fixBackupUrl"))
+    if not main and main_backups:
+        main, main_backups = main_backups, []
+    if not repairs and repair_backups:
+        repairs, repair_backups = repair_backups, []
     if not main:
         raise ValueError("This catalog entry has no download configured.")
+    for label, sources, backups in (("game", main, main_backups), ("repair", repairs, repair_backups)):
+        if backups and len(backups) != len(sources):
+            raise ValueError(f"The {label} backup links must match the number of archive parts.")
     folder = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", game["name"]).strip().rstrip(".")
     if not folder or folder in {".", ".."}:
         raise ValueError("Invalid game folder name.")
@@ -108,7 +117,7 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None):
     all_hashes = []
     all_records = []
     archives = []
-    for label, sources in [("main", main), ("repair", repairs)]:
+    for label, sources, backups in [("main", main, main_backups), ("repair", repairs, repair_backups)]:
         hashes, files = [], []
         for index, source in enumerate(sources):
             checkpoint(stop)
@@ -117,7 +126,15 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None):
             notify("downloading", f"Downloading {label} archive {index + 1} of {len(sources)}…", done=0, total=0)
             transfer = downloader or Downloader(stop=stop, progress=lambda done, total: notify(
                 "downloading", f"Downloading {label} {index + 1}/{len(sources)}", done=done, total=total))
-            hashes.append(transfer.fetch(source["url"], filename))
+            backup_source = backups[index]["url"] if backups else ""
+            hashes.append(fetch_with_backup(
+                transfer, source["url"], backup_source, filename,
+                on_fallback=lambda _error, label=label, index=index: notify(
+                    "downloading",
+                    f"Primary {label} link failed; trying backup {index + 1}…",
+                    done=0, total=0,
+                ),
+            ))
             files.append(filename)
         all_hashes.append(hashes)
         all_records.append([{"bytes": archive.stat().st_size, "sha256": digest}
@@ -180,7 +197,8 @@ def cleanup_downloads(job, cache, notify=emit):
             or marker.get("repairHashes") != receipt.get("repairHashes")):
         raise ValueError("The installed game receipt could not be verified; download files were kept.")
 
-    main, repairs = parts(job["game"].get("zipUrl")), parts(job["game"].get("fixZipUrl"))
+    main = parts(job["game"].get("zipUrl")) or parts(job["game"].get("zipBackupUrl"))
+    repairs = parts(job["game"].get("fixZipUrl")) or parts(job["game"].get("fixBackupUrl"))
     expected = []
     for label, sources, expected_hashes in (
             ("main", main, receipt.get("mainHashes", [])),

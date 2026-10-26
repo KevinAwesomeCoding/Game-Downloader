@@ -1,6 +1,7 @@
 [
   {
     "id": "gang-beasts",
+    "steamAppId": "285900",
     "name": "Gang Beasts",
     "description": "A silly multiplayer party game with wobbly gelatinous characters.",
     "version": "1.18.195",
@@ -27,6 +28,7 @@
   },
   {
     "id": "mimesis",
+    "steamAppId": "2827200",
     "name": "MIMESIS",
     "description": "A first-person multiplayer horror experience.",
     "version": "0.2.6",
@@ -52,6 +54,7 @@
   },
   {
     "id": "human-fall-flat",
+    "steamAppId": "477160",
     "name": "Human Fall Flat",
     "description": "A wobbly physics-based puzzle platformer with open-ended creative levels.",
     "version": "1.0",
@@ -77,6 +80,7 @@
   },
   {
     "id": "gamble-with-your-friends",
+    "steamAppId": "3892270",
     "name": "Gamble With Your Friends",
     "description": "A multiplayer game with strategy and chance elements. Installs from a RAR archive with a ZIP repair patch.",
     "version": "1.0.11",
@@ -103,6 +107,7 @@
   },
   {
     "id": "meccha-chameleon",
+    "steamAppId": "4704690",
     "name": "MECCHA CHAMELEON",
     "description": "A fast-paced action game with challenging gameplay and vibrant visuals.",
     "version": "1.0",
@@ -128,6 +133,7 @@
   },
   {
     "id": "among-us",
+    "steamAppId": "945360",
     "name": "Among Us",
     "description": "A multiplayer party game of teamwork and betrayal in space.",
     "version": "17.3I",
@@ -152,6 +158,7 @@
   },
   {
     "id": "hardware-store-simulator",
+    "steamAppId": "3358560",
     "name": "Hardware Store Simulator",
     "description": "Compete with up to 4 players to build the most successful hardware store! Design your shop, manage inventory, hire employees, and influence market prices in this detailed business simulator.",
     "version": "Early Access",
@@ -178,6 +185,7 @@
   },
   {
     "id": "liars-bar",
+    "steamAppId": "3097560",
     "name": "Liar's Bar",
     "description": "A multiplayer online experience set in a sketchy bar where lying and bluffing are key to victory. Join a table of 4 and test your skills in Liar's Dice and Liar's Deck.",
     "version": "0.985",
@@ -204,6 +212,7 @@
   },
   {
     "id": "backseat-drivers",
+    "steamAppId": "3558400",
     "name": "Backseat Drivers",
     "description": "A punishing 2-4 player co-op driving game where one player can't see and the other can't drive. Navigate mountains, highways, and secret facilities together without destroying each other.",
     "version": "Early Access",
@@ -231,6 +240,7 @@
   },
   {
     "id": "night-shippers",
+    "steamAppId": "3761880",
     "name": "Night Shippers",
     "description": "A 1-4 player co-op horror comedy where you take food delivery gigs in the afterlife. Finish the orders before sunrise or the underworld will claim you forever.",
     "version": "Early Access",
@@ -257,6 +267,7 @@
   },
   {
     "id": "rewind-99",
+    "steamAppId": "3977290",
     "name": "Rewind 99",
     "description": "The year is 1999. You're the last remaining video rental store. Run your shop, explore a low-poly open world, and build an underground empire with co-op multiplayer.",
     "version": "Early Access",
@@ -282,6 +293,7 @@
   },
   {
     "id": "cut-that-wire",
+    "steamAppId": "3498650",
     "name": "Cut That Wire",
     "description": "A multiplayer card game combining Old Maid gameplay with chaotic space station settings. Pick cards, find the Joker, and cut wires while avoiding elimination.",
     "version": "1.0",
@@ -308,6 +320,7 @@
   },
   {
     "id": "golf-gambit",
+    "steamAppId": "2761350",
     "name": "Golf Gambit",
     "description": "Mini-golf with traps, tricks, and tornados! Deploy your traps to mess with your opponents or find a new path to a hole-in-one!",
     "version": "1.0",
@@ -334,6 +347,7 @@
   },
   {
     "id": "keep-talking-and-nobody-explodes",
+    "steamAppId": "341800",
     "name": "Keep Talking and Nobody Explodes",
     "description": "Find yourself trapped alone in a room with a ticking time bomb. Your friends have the manual to defuse it, but they can't see the bomb, so you're going to have to talk it out — fast!",
     "version": "1.0",
@@ -360,6 +374,7 @@
   },
   {
     "id": "knights-end",
+    "steamAppId": "4204530",
     "name": "Knights End",
     "description": "Work together to survive the night shift in this challenging co-op PvE horror game. Serve your villagers as disgraced knights by evading danger and fulfilling their commands in a cursed kingdom.",
     "version": "Early Access",
@@ -386,6 +401,7 @@
   },
   {
     "id": "mage-arena",
+    "steamAppId": "3716600",
     "name": "Mage Arena",
     "description": "A co-op PvP experience about using your voice to cast spells in the Mage Arena to settle an ages-old feud between sorcerers and warlocks.",
     "version": "Early Access",
@@ -412,6 +428,7 @@
   },
   {
     "id": "jackbox-party-pack-11",
+    "steamAppId": "3364070",
     "name": "The Jackbox Party Pack 11",
     "description": "5 new party games for your game night! Destroy wholesome jokes in Doominate, record your voice in Hear Say, create kookiness in Cookie Haus, sleuth through social clues in Suspectives, and collaborate in Legends of Trivia.",
     "version": "1.0",
@@ -437,6 +454,7 @@
   },
   {
     "id": "repo",
+    "steamAppId": "3241660",
     "name": "R.E.P.O.",
     "description": "An online co-op horror game for up to 6 players. Locate valuable, fully physics-based objects and handle them with care as you retrieve and extract them to satisfy your creator's desires.",
     "version": "Early Access",
@@ -463,6 +481,7 @@
   },
   {
     "id": "buckshot-roulette",
+    "steamAppId": "2835570",
     "name": "Buckshot Roulette",
     "description": "Play Russian roulette with a 12-gauge shotgun in this dark indie horror game. Four enter. One leaves.",
     "version": "1.0",
@@ -488,6 +507,7 @@
   },
   {
     "id": "midnight-heist",
+    "steamAppId": "2204350",
     "name": "Midnight Heist",
     "description": "Go on heists through Midnight City alone or with up to four players to fulfill tasks as a hacker for various organizations. Improve your reputation, earn money, and uncover the secrets of shady companies while being hunted by terrifying entities.",
     "version": "Full Release",
@@ -513,6 +533,7 @@
   },
   {
     "id": "backrooms-rec",
+    "steamAppId": "2275020",
     "name": "Backrooms Rec",
     "description": "Dive into the eerie Backrooms in this solo-developed survival experience. Explore unsettling hallways, uncover secrets, and survive alone or with friends in story and escape-style multiplayer modes.",
     "version": "Early Access",
@@ -539,6 +560,7 @@
   },
   {
     "id": "lethal-company",
+    "steamAppId": "1966720",
     "name": "Lethal Company",
     "description": "A co-op survival horror experience where you scavenge for profit while avoiding lethal threats in dangerous environments.",
     "version": "1.0",
@@ -565,6 +587,7 @@
   },
   {
     "id": "airport-security-sucks",
+    "steamAppId": "4285690",
     "name": "Airport Security Sucks!",
     "description": "A chaotic co-op game centered around airport security, absurd situations, and hilarious teamwork.",
     "version": "1.0",
@@ -591,6 +614,7 @@
   },
   {
     "id": "game-of-life-2",
+    "steamAppId": "1455630",
     "name": "The Game of Life 2",
     "description": "The official sequel to the hit board game played by 50 million fans! Adds vibrant 3D animation and brand-new choices every turn. Customise your peg, spin the spinner, and build your best life.",
     "version": "1.0",
@@ -617,6 +641,7 @@
   },
   {
     "id": "fears-to-fathom-scratch-creek",
+    "steamAppId": "4121170",
     "name": "Fears to Fathom - Scratch Creek",
     "description": "A psychological co-op horror game where players assume the roles of Tessa Langley and Marcus Reed, a young couple whose journey to relocate takes an unexpected detour through the eerie town of Scratch Creek, told with the series' signature VHS-era atmosphere.",
     "version": "1.0",
@@ -643,6 +668,7 @@
   },
   {
     "id": "funnel-runners",
+    "steamAppId": "3712080",
     "name": "Funnel Runners",
     "description": "A first-person co-op survival game where you and up to 7 friends scavenge parts, repair a van, and escape a brutal, escalating tornado in a doomed city with fully destructible environments.",
     "version": "Early Access",
@@ -668,6 +694,7 @@
   },
   {
     "id": "forest-escape-last-train",
+    "steamAppId": "4090360",
     "name": "Forest Escape: Last Train",
     "description": "A co-op surreal horror game for 1-4 players. Explore bizarre nightmare locations, gather resources, solve puzzles, and keep your locomotive running as you escape a crazy Warden's twisted realm.",
     "version": "0.48",
@@ -694,6 +721,7 @@
   },
   {
     "id": "backrooms-rescue-expedition",
+    "steamAppId": "3267550",
     "name": "The Backrooms: Rescue Expedition",
     "description": "A realistic first-person horror game for up to 4 players. Your team must rescue the missing expedition unit Echo-7 North from the ruthless entities and madness of the infinite halls.",
     "version": "1.0",
@@ -720,6 +748,7 @@
   },
   {
     "id": "happys-humble-burger-cult",
+    "steamAppId": "3453910",
     "name": "Happy's Humble Burger Cult",
     "description": "An unhinged co-op horror cooking experience for 1-4 players. Grill burgers, fry sides, and hit your quota before the kitchen turns into a nightmare and Asset Joy starts her hunt.",
     "version": "1.0.25",
@@ -746,6 +775,7 @@
   },
   {
     "id": "scamper",
+    "steamAppId": "2481930",
     "name": "Scamper",
     "description": "You are a rat, and your fear response will be tested. Find a lost rat and guide it to safety through tense environments, solo or cooperatively with up to three other players.",
     "version": "1.0",
@@ -771,6 +801,7 @@
   },
   {
     "id": "pyramidion",
+    "steamAppId": "4024600",
     "name": "Pyramidion",
     "description": "A punishing 2-player co-op physics game. Pick your role — Worker or Foreman — and haul a massive stone block from the base to the summit of a monolith, staying in sync every step of the way.",
     "version": "Early Access",
@@ -797,6 +828,7 @@
   },
   {
     "id": "shift-at-midnight",
+    "steamAppId": "3722330",
     "name": "Shift At Midnight",
     "description": "An online co-op detective horror game for up to 3 players. Manage an isolated roadside gas station overnight — stock shelves, run the register, and investigate customers, since some are creatures only pretending to be human. If one slips past you, barricade the doors, set traps, and find somewhere to hide.",
     "version": "1.0.1.0717.2216",
@@ -823,6 +855,7 @@
   },
   {
     "id": "big-walk",
+    "steamAppId": "1478500",
     "name": "Big Walk",
     "description": "A cooperative multiplayer adventure about teamwork and talking. Set out with your friends through a wide-open world full of challenges, puzzles, and discoveries.",
     "version": "1.5.1.2608271531",
@@ -847,6 +880,7 @@
   },
   {
     "id": "party-animals",
+    "steamAppId": "1260320",
     "name": "Party Animals",
     "description": "Fight your friends as puppies, kittens, and other fuzzy creatures in a physics-based party game. Play online or together on the same screen.",
     "version": "1.17.2.0",
@@ -873,6 +907,7 @@
   },
   {
     "id": "happy-wheels",
+    "steamAppId": "4705510",
     "name": "Happy Wheels",
     "description": "A side-scrolling physics sandbox with community-made levels. This Online-Fix build adds support for up to 4-player co-op.",
     "version": "1.99.2-s (Online-Fix mod 1.0.0)",
@@ -899,6 +934,7 @@
   },
   {
     "id": "dub-together",
+    "steamAppId": "5020310",
     "name": "Dub Together",
     "description": "Up to six players redub video clips and give them a new meaning, then watch the results together and vote. Includes voice effects, a clip editor, and live voting for Twitch chat.",
     "version": "Build 26092026",
@@ -924,6 +960,7 @@
   },
   {
     "id": "how-to-fish",
+    "steamAppId": "4001890",
     "name": "How to Fish",
     "description": "A physics-based fishing simulator for 1–4 players. After a boating trip ends on a small island, learn to fish to find your way home.",
     "version": "1.0.10",
@@ -949,6 +986,7 @@
   },
   {
     "id": "machine-party",
+    "steamAppId": "4108000",
     "name": "Machine Party",
     "description": "A collection of high-stakes party games where failure is lethal. Gather friends and try to survive its competitive challenges.",
     "version": "1.0.6",
@@ -975,6 +1013,7 @@
   },
   {
     "id": "mimic-party",
+    "steamAppId": "5053820",
     "name": "Mimic Party",
     "description": "An online voice party game for 1–5 players. Hear a sound, imitate it together, and compete on pitch and rhythm.",
     "version": "0.1.60",
@@ -1001,6 +1040,7 @@
   },
   {
     "id": "bombanana",
+    "steamAppId": "4656000",
     "name": "BOMBANANA!",
     "description": "A cooperative bomb-disposal game starring three monkeys. Players have different abilities and must communicate to solve puzzles before time runs out.",
     "version": "1.0.0",
@@ -1026,6 +1066,7 @@
   },
   {
     "id": "scam-with-your-friends",
+    "steamAppId": "4954910",
     "name": "Scam With Your Friends",
     "description": "Run a scam call center with friends, trick AI callers, meet daily quotas, and try to survive a chaotic office.",
     "version": "0.1.82",
@@ -1052,6 +1093,7 @@
   },
   {
     "id": "how-to-train-your-cock",
+    "steamAppId": "3673060",
     "name": "How To Train Your Cock",
     "description": "A relaxed idle game that runs while you do other tasks. Train and grow your cock, decorate its island, collect hats, and compare progress with friends.",
     "version": "1.3.1",
@@ -1077,6 +1119,7 @@
   },
   {
     "id": "lucid-cats",
+    "steamAppId": "4778540",
     "name": "Lucid Cats",
     "description": "An online co-op horror extraction game. Fall asleep, loot a shared nightmare, and escape with your valuables.",
     "version": "2.4",
@@ -1103,6 +1146,7 @@
   },
   {
     "id": "mogged-looksmaxx-or-die",
+    "steamAppId": "4917440",
     "name": "MOGGED: Looksmaxx or Die",
     "description": "A co-op survival extraction horror game about meeting a rising looks quota, raiding frat parties for supplies, and avoiding the creature hunting the ugliest player.",
     "version": "1.0.1.132",
