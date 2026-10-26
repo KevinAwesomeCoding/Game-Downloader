@@ -1,0 +1,38 @@
+{
+  "id": "steam",
+  "kind": "launcher",
+  "title": "Steam",
+  "renderer": "dxmt",
+  "steps": [
+    { "type": "sync", "sync": "msync" },
+    {
+      "type": "installer",
+      "url": "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe",
+      "sha256": null,
+      "arguments": ["/S"],
+      "label": "SteamSetup",
+      "slow": "Steam's first launch updates and unpacks the client. Let it finish; sign-in is still done by the user."
+    },
+    {
+      "type": "pin",
+      "pin": {
+        "id": "0B5B2C6E-7B1E-4B9E-9C6E-5A1F3D2E1C01",
+        "name": "Steam",
+        "path": "Program Files (x86)/Steam/steam.exe",
+        "arguments": [],
+        "environment": { "WINEMSYNC": "0", "WINEESYNC": "0" }
+      }
+    },
+    {
+      "type": "note",
+      "text": "Steam and its launcher pin are installed in this Highball bottle. Steam sign-in is not automated."
+    }
+  ],
+  "lastVerified": {
+    "date": "2026-08-24",
+    "engine": "x64-sikarugir10.0_6-r0",
+    "macos": "14.6",
+    "chip": "Apple M1 Pro",
+    "result": "Steam installer and launcher pin applied by Highball's recipe runner."
+  }
+}

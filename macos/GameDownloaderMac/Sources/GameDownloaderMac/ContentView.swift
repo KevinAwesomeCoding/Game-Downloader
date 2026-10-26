@@ -21,6 +21,8 @@ final class AppModel: ObservableObject {
     @Published var selectedBottle = UserDefaults.standard.string(forKey: "selectedBottle") ?? "" {
         didSet { UserDefaults.standard.set(selectedBottle, forKey: "selectedBottle") }
     }
+    @Published var gameFolderAccessGranted = UserDefaults.standard.bool(forKey: "gameFolderAccessGranted")
+    @Published var gameFolderAccessMessage: String?
     @Published var installFolder = UserDefaults.standard.string(forKey: "installFolder") ?? FileManager.default.homeDirectoryForCurrentUser
         .appending(path: "Games/Game Installer", directoryHint: .isDirectory).path {
         didSet { UserDefaults.standard.set(installFolder, forKey: "installFolder") }
@@ -58,7 +60,79 @@ final class AppModel: ObservableObject {
         readinessError?.localizedCaseInsensitiveContains("helper") == true
     }
 
-    init() { loadCatalog(); restoreQueue() }
+    init() {
+        loadCatalog()
+        restoreQueue()
+        restoreGameFolderAccess()
+    }
+
+    func restoreGameFolderAccess() {
+        guard gameFolderAccessGranted else { return }
+        let url = URL(fileURLWithPath: installFolder, isDirectory: true)
+        let probe = url.appending(path: ".game-installer-access-\(UUID().uuidString)")
+        do {
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+                throw CocoaError(.fileNoSuchFile)
+            }
+            try Data("access check".utf8).write(to: probe, options: .atomic)
+            try FileManager.default.removeItem(at: probe)
+        } catch {
+            try? FileManager.default.removeItem(at: probe)
+            gameFolderAccessGranted = false
+            UserDefaults.standard.set(false, forKey: "gameFolderAccessGranted")
+            gameFolderAccessMessage = "The saved Games folder can no longer be used. Choose it again to restore access. \(error.localizedDescription)"
+        }
+    }
+
+    func requestGameFolderAccess() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose Your Games Folder"
+        panel.message = "Game Installer needs read and write access to store and manage game files in this folder."
+        panel.prompt = "Allow Access"
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        let preferred = URL(fileURLWithPath: installFolder, isDirectory: true)
+        let gamesFolder = FileManager.default.homeDirectoryForCurrentUser.appending(path: "Games", directoryHint: .isDirectory)
+        panel.directoryURL = FileManager.default.fileExists(atPath: preferred.deletingLastPathComponent().path)
+            ? preferred.deletingLastPathComponent() : gamesFolder
+        guard panel.runModal() == .OK, let selected = panel.url else { return }
+
+        let probe = selected.appending(path: ".game-installer-access-\(UUID().uuidString)")
+        do {
+            try Data("access check".utf8).write(to: probe, options: .atomic)
+            try FileManager.default.removeItem(at: probe)
+            installFolder = selected.path
+            gameFolderAccessGranted = true
+            gameFolderAccessMessage = nil
+            UserDefaults.standard.set(true, forKey: "gameFolderAccessGranted")
+        } catch {
+            try? FileManager.default.removeItem(at: probe)
+            gameFolderAccessGranted = false
+            UserDefaults.standard.set(false, forKey: "gameFolderAccessGranted")
+            gameFolderAccessMessage = "Game Installer could not create and remove a file in that folder. Choose another folder or check its macOS permissions. (error.localizedDescription)"
+        }
+    }
+
+    func makeDefaultGamesFolder() {
+        let folder = FileManager.default.homeDirectoryForCurrentUser
+            .appending(path: "Games/Game Installer", directoryHint: .isDirectory)
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let probe = folder.appending(path: ".game-installer-access-\(UUID().uuidString)")
+            try Data("access check".utf8).write(to: probe, options: .atomic)
+            try FileManager.default.removeItem(at: probe)
+            installFolder = folder.path
+            gameFolderAccessGranted = true
+            gameFolderAccessMessage = nil
+            UserDefaults.standard.set(true, forKey: "gameFolderAccessGranted")
+        } catch {
+            gameFolderAccessGranted = false
+            UserDefaults.standard.set(false, forKey: "gameFolderAccessGranted")
+            gameFolderAccessMessage = "Could not create or use ~/Games/Game Installer. (error.localizedDescription)"
+        }
+    }
 
     func updateDownloadEstimate(jobID: String, status: String, done: Int64, total: Int64) {
         guard status == "downloading", total > 0 else {
@@ -201,12 +275,25 @@ final class AppModel: ObservableObject {
     func chooseInstallFolder() {
         let panel = NSOpenPanel()
         panel.title = "Choose Game Installer Folder"
-        panel.message = "Choose where downloaded games should be stored."
+        panel.message = "Choose where downloaded games should be stored. Game Installer will verify that it can manage files there."
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
         panel.directoryURL = URL(fileURLWithPath: installFolder, isDirectory: true)
-        if panel.runModal() == .OK, let url = panel.url { installFolder = url.path }
+        if panel.runModal() == .OK, let url = panel.url {
+            let probe = url.appending(path: ".game-installer-access-\(UUID().uuidString)")
+            do {
+                try Data("access check".utf8).write(to: probe, options: .atomic)
+                try FileManager.default.removeItem(at: probe)
+                installFolder = url.path
+                gameFolderAccessGranted = true
+                gameFolderAccessMessage = nil
+                UserDefaults.standard.set(true, forKey: "gameFolderAccessGranted")
+            } catch {
+                try? FileManager.default.removeItem(at: probe)
+                gameFolderAccessMessage = "Could not use that folder: \(error.localizedDescription)"
+            }
+        }
     }
 }
 
@@ -234,6 +321,10 @@ struct ContentView: View {
     }
 
     var body: some View {
+        Group {
+        if !model.gameFolderAccessGranted {
+            fileAccessSetup
+        } else {
         VStack(spacing: 0) {
             header
             Divider().overlay(Color.white.opacity(0.08))
@@ -265,11 +356,47 @@ struct ContentView: View {
                 .frame(minWidth: 520, minHeight: 440)
         }
         .task {
+            guard model.gameFolderAccessGranted else { return }
             await model.checkHighball()
             if model.highballSetupComplete && !model.operationBusy {
                 model.beginOperation(["tools"], jobID: nil, bottle: model.selectedBottle)
             }
         }
+        }
+        }
+    }
+
+    private var fileAccessSetup: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "folder.badge.gearshape")
+                .font(.system(size: 48)).foregroundStyle(.teal)
+            Text("Choose a Games folder")
+                .font(.largeTitle.bold())
+            Text("Game Installer needs access to one folder so it can save game files and manage its temporary install files. Choose a location to continue.")
+                .font(.body).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                .frame(maxWidth: 520)
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Games stay in the folder you choose; Highball entries point to them.", systemImage: "checkmark.circle")
+                Label("The installer checks that it can create and remove its own files there.", systemImage: "checkmark.circle")
+                Label("It only removes verified download archives when you choose Clean download files. Installed games and the app are kept.", systemImage: "checkmark.circle")
+                Label("No Full Disk Access, Accessibility, or Automation permission is needed.", systemImage: "checkmark.circle")
+            }
+            .font(.callout).foregroundStyle(.secondary)
+            .frame(maxWidth: 540, alignment: .leading)
+            if let message = model.gameFolderAccessMessage {
+                Text(message).font(.callout).foregroundStyle(.orange)
+                    .frame(maxWidth: 540).textSelection(.enabled)
+            }
+            HStack(spacing: 12) {
+                Button("Make Games Folder") { model.makeDefaultGamesFolder() }
+                    .buttonStyle(.borderedProminent).tint(.teal).controlSize(.large)
+                Button("Choose Existing Folder…") { model.requestGameFolderAccess() }
+                    .buttonStyle(.bordered).controlSize(.large)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(36)
+        .background(Color(red: 0.055, green: 0.071, blue: 0.11))
     }
 
     private var header: some View {
@@ -908,13 +1035,13 @@ private struct GameDetailsSheet: View {
                 if let version = game.version { Text("v\(version)") }
             }.font(.callout).foregroundStyle(.secondary)
             Spacer()
-            Text("\(game.isSteamEntry ? "This entry opens Windows Steam in the selected Highball bottle. Its repair-only flow is not implemented yet." : "Downloads and any configured repair install into the selected folder. Add to Highball afterward; no game launches automatically.")")
+            Text("\(game.isSteamEntry ? "This entry opens Windows Steam in the selected Highball bottle. Its repair-only flow is not implemented yet." : model.hasRecordedHighballRecipe(for: game.id) ? "Downloads the game to the selected folder, then adds its verified executable, title, cover, and saved settings to the selected Highball bottle. Missing Steam or Visual C++ components can be set up first. The game does not launch automatically." : "Downloads the game to the selected folder. Afterward, choose its executable to add it to the selected Highball bottle; no unverified fixes are guessed.")")
                 .font(.footnote).foregroundStyle(.secondary)
             Text(model.installFolder).font(.caption.monospaced()).lineLimit(2).foregroundStyle(.secondary)
             HStack {
                 Button("Choose folder…", action: model.chooseInstallFolder)
                 Spacer()
-                Button(game.isSteamEntry ? "Open in Windows Steam" : "Download & install", action: onInstall)
+                Button(game.isSteamEntry ? "Open in Windows Steam" : (model.hasRecordedHighballRecipe(for: game.id) ? "Download & add to Highball" : "Download & install"), action: onInstall)
                     .buttonStyle(.borderedProminent).tint(.teal)
                     .disabled(!game.isAvailable || (game.isSteamEntry && model.operationBusy))
             }

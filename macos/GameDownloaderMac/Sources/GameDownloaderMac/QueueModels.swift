@@ -12,9 +12,12 @@ struct InstallJob: Codable, Identifiable {
     var recipeAvailable = false
     var registered = false
     var bottle: String?
+    var targetBottle: String?
+    var prepareRecipes: [String]?
+    var automaticAdd: Bool?
 
     var isInstalled: Bool { installPath != nil }
-    var isActive: Bool { ["downloading", "extracting", "repairing", "stopping"].contains(status) }
+    var isActive: Bool { ["preparing", "downloading", "extracting", "repairing", "stopping"].contains(status) }
 }
 
 struct WorkerEvent: Decodable {

@@ -16,6 +16,8 @@ cp "$ROOT/spikes/highball/probe.py" "$RESOURCES/probe.py"
 mkdir -p "$RESOURCES/Backend"
 cp "$ROOT/macos/backend/"*.py "$RESOURCES/Backend/"
 cp "$ROOT/macos/backend/recipes.json" "$RESOURCES/Backend/recipes.json"
+mkdir -p "$RESOURCES/Backend/HighballRecipes"
+cp "$ROOT/macos/backend/HighballRecipes/"*.json "$RESOURCES/Backend/HighballRecipes/"
 
 swift build --package-path "$PROJECT" -c release --product "$PRODUCT"
 

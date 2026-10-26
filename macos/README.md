@@ -9,6 +9,49 @@ install-folder selection, and Highball readiness views.
 The install and Highball actions now have a working local backend. The Windows
 app, catalog, and Windows release workflow remain separate and unchanged.
 
+## First game on a new Mac
+
+On first launch, Game Installer asks you to choose its Games folder before it
+shows the library. macOS grants access through that folder picker, and the app
+checks that it can create and remove a temporary file there. This is the only
+extra file permission the flow needs. It does not ask for Full Disk Access,
+Accessibility, or Automation access. Changing the folder later is available in
+Settings.
+
+Game Installer keeps each game in the install folder you choose. Highball gets
+a game entry that points to that folder; the game files are not copied into the
+bottle. For a recorded game recipe, the installer can prepare that bottle's
+required Windows components before the download, then add the verified game to
+Highball automatically with its title, catalog cover, executable, and saved
+launch settings. It does not launch the game automatically or sign you into
+Steam.
+
+1. Install Highball from its [official install guide](https://gethighball.com/docs/install/),
+   move it to Applications, open it, and press **Get started**. Leave Highball
+   open until it finishes downloading its engine and creating the first Windows
+   environment. Highball currently requires an Apple silicon Mac (M1 or newer)
+   and macOS 14 or newer.
+2. In Game Installer → **Settings** → **Highball readiness**, select a ready
+   bottle under **Game launch bottle**. The first recorded game that needs
+   Windows Steam and Visual C++ runtimes will offer **Set Up & Download**.
+   Accepting installs only those missing components into that bottle. This
+   briefly closes and reopens Highball so its settings do not overwrite the
+   installer changes. Steam sign-in remains yours and can wait until you play.
+   Those components are shared by all games in that bottle.
+3. Choose a recorded game and press **Download & add to Highball**. After the
+   archive build is verified and extracted, Game Installer adds the game pin
+   and cover automatically. If the build does not match the saved recipe, it
+   keeps the installed files and offers manual executable selection instead.
+4. Use the game's **Play** action when you are ready. For a **Steam first**
+   recipe, the first Play action opens Windows Steam in the selected bottle;
+   sign in there, then choose Play again to start the game.
+
+If Settings reports no Highball environment, finish Highball's first-run setup
+and press **Check again**. Choosing **Download Only** skips prerequisite setup
+and automatic registration for that job; the existing **Add with recorded
+recipe** button remains available afterward. The installer does not create
+fake Steam installation records.
+
 ## What works
 
 - **Persistent serial install queue:** Download & install adds a job to Downloads.
@@ -32,13 +75,22 @@ app, catalog, and Windows release workflow remain separate and unchanged.
   extracted; separate archive parts are merged only when their paths do not collide.
   Repairs overlay only the newly staged game; no existing installed game is modified.
   Publishing uses macOS exclusive rename and refuses even an empty existing destination.
-- **Separate Highball registration and launch:** helper identity/readiness is
+- **Highball registration and launch:** helper identity/readiness is
   checked before every action. New pins use the game's title and the catalog thumbnail
   is added through Highball's per-item cover store when available. Existing receipt-owned pins keep their names
   on retry. Conflicting/unowned names stop with an error. Retrying an
   owned, partially configured pin is supported. Highball's GUI must be closed
   during registration to avoid stale settings writes; Windows Steam may remain up.
   Pin operations use the supported CLI; artwork uses Highball's cover-file layout.
+  If a recorded renderer is unavailable, registration falls back to the selected
+  bottle's renderer only when Highball reports it available, and reports the change.
+- **Per-bottle prerequisites and automatic add:** recorded games declare only
+  their needed Windows Steam and Visual C++ prerequisites. Before downloading,
+  the app offers to install missing components in the selected Highball bottle;
+  completed prerequisites are kept if a later step fails. After a matching
+  archive is installed, the app automatically registers the external game path,
+  title, cover and saved settings. This does not copy game files into the bottle
+  or start the game. Component recipes affect every game using that bottle.
 - **Four recorded recipes:** MECCHA CHAMELEON, Cut That Wire, Buckshot Roulette,
   and Party Animals. Exact main/repair archive hashes and the tested Highball
   engine must match before a recipe can be applied. Recipes may leave renderer,
@@ -46,8 +98,9 @@ app, catalog, and Windows release workflow remain separate and unchanged.
   Party Animals also checks for `UnityPlayer.dll` and `PartyAnimals_Data`; if either
   is missing, the install completes but its recorded Highball recipe is unavailable.
   On the first Play click, recipes that need Steam open the Steam pin; sign in, then
-  click Play again to launch the game. Wine-name DLL conflicts are reported, not
-  overridden, and Steam install records are never fabricated. These local
+  click Play again to launch the game. For verified builds, detected DLL names
+  that collide with Wine builtins receive per-game native-first overrides. Steam
+  install records are never fabricated. These local
   observations do not prove every gameplay or multiplayer feature works.
 - **Other games:** Choose .exe & add selects an executable within the installed
   folder and creates a pin using bottle defaults, without inferred DLL fixes.

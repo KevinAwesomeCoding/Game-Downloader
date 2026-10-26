@@ -72,6 +72,22 @@ extension AppModel {
                     jobs[index].status = "paused"
                     jobs[index].message = "Previous session ended. Resume keeps existing download data."
                 }
+                for index in jobs.indices where jobs[index].isInstalled {
+                    let receiptURL = Self.supportFolder.appending(path: jobs[index].id).appending(path: "receipt.json")
+                    guard let data = try? Data(contentsOf: receiptURL),
+                          let receipt = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                          receipt["jobID"] as? String == jobs[index].id,
+                          receipt["gameID"] as? String == jobs[index].game.id,
+                          let registration = receipt["registration"] as? [String: Any],
+                          registration["complete"] as? Bool == true,
+                          let bottle = registration["bottle"] as? String else { continue }
+                    jobs[index].registered = true
+                    jobs[index].bottle = bottle
+                    jobs[index].targetBottle = bottle
+                    jobs[index].status = "registered"
+                    jobs[index].message = "Added to Highball. Play sends the launch request through its checked helper."
+                }
+                saveQueue()
             } catch {
                 queueWritable = false
                 actionMessage = "Saved queue could not be read; it was kept at \(location.path). \(error.localizedDescription)"
@@ -88,8 +104,16 @@ extension AppModel {
     }
 
     func enqueue(_ game: Game) {
+        guard gameFolderAccessGranted else {
+            actionMessage = "Choose and authorize a Games folder before downloading."
+            return
+        }
         guard highballSetupComplete else {
             actionMessage = "Finish Highball setup before downloading or installing games."
+            return
+        }
+        guard let bottle = readiness?.readiness?.bottles.first(where: { $0.name == selectedBottle }), bottle.ready else {
+            actionMessage = "Choose a ready Highball bottle in Settings before downloading this game."
             return
         }
         guard queueWritable else { actionMessage = "The saved queue needs repair before adding downloads. Its original file was preserved."; return }
@@ -98,21 +122,148 @@ extension AppModel {
             actionMessage = "This game is already in Downloads. Resume or retry its existing entry."
             return
         }
-        jobs.append(InstallJob(id: UUID().uuidString, game: game, installFolder: installFolder))
+        let required = Self.requiredHighballRecipes(for: game.id)
+        let existing = Set(bottle.recipes.split(separator: ",").map(String.init))
+        let missing = required.filter { !existing.contains($0) }
+        var prepareRecipes: [String]? = missing.isEmpty ? nil : missing
+        var automaticAdd = !required.isEmpty
+        if !missing.isEmpty {
+            let alert = NSAlert()
+            alert.messageText = "Prepare Highball for \(game.name)?"
+            let names = missing.map(Self.prerequisiteName).joined(separator: " and ")
+            alert.informativeText = "Game Installer can install \(names) in the \(selectedBottle) bottle before downloading. These components are shared with other games in that bottle. Steam sign-in remains yours. Highball will briefly close and reopen while setup and game registration run."
+            alert.addButton(withTitle: "Set Up & Download")
+            alert.addButton(withTitle: "Download Only")
+            alert.addButton(withTitle: "Cancel")
+            switch alert.runModal() {
+            case .alertFirstButtonReturn:
+                break
+            case .alertSecondButtonReturn:
+                prepareRecipes = nil
+                automaticAdd = false
+            default:
+                return
+            }
+        }
+        var job = InstallJob(id: UUID().uuidString, game: game, installFolder: installFolder)
+        job.targetBottle = selectedBottle
+        job.prepareRecipes = prepareRecipes
+        job.automaticAdd = automaticAdd
+        jobs.append(job)
         saveQueue()
         startNext()
+    }
+
+    static func requiredHighballRecipes(for gameID: String) -> [String] {
+        guard let url = AppResources.bundle.url(
+            forResource: "recipes", withExtension: "json", subdirectory: "Resources/Backend"
+        ), let data = try? Data(contentsOf: url),
+           let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let deltas = root["deltas"] as? [String: [String: Any]],
+           let delta = deltas[gameID],
+           let required = delta["requiredRecipes"] as? [String] else { return [] }
+        return required
+    }
+
+    func hasRecordedHighballRecipe(for gameID: String) -> Bool {
+        !Self.requiredHighballRecipes(for: gameID).isEmpty
+    }
+
+    private static func prerequisiteName(_ id: String) -> String {
+        switch id {
+        case "steam": return "Windows Steam"
+        case "vcrun2022": return "Visual C++ 2015–2022 runtime"
+        default: return id
+        }
     }
 
     func startNext() {
         guard highballSetupComplete,
               installSession == nil,
               let job = jobs.first(where: { $0.status == "queued" }) else { return }
+        activeJobID = job.id
+        if let recipes = job.prepareRecipes, !recipes.isEmpty {
+            startPreparation(job, recipes: recipes)
+        } else {
+            startInstallation(job)
+        }
+    }
+
+    private func startPreparation(_ job: InstallJob, recipes: [String]) {
+        guard let bottle = job.targetBottle, !bottle.isEmpty else {
+            updateJob(job.id) { $0.status = "failed"; $0.message = "Choose a Highball bottle before setting up prerequisites." }
+            activeJobID = nil
+            startNext()
+            return
+        }
+        updateJob(job.id) { $0.status = "preparing"; $0.message = "Preparing \(recipes.joined(separator: " and ")) in Highball…" }
+        saveQueue()
+        Task { @MainActor in
+            let wasRunning: Bool
+            do {
+                wasRunning = try await HighballLifecycle.closeForConfiguration()
+            } catch {
+                updateJob(job.id) { $0.status = "failed"; $0.message = error.localizedDescription }
+                activeJobID = nil
+                saveQueue()
+                startNext()
+                return
+            }
+            if let intent = stopIntents.removeValue(forKey: job.id) {
+                HighballLifecycle.reopenIfNeeded(wasRunning)
+                updateJob(job.id) { $0.status = intent; $0.message = "\(intent.capitalized) before Highball setup began. No game files were downloaded." }
+                activeJobID = nil
+                saveQueue()
+                startNext()
+                return
+            }
+            do {
+                installSession = try WorkerSession(arguments: ["prepare", "--bottle", bottle] + recipes.flatMap { ["--recipe", $0] }) { [weak self] event in
+                    guard let self else { return }
+                    self.updateJob(job.id) { item in
+                        if item.status != "stopping" && event.status != "prepared" { item.status = event.status }
+                        item.message = event.message
+                    }
+                } completion: { [weak self] code, diagnostics in
+                    guard let self else { return }
+                    HighballLifecycle.reopenIfNeeded(wasRunning)
+                    let stopIntent = self.stopIntents.removeValue(forKey: job.id)
+                    if code == 0 && stopIntent == nil {
+                        self.updateJob(job.id) {
+                            $0.prepareRecipes = nil
+                            $0.status = "queued"
+                            $0.message = "Highball prerequisites are ready. Starting the game download…"
+                        }
+                    } else {
+                        self.updateJob(job.id) {
+                            $0.status = stopIntent ?? "failed"
+                            $0.message = diagnostics ?? (stopIntent == nil
+                                ? "Highball prerequisite setup failed. Download has not started; retry to continue."
+                                : "\(stopIntent!.capitalized). Completed Highball setup steps were kept.")
+                        }
+                    }
+                    self.installSession = nil
+                    self.activeJobID = nil
+                    self.saveQueue()
+                    self.startNext()
+                }
+            } catch {
+                HighballLifecycle.reopenIfNeeded(wasRunning)
+                updateJob(job.id) { $0.status = "failed"; $0.message = error.localizedDescription }
+                installSession = nil
+                activeJobID = nil
+                saveQueue()
+                startNext()
+            }
+        }
+    }
+
+    private func startInstallation(_ job: InstallJob) {
         do {
             try FileManager.default.createDirectory(at: Self.supportFolder, withIntermediateDirectories: true)
             let jobFile = Self.supportFolder.appending(path: "\(job.id).json")
             try JSONEncoder().encode(job).write(to: jobFile, options: .atomic)
             updateJob(job.id) { $0.status = "downloading"; $0.message = "Starting installation…" }
-            activeJobID = job.id
             installSession = try WorkerSession(arguments: ["install", "--job", jobFile.path]) { [weak self] event in
                 guard let self else { return }
                 self.updateJob(job.id) { item in
@@ -143,7 +294,12 @@ extension AppModel {
                 self.installSession = nil
                 self.activeJobID = nil
                 self.saveQueue()
-                self.startNext()
+                if let updated = self.jobs.first(where: { $0.id == job.id }),
+                   updated.isInstalled, updated.recipeAvailable, updated.automaticAdd == true, !updated.registered {
+                    self.addAutomaticallyToHighball(updated)
+                } else {
+                    self.startNext()
+                }
             }
         } catch {
             updateJob(job.id) { $0.status = "failed"; $0.message = error.localizedDescription }
@@ -196,9 +352,46 @@ extension AppModel {
     func runHighball(_ job: InstallJob, manualExecutable: String? = nil, launch: Bool = false) {
         guard operationSession == nil else { actionMessage = "Another Highball action is still running."; return }
         var args = [launch ? "launch" : "register", "--job", Self.supportFolder.appending(path: "\(job.id).json").path,
-                    "--bottle", selectedBottle]
+                    "--bottle", job.targetBottle ?? selectedBottle]
         if let executable = manualExecutable { args += ["--manual", "--executable", executable] }
-        beginOperation(args, jobID: job.id, bottle: selectedBottle)
+        beginOperation(args, jobID: job.id, bottle: job.targetBottle ?? selectedBottle)
+    }
+
+    private func addAutomaticallyToHighball(_ job: InstallJob) {
+        guard operationSession == nil else {
+            updateJob(job.id) { $0.message = "Installed. Highball is busy; use Add with recorded recipe when ready." }
+            startNext()
+            return
+        }
+        let bottle = job.targetBottle ?? selectedBottle
+        guard !bottle.isEmpty else {
+            updateJob(job.id) { $0.message = "Installed. Choose a Highball bottle, then use Add with recorded recipe." }
+            startNext()
+            return
+        }
+        operationBusy = true
+        actionMessage = "Adding \(job.game.name) to Highball…"
+        Task { @MainActor in
+            let wasRunning: Bool
+            do {
+                wasRunning = try await HighballLifecycle.closeForConfiguration()
+            } catch {
+                operationBusy = false
+                updateJob(job.id) { $0.message = "Installed, but automatic Highball setup could not continue: \(error.localizedDescription)" }
+                startNext()
+                return
+            }
+            beginOperation(
+                ["register", "--job", Self.supportFolder.appending(path: "\(job.id).json").path, "--bottle", bottle],
+                jobID: job.id, bottle: bottle
+            ) {
+                HighballLifecycle.reopenIfNeeded(wasRunning)
+                if let current = self.jobs.first(where: { $0.id == job.id }), !current.registered {
+                    self.updateJob(job.id) { $0.message = "Installed, but it could not be added automatically. Use Add with recorded recipe to retry." }
+                }
+                self.startNext()
+            }
+        }
     }
 
     func chooseExecutable(_ job: InstallJob) {
@@ -229,7 +422,8 @@ extension AppModel {
         }
     }
 
-    func beginOperation(_ arguments: [String], jobID: String?, bottle: String) {
+    func beginOperation(_ arguments: [String], jobID: String?, bottle: String,
+                        completion: (() -> Void)? = nil) {
         actionMessage = "Checking Highball…"
         actionLogPath = nil
         operationBusy = true
@@ -239,8 +433,10 @@ extension AppModel {
                 self.actionMessage = event.message
                 self.actionLogPath = event.logPath ?? self.actionLogPath
                 if event.status == "registered", let id = jobID {
-                    self.updateJob(id) { $0.registered = true; $0.bottle = bottle; $0.message = event.message }
+                    self.updateJob(id) { $0.registered = true; $0.bottle = bottle; $0.targetBottle = bottle; $0.status = "registered"; $0.message = event.message }
                     self.saveQueue()
+                } else if event.status == "failed", let id = jobID {
+                    self.updateJob(id) { $0.status = "installed"; $0.message = event.message }
                 }
                 if event.status == "tools" { self.rarAvailable = event.rarAvailable ?? false }
             } completion: { [weak self] code, diagnostics in
@@ -248,7 +444,12 @@ extension AppModel {
                 if let diagnostics, code != 0 { self.actionMessage = diagnostics }
                 self.operationSession = nil
                 self.operationBusy = false
+                completion?()
             }
-        } catch { actionMessage = error.localizedDescription; operationBusy = false }
+        } catch {
+            actionMessage = error.localizedDescription
+            operationBusy = false
+            completion?()
+        }
     }
 }

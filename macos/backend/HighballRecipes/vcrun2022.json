@@ -1,0 +1,46 @@
+{
+  "id": "vcrun2022",
+  "kind": "tweak",
+  "title": "Visual C++ runtimes (2015-2022)",
+  "requires": [],
+  "renderer": null,
+  "steps": [
+    {
+      "type": "installer",
+      "url": "https://aka.ms/vs/17/release/14.44.35211/VC_redist.x64.exe",
+      "sha256": "cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b",
+      "arguments": ["/install", "/quiet", "/norestart"],
+      "label": "VC++ 2015-2022 x64"
+    },
+    {
+      "type": "installer",
+      "url": "https://aka.ms/vs/17/release/14.44.35211/VC_redist.x86.exe",
+      "sha256": "0c09f2611660441084ce0df425c51c11e147e6447963c3690f97e0b25c55ed64",
+      "arguments": ["/install", "/quiet", "/norestart"],
+      "label": "VC++ 2015-2022 x86"
+    },
+    { "type": "registry", "key": "HKCU\\Software\\Wine\\DllOverrides", "name": "concrt140", "valueType": "REG_SZ", "data": "native,builtin" },
+    { "type": "registry", "key": "HKCU\\Software\\Wine\\DllOverrides", "name": "msvcp140", "valueType": "REG_SZ", "data": "native,builtin" },
+    { "type": "registry", "key": "HKCU\\Software\\Wine\\DllOverrides", "name": "msvcp140_1", "valueType": "REG_SZ", "data": "native,builtin" },
+    { "type": "registry", "key": "HKCU\\Software\\Wine\\DllOverrides", "name": "msvcp140_2", "valueType": "REG_SZ", "data": "native,builtin" },
+    { "type": "registry", "key": "HKCU\\Software\\Wine\\DllOverrides", "name": "msvcp140_atomic_wait", "valueType": "REG_SZ", "data": "native,builtin" },
+    { "type": "registry", "key": "HKCU\\Software\\Wine\\DllOverrides", "name": "msvcp140_codecvt_ids", "valueType": "REG_SZ", "data": "native,builtin" },
+    { "type": "registry", "key": "HKCU\\Software\\Wine\\DllOverrides", "name": "vcamp140", "valueType": "REG_SZ", "data": "native,builtin" },
+    { "type": "registry", "key": "HKCU\\Software\\Wine\\DllOverrides", "name": "vccorlib140", "valueType": "REG_SZ", "data": "native,builtin" },
+    { "type": "registry", "key": "HKCU\\Software\\Wine\\DllOverrides", "name": "vcomp140", "valueType": "REG_SZ", "data": "native,builtin" },
+    { "type": "registry", "key": "HKCU\\Software\\Wine\\DllOverrides", "name": "vcruntime140", "valueType": "REG_SZ", "data": "native,builtin" },
+    { "type": "registry", "key": "HKCU\\Software\\Wine\\DllOverrides", "name": "vcruntime140_1", "valueType": "REG_SZ", "data": "native,builtin" },
+    { "type": "note", "text": "Visual C++ 2015-2022 runtimes installed for both architectures with native DLL overrides." }
+  ],
+  "lastVerified": {
+    "date": "2026-08-25",
+    "engine": "x64-sikarugir10.0_6-r0",
+    "macos": "14.6",
+    "chip": "Apple M1 Pro",
+    "result": "Both redists installed and native overrides applied by Highball's recipe runner."
+  },
+  "installedMarkers": [
+    { "registry": "Software\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64", "value": "Installed", "equals": "dword:00000001" },
+    { "registry": "Software\\Wow6432Node\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64", "value": "Installed", "equals": "dword:00000001" }
+  ]
+}

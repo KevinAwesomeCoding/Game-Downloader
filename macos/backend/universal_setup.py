@@ -1,9 +1,7 @@
 """Build-gated, conservative Highball setup shared by recorded game builds.
 
-This module prepares renderer/argument settings for Highball registration and
-reports actions that require a user's Steam session. It deliberately does not
-force game-provided Steam/OnlineFix DLLs ahead of Wine or fabricate Steam install
-manifests.
+This module prepares renderer, argument, and detected Wine-name DLL override
+settings for Highball registration. It does not fabricate Steam install manifests.
 """
 from pathlib import Path
 import os
@@ -134,10 +132,11 @@ def apply_universal_setup(game):
 
     collisions = _collisions(install_root) if build_matches else []
     if collisions:
-        detail = f"Found {len(collisions)} Wine-name collisions ({', '.join(collisions)}); automatic DLL overrides were skipped."
-        status = "skipped"
+        names = sorted({Path(item).stem.casefold() for item in collisions})
+        detail = f"Found {len(names)} Wine-name DLLs; native-first overrides prepared ({', '.join(names)})."
+        status = "applied"
     elif build_matches:
-        detail, status = "No DLL name collisions found.", "skipped"
+        detail, status = "No Wine-name DLL collisions found; no overrides needed.", "skipped"
     else:
         detail, status = "Build gate did not pass; folder scan was skipped.", "skipped"
     report.append(_report("DLL overrides", status, detail))

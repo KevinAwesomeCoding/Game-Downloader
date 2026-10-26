@@ -40,14 +40,20 @@ def highball_recipe(receipt):
     supported_renderers = {"wined3d", "dxmt", "d3dmetal", "dxvk"}
     if override in supported_renderers:
         renderer = override
+    collision_names = sorted({Path(item).stem.casefold() for item in setup.get("collidingDlls", [])})
+    environment = {}
+    if collision_names:
+        environment["WINEDLLOVERRIDES"] = ";".join(
+            f"{name}=native,builtin" for name in collision_names
+        )
     return {
         "executable": delta["executable"],
         "arguments": settings["arguments"],
         "renderer": renderer,
-        "environment": {},
+        "environment": environment,
         "mainHashes": receipt["mainHashes"],
         "repairHashes": receipt["repairHashes"],
-        "requiredRecipes": ["steam", "vcrun2022"],
+        "requiredRecipes": delta.get("requiredRecipes", []),
         "engine": settings["engine"],
     }
 
@@ -185,6 +191,15 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None):
     return receipt
 
 
+def prepare_highball(bottle, recipe_ids, stop=lambda: False, notify=emit):
+    highball = Highball()
+    return highball.apply_prerequisites(
+        bottle, recipe_ids,
+        lambda message: notify("preparing", message),
+        stop=stop,
+    )
+
+
 def cleanup_downloads(job, cache, notify=emit):
     """Remove only source archives verified against this job's completed receipt."""
     cache = Path(cache).resolve()
@@ -231,10 +246,11 @@ def cleanup_downloads(job, cache, notify=emit):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["install", "register", "launch", "steam", "tools", "cleanup"])
+    parser.add_argument("action", choices=["install", "prepare", "register", "launch", "steam", "tools", "cleanup"])
     parser.add_argument("--job", type=Path)
     parser.add_argument("--bottle")
     parser.add_argument("--uri")
+    parser.add_argument("--recipe", action="append", default=[])
     parser.add_argument("--executable")
     parser.add_argument("--manual", action="store_true")
     parser.add_argument("--registered", action="store_true")
@@ -255,6 +271,12 @@ def main():
         if args.action == "steam":
             result = Highball().steam_install(args.bottle, args.uri, lambda message: emit("running", message))
             emit("handedOff", "Request sent to Windows Steam. Check its window for download progress. Launch log: " + result["logPath"], **result)
+            return 0
+        if args.action == "prepare":
+            if not args.recipe:
+                raise ValueError("No Highball prerequisites were requested.")
+            prepared = prepare_highball(args.bottle, args.recipe, stopped.is_set)
+            emit("prepared", "Highball prerequisites are ready in the selected bottle.", recipes=prepared)
             return 0
         job = json.loads(args.job.read_text())
         if not re.fullmatch(r"[A-Za-z0-9-]{1,80}", job["id"]):
@@ -297,6 +319,12 @@ def main():
                 detail = registration.get("coverMessage")
                 if detail:
                     message += " " + detail
+            fallback = registration.get("rendererFallback")
+            if fallback:
+                message += f" D3DMetal is unavailable in this Highball engine, so this pin uses the bottle's available {fallback['used']} renderer instead."
+            dll_overrides = registration.get("nativeFirstDlls", [])
+            if dll_overrides:
+                message += f" Native-first DLL overrides applied: {len(dll_overrides)} ({', '.join(dll_overrides)})."
             emit("registered", message)
         else:
             result = highball.launch(receipt, lambda message: emit("running", message))

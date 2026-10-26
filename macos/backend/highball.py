@@ -53,20 +53,57 @@ class Highball:
     def ready(self, bottle):
         if not bottle or any(c in bottle for c in "\t\n\r"):
             raise ValueError("Choose a Highball bottle in Settings first.")
-        if self.inspector:
-            report = self.inspector()
-        else:
-            resource_scripts = Path(__file__).resolve().parent.parent
-            source_scripts = Path(__file__).resolve().parents[2] / "spikes/highball"
-            sys.path.insert(0, str(resource_scripts if (resource_scripts / "readiness.py").exists() else source_scripts))
-            from readiness import check
-            report = check(Path("/Applications/Highball.app"), self.helper, self.manifest)
+        report = self._readiness_report()
         runtime = report.get("readiness") or {}
         self.home = runtime.get("home")
         selected = next((b for b in runtime.get("bottles", []) if b["name"] == bottle), None)
         if not selected or not selected.get("ready") or not self.home or runtime.get("warning"):
             raise ValueError("Highball/bottle is not ready. Open Highball, finish setup, and refresh Settings.")
         return selected, runtime
+
+    def _readiness_report(self):
+        if self.inspector:
+            return self.inspector()
+        resource_scripts = Path(__file__).resolve().parent.parent
+        source_scripts = Path(__file__).resolve().parents[2] / "spikes/highball"
+        sys.path.insert(0, str(resource_scripts if (resource_scripts / "readiness.py").exists() else source_scripts))
+        from readiness import check
+        return check(Path("/Applications/Highball.app"), self.helper, self.manifest)
+
+    def apply_prerequisites(self, bottle, recipe_ids, announce=lambda message: None, stop=lambda: False):
+        """Apply only the reviewed Highball prerequisite recipes missing from this bottle."""
+        supported = {"steam", "vcrun2022"}
+        requested = list(dict.fromkeys(recipe_ids))
+        if not requested or set(requested) - supported:
+            raise ValueError("The requested Highball prerequisite recipe is not in the reviewed allowlist.")
+        selected, _runtime = self.ready(bottle)
+        applied = set(filter(None, selected.get("recipes", "").split(",")))
+        recipe_dir = Path(__file__).resolve().with_name("HighballRecipes")
+        for recipe_id in requested:
+            if recipe_id in applied:
+                continue
+            if stop():
+                raise InterruptedError("Highball setup stopped before the next prerequisite; completed setup steps remain installed.")
+            recipe_path = recipe_dir / f"{recipe_id}.json"
+            if not recipe_path.is_file() or recipe_path.is_symlink():
+                raise ValueError(f"The bundled Highball {recipe_id} setup recipe is missing or unsafe.")
+            if recipe_id == "steam":
+                # The upstream Steam recipe suggests DXMT. Keep this bottle's current
+                # renderer as an explicit user choice before applying that launcher recipe.
+                renderer = selected.get("renderer")
+                if renderer not in {"wined3d", "dxmt", "d3dmetal", "dxvk"}:
+                    raise ValueError("Highball did not report a supported bottle renderer; no prerequisite was applied.")
+                self.command(["bottle", "set", bottle, "renderer", renderer])
+            announce(f"Installing {recipe_id} in the {bottle} Highball bottle…")
+            self.command(["recipe", "apply", bottle, str(recipe_path)], timeout=1800)
+            selected, _runtime = self.ready(bottle)
+            applied = set(filter(None, selected.get("recipes", "").split(",")))
+            if recipe_id not in applied:
+                raise ValueError(f"Highball finished the {recipe_id} command but did not confirm that recipe in the bottle.")
+            announce(f"{recipe_id} is ready in the {bottle} bottle.")
+        if stop():
+            raise InterruptedError("Highball setup stopped after a completed prerequisite; the bottle changes remain available.")
+        return requested
 
     def command(self, arguments, timeout=30):
         if not self.home:
@@ -166,6 +203,7 @@ class Highball:
             environment = recipe.get("environment", {})
             arguments = recipe.get("arguments", [])
             renderer = recipe.get("renderer")
+            renderer_fallback = None
             if (not isinstance(environment, dict) or set(environment) - {"WINEDLLOVERRIDES"} or
                     (renderer is not None and renderer not in {"wined3d", "dxmt", "d3dmetal", "dxvk"}) or
                     not isinstance(arguments, list) or not all(isinstance(arg, str) for arg in arguments)):
@@ -178,7 +216,12 @@ class Highball:
                 raise ValueError("This recipe requires Steam and vcrun2022 setup in Highball first.")
             engine = next(e for e in runtime["engines"] if e["id"] == selected["engine"])
             if renderer and not engine["renderers"].get(renderer, {}).get("available"):
-                raise ValueError("Recipe renderer is unavailable or needs its license accepted in Highball.")
+                bottle_renderer = selected.get("renderer")
+                if bottle_renderer and engine["renderers"].get(bottle_renderer, {}).get("available"):
+                    renderer_fallback = {"requested": renderer, "used": bottle_renderer}
+                    renderer = bottle_renderer
+                else:
+                    raise ValueError("Recipe renderer is unavailable or needs its license accepted in Highball, and the bottle renderer is unavailable too.")
             executable = recipe["executable"]
         if not executable:
             raise ValueError("No verified recipe is available. Choose the actual game .exe; default Highball settings will be used.")
@@ -206,6 +249,13 @@ class Highball:
         # Record ownership immediately so retry can recover after a failed setting.
         receipt["registration"] = {"bottle": bottle, "pin": name, "executable": executable, "complete": False,
                                    "settingsMode": "recorded" if recipe else "default"}
+        if recipe and renderer_fallback:
+            receipt["registration"]["rendererFallback"] = renderer_fallback
+        if recipe and environment.get("WINEDLLOVERRIDES"):
+            receipt["registration"]["nativeFirstDlls"] = [
+                entry.split("=", 1)[0]
+                for entry in environment["WINEDLLOVERRIDES"].split(";") if "=" in entry
+            ]
         if recipe:
             if renderer:
                 self.command(["pin", "set", bottle, name, "renderer", renderer])

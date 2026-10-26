@@ -1,0 +1,131 @@
+# Game-Downloader compatibility report
+
+**Compiled:** 2026-10-25
+**Catalog:** `games.json` (44 entries)
+**Primary test setup in the saved Mac notes:** Apple M5, 16 GB RAM, macOS 26.5.1, Highball 0.10.22, Games bottle, Wine engine `x64-sikarugir10.0_6-r28`. Most documented launches used Highball’s D3DMetal setting; Buckshot Roulette used Vulkan through MoltenVK. Results describe this setup and the specific downloaded builds, not every Mac or future build.
+
+## How to read this report
+
+- **Opened/menu** means there is evidence the game process or a rendered game screen started. It does not imply a full playthrough.
+- **Friends UI** means a friend-list or invite-selection panel opened. It does not prove an invitation reached another person.
+- **Multiplayer/invite works** is marked only where Kevin explicitly reported a working multiplayer session or invitation.
+- **Unverified** means the available notes do not establish the result. Where a checklist message only said a title was “recorded,” I have not guessed the outcome.
+- “Failed/blocked” describes the observed attempt, not a universal incompatibility verdict.
+
+## Results for all catalog games
+
+| # | Game | Launch / screen result | Friends, invitations, multiplayer | Notes |
+|---:|---|---|---|---|
+| 1 | Gang Beasts | Opened successfully. | Not verified. | No confirmed friend-list or invitation result in the checklist notes. |
+| 2 | MIMESIS | Unity loaded `MainMenuScene`; the process stayed running. | Kevin reported multiplayer works. Specific invite flow not documented. | D3DMetal; per-game DLL-loading settings were saved. Log included `KOS Login Failed: SteamServerError` despite the multiplayer report. |
+| 3 | Human Fall Flat | Opened. | Steam friends window opened; sending/accepting an invite was not verified. | No full co-op session documented. |
+| 4 | Gamble With Your Friends | Opened. | Friend-list contents and invite not verified. | — |
+| 5 | MECCHA CHAMELEON | Launched after a per-game DLL-loading adjustment; Kevin confirmed it worked. | Online play and invitations not tested. | D3DMetal. Initial error: “Failed to get OnlineFix interface.” A per-game DLL-loading adjustment preceded the successful relaunch. Args recorded: `-windowed -ResX=1280 -ResY=720`. |
+| 6 | Among Us | Opened successfully. | Not verified. | — |
+| 7 | Hardware Store Simulator | Opened. | Friends window opened; invite not verified. | — |
+| 8 | Liar’s Bar | Launch did not produce a usable game window in the recorded attempt. | Not tested. | The attempt happened during a period when macOS was also failing to create processes; no stable compatibility conclusion. |
+| 9 | Backseat Drivers | Blocked before game launch. | Not tested. | Its Steam install link did not produce an installable game in the tested flow. |
+| 10 | Night Shippers | Opened. | Steam friends window opened; invite not verified. | — |
+| 11 | Rewind 99 | Opened. | Not verified. | — |
+| 12 | Cut That Wire | Reached its main menu. | Kevin reported multiplayer works; exact invite flow not separately recorded. | D3DMetal setting; Unity reported Direct3D 11 feature level 11.1. Unity Authentication logged HTTP 401 `invalid token`; this did not prevent the menu or the user-reported multiplayer result. Args recorded: windowed 1280×720; per-game DLL-loading settings were saved. |
+| 13 | Golf Gambit | Launch failed to produce a game window in the recorded attempt. | Not tested. | — |
+| 14 | Keep Talking and Nobody Explodes | Opened. | Friends window opened; friend-list contents and invite not verified. | — |
+| 15 | Knights End | Rendered the message “You have brought shame upon your King for the last time.” Kevin said it worked; reaching the main menu was not confirmed in the saved note. | Not tested. | D3DMetal; process exited after about 68 seconds. An unsupported shader-barrier warning was logged. Windowed 1280×720 and per-game DLL-loading settings were recorded. |
+| 16 | Mage Arena | Opened. | Steam friends window opened; invite not verified. | — |
+| 17 | The Jackbox Party Pack 11 | Opened. | Friends window opened; invite action not verified. | — |
+| 18 | R.E.P.O. | Opened. | Friends window opened; invite not verified. | — |
+| 19 | Buckshot Roulette | Main menu and multiplayer lobby opened after starting Steam in the Games bottle first. | Kevin reported Lobby ID sharing works. The Steam “Invite Friends” button did nothing in the observed attempt; a live remote join was not independently confirmed. | Vulkan through MoltenVK. Steamworks initialized and lobby creation was logged. A prior “Steam is not launched” popup cleared after Steam was started. |
+| 20 | Midnight Heist | Opened. | Friends window opened; invite not verified. | — |
+| 21 | Backrooms Rec | Recorded as a launch failure. | Not tested. | An earlier attempt was delayed by host process exhaustion; the checklist later recorded launch failure without preserving a specific error in the summary. |
+| 22 | Lethal Company | Titled game window and Unity graphics initialization were observed. | Not verified. | The saved result establishes a successful open check, not full gameplay or multiplayer. |
+| 23 | Airport Security Sucks! | Game and credits windows were observed. | Not verified. | — |
+| 24 | The Game of Life 2 | Download and extraction completed, but the game test was blocked before verification. | Not tested. | macOS process exhaustion prevented a reliable launch check at the time. |
+| 25 | Fears to Fathom – Scratch Creek | Reached a playable main menu after repairs. | Steam’s “Choose Friend to Invite” dialog opened and displayed friends. A sent invite, joining, co-op, and voice were not tested. | Invite initially threw an exception because localization data was missing. A local assembly workaround removed the missing text lookups while preserving the Steam invite call. D3DMetal with Direct3D 11. |
+| 26 | Funnel Runners | Outcome not preserved in the checklist messages available for this report. | Not verified. | The title was marked as recorded, but the actual launch result was not included in the retained summary. |
+| 27 | Forest Escape: Last Train | Playable main menu confirmed; Kevin said the game works. | Kevin confirmed multiplayer works. | D3DMetal; per-game DLL-loading settings were saved. A brief menu capture showed low frame rate; sustained performance was not tested. |
+| 28 | The Backrooms: Rescue Expedition | Reached a rendered in-game screen. Kevin later said it worked; the game folder was removed afterward at his request. | Friend List panel opened but appeared empty. Co-op/invites were not verified. | D3DMetal. Logs included `Failed to load "SDL3.dll"` and a GStreamer video assertion; their effect was unknown. |
+| 29 | Happy’s Humble Burger Cult | Blocked by an installer/archive issue before a verified game launch. | Not tested. | The checklist recorded the title as blocked; no menu result was retained. |
+| 30 | Scamper | Marked as recorded, but the actual launch result was not preserved in the checklist messages available here. | Not verified. | — |
+| 31 | Pyramidion | Launch failure recorded. | Not tested. | No more specific error was preserved in the summary. |
+| 32 | Shift At Midnight | Marked as recorded, but the actual launch result was not preserved in the checklist messages available here. | Not verified. | — |
+| 33 | Big Walk | No main menu reached. The observed attempt showed a “Steamworks Fix Activation” prompt over a black screen. | Not tested. | Kevin has now asked to skip this title; it is excluded from further testing. |
+| 34 | Party Animals | Kevin ultimately confirmed the game works / reaches the game screen. | Invite Friends panel opened, but the friend list appeared empty; invitation success remains unverified. | Initial attempts had a missing `UnityPlayer.dll` from an incomplete multipart extraction. The installer’s multipart handling was fixed and verified separately. Do not treat that installer fix as proof that every game archive is complete. |
+| 35 | Happy Wheels | Marked as recorded, but the actual launch result was not preserved in the checklist messages available here. | Not verified. | — |
+| 36 | Dub Together | Testing was underway and the title was marked as recorded; the actual result was not preserved in the checklist messages available here. | Not verified. | — |
+| 37 | How to Fish | Marked as recorded, but the actual launch result was not preserved in the checklist messages available here. | Not verified. | — |
+| 38 | Machine Party | Marked as recorded, but the actual launch result was not preserved in the checklist messages available here. | Not verified. | — |
+| 39 | Mimic Party | Marked as recorded, but the actual launch result was not preserved in the checklist messages available here. | Not verified. | — |
+| 40 | BOMBANANA! | Marked as recorded, but the actual launch result was not preserved in the checklist messages available here. | Not verified. | — |
+| 41 | Scam With Your Friends | The checklist has conflicting interim notes: one reported a DXVK launch, while a later correction says launch failed on both D3DMetal and DXVK before a menu. Use the later corrected status: **not confirmed working**. | Menu, friends, and invite not verified. | Crash reports and renderer logs were retained; the exact final failure details were not included in the summary. |
+| 42 | How To Train Your Cock | Marked as recorded, but the actual launch result was not preserved in the checklist messages available here. | Not verified. | — |
+| 43 | Lucid Cats | Marked as recorded, but the actual launch result was not preserved in the checklist messages available here. | Not verified. | — |
+| 44 | MOGGED: Looksmaxx or Die | Kevin confirmed the game/menu works. | Kevin confirmed the friend-invite check works. | This is user-confirmed; the detailed steps and renderer were not present in the retained summary. |
+
+## Detailed fixes and useful setup records
+
+These are the games with the clearest saved setup recipes or troubleshooting history. Settings are specific to the recorded builds and Games bottle.
+
+### MECCHA CHAMELEON
+
+- Base archive: 4,435,111,962 bytes; patch archive: 27,388,066 bytes. The saved notebook contains SHA-256 values and source paths.
+- Add `PenguinHotel-Win64-Shipping.exe` from `Chameleon/Binaries/Win64` to Highball.
+- Use D3DMetal, `-windowed -ResX=1280 -ResY=720`, and the per-program DLL-loading setting recorded for this test.
+- This resolved the observed “Failed to get OnlineFix interface” startup error. Kevin confirmed the relaunch worked. Full gameplay and online play were not tested.
+
+### Fears to Fathom – Scratch Creek
+
+- Reached a playable menu after the archive repair and a local compatibility change.
+- Initial invite-button click caused an exception while the game read missing localization strings. The backed-up assembly change bypassed those lookups; Steam’s friend chooser then opened and showed friends.
+- Settings recorded: D3DMetal bottle, windowed 1280×720, per-game DLL-loading settings.
+- Invitation delivery, joining, co-op, and voice remain unverified.
+
+### Buckshot Roulette
+
+- Start Steam inside the Games bottle before starting the game. This cleared “Steam is not launched.”
+- Vulkan through MoltenVK initialized and the multiplayer lobby appeared. Kevin says Lobby ID sharing works; the Steam invite button did nothing in the recorded attempt.
+- The saved Highball pin contains per-game DLL-loading settings. A live join and invitation acceptance were not independently verified.
+
+### Cut That Wire
+
+- Main menu reached. The game used Direct3D 11 feature level 11.1 through the D3DMetal bottle setting.
+- Windowed 1280×720; per-game DLL-loading settings.
+- Unity Authentication logged HTTP 401 `invalid token`; Kevin still reported multiplayer works.
+
+### Knights End
+
+- Rendered a startup message and Kevin said it worked, but the saved evidence does not confirm a main menu. Process exited after about 68 seconds.
+- Windowed 1280×720; per-game DLL-loading settings; D3DMetal.
+- Multiplayer and gameplay remain untested.
+
+### Forest Escape: Last Train
+
+- GameInstaller inside Highball completed the catalog install. Main menu showed Create Game, Join Friend, and Public Games; Kevin confirmed multiplayer works.
+- D3DMetal; per-game DLL-loading settings were saved.
+- A short menu capture was around 14 FPS. Long-session performance, audio, saving, and full gameplay were not tested.
+
+### MIMESIS
+
+- Unity loaded `MainMenuScene`; Kevin reported multiplayer works.
+- D3DMetal; per-game DLL-loading settings were saved.
+- The log reported a D3D11 multithread-protection issue, software video decoding, and `KOS Login Failed Error Code : SteamServerError`; these did not prevent the user-reported multiplayer result.
+
+### The Backrooms: Rescue Expedition
+
+- Reached an in-game screen, but the friend list was empty. Online co-op and invitation delivery were not verified.
+- D3DMetal; the first launch lacked the saved per-game DLL-loading settings. They were later configured, but the saved detailed note says a corrected relaunch was still pending verification.
+- Kevin requested deletion after the test; the game folder was removed. Preserve the compatibility note even though the installed files are gone.
+
+### Party Animals
+
+- Initial launch attempts exposed an incomplete multi-part extraction: `UnityPlayer.dll` was missing. The installer’s extraction handling was updated; its backend verification passed 34 tests and the rebuilt app’s code-signature check passed.
+- Kevin later confirmed the game works. The invite panel opened but displayed no friends, so actual invitation success is not established.
+
+## Overall takeaway
+
+There is evidence that many catalog games opened, and some reached their main menu or multiplayer screens. The strongest multiplayer confirmations are for **MIMESIS, Cut That Wire, and Forest Escape: Last Train**; Kevin also reported **Buckshot Roulette Lobby ID sharing** works. **MOGGED** has a user-confirmed working friend-invite check. Several other games only had their friend window opened, and many checklist entries lack a retained detailed outcome. Empty friend lists, an opened Steam picker, or a lobby screen are not the same as a successful invitation and join.
+
+The earlier per-game notes are in `/Users/kevinanil/Documents/Game-Downloader Mac compatibility/`. This report intentionally leaves unknown results marked unknown rather than filling gaps with assumptions.
+
+## Installer recipe progress
+
+The Mac installer’s build-matched recipe catalog now includes **MECCHA CHAMELEON, Cut That Wire, Buckshot Roulette, and Party Animals**. Buckshot keeps its normal Vulkan path and shows a reminder to start Steam in the bottle. Party Animals’ exact multipart build is checked for `UnityPlayer.dll` and its data directory before installation is published. The other saved long-debug cases are not yet automated: Scratch Creek relies on extra runtime/content and a local game-file patch, while several other recorded setups depend on DLL changes that are not included in the installer recipe set.

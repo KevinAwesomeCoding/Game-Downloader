@@ -116,17 +116,21 @@
   },
   "deltas": {
     "meccha-chameleon": {
-      "executable": "Chameleon/Binaries/Win64/PenguinHotel-Win64-Shipping.exe"
+      "executable": "Chameleon/Binaries/Win64/PenguinHotel-Win64-Shipping.exe",
+      "requiredRecipes": ["steam", "vcrun2022"]
     },
     "cut-that-wire": {
-      "executable": "Cut That Wire.exe"
+      "executable": "Cut That Wire.exe",
+      "requiredRecipes": ["steam", "vcrun2022"]
     },
     "buckshot-roulette": {
       "executable": "Buckshot Roulette.exe",
-      "rendererOverride": "vulkan"
+      "rendererOverride": "vulkan",
+      "requiredRecipes": ["steam", "vcrun2022"]
     },
     "party-animals": {
       "executable": "PartyAnimals.exe",
+      "requiredRecipes": ["steam", "vcrun2022"],
       "extraFilesToVerify": [
         "UnityPlayer.dll"
       ],
