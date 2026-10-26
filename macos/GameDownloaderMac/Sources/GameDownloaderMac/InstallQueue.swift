@@ -14,7 +14,7 @@ final class WorkerSession {
             throw HighballReadinessError.pythonMissing
         }
         guard let script = AppResources.bundle.url(forResource: "worker", withExtension: "py", subdirectory: "Resources/Backend") else {
-            throw HighballReadinessError.commandFailed("The bundled Mac install worker is missing. Rebuild the preview.")
+            throw HighballReadinessError.commandFailed("The bundled Mac install worker is missing. Reinstall the Mac app.")
         }
         process.executableURL = URL(fileURLWithPath: python)
         process.arguments = ["-B", "-u", script.path] + arguments

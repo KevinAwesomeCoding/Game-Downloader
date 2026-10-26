@@ -4,26 +4,55 @@ permissions:
   contents: write
 
 on:
-  # Auto-build + release ONLY when something that changes the built app
-  # actually changes. games.json is deliberately NOT listed: the running app
-  # fetches the game manifest from a URL at runtime, so catalog edits ship to
-  # users without a rebuild. Same reasoning excludes README.md and other docs.
   push:
     branches: [main]
     paths:
       - 'main.py'
       - 'requirements.txt'
       - 'version_info.txt'
+      - 'VERSION'
+      - 'games.json'
+      - 'macos/**'
+      - 'spikes/highball/probe.py'
+      - 'spikes/highball/readiness.py'
       - '.github/workflows/**'
-      - '!.github/workflows/build.yml'
-      - '!.github/workflows/build-macos.yml'
-  # Manual "Run workflow" button for one-off rebuilds.
+  pull_request:
+    branches: [main]
+    paths:
+      - 'main.py'
+      - 'requirements.txt'
+      - 'version_info.txt'
+      - 'VERSION'
+      - 'games.json'
+      - 'macos/**'
+      - 'spikes/highball/probe.py'
+      - 'spikes/highball/readiness.py'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: windows-latest
+  release_info:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
+      - name: Generate shared release tag
+        id: release
+        shell: bash
+        run: |
+          version="$(tr -d '\r\n' < VERSION)"
+          date_utc="$(date -u +%Y%m%d)"
+          tag="v${version}-${date_utc}-${GITHUB_RUN_NUMBER}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+  build_windows:
+    needs: release_info
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,28 +76,15 @@ jobs:
           Copy-Item "C:\Program Files\7-Zip\7z.exe" bin\
           Copy-Item "C:\Program Files\7-Zip\7z.dll" bin\
 
-      - name: Generate release tag
-        id: tag
+      - name: Inject release version into main.py
         shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.release_info.outputs.tag }}
         run: |
-          $version = (Get-Content VERSION).Trim()
-          $date    = Get-Date -Format "yyyyMMdd"
-          $run     = "${{ github.run_number }}"
-          $tag     = "v$version-$date-$run"
-          "tag=$tag"         >> $env:GITHUB_OUTPUT
-          "version=$version" >> $env:GITHUB_OUTPUT
-
-      - name: Inject VERSION into main.py
-        shell: pwsh
-        run: |
-          # Stamp the exe with the SAME tag the release is published under
-          # (steps.tag.outputs.tag), so the running app's VERSION matches the
-          # latest release tag_name and the self-update check won't loop.
-          $tag = "${{ steps.tag.outputs.tag }}"
-          (Get-Content main.py) -replace '^VERSION = ".*"$', "VERSION = `"$tag`"" |
+          (Get-Content main.py) -replace '^VERSION = ".*"$', "VERSION = `"$env:RELEASE_TAG`"" |
             Set-Content main.py -Encoding UTF8
 
-      - name: Build onedir (CrossOver / Wine)
+      - name: Build onedir (Highball / Wine)
         run: >
           pyinstaller
           --onedir
@@ -83,14 +99,6 @@ jobs:
           --add-data "bin/7z.dll;bin"
           --name "GameInstaller"
           main.py
-
-      # NOTE: No DLL-flattening step on purpose. PyInstaller's PyQt6 layout and
-      # its generated qt.conf must stay intact — especially
-      # PyQt6/Qt6/plugins/platforms/qwindows.dll. Flattening breaks Qt's plugin
-      # discovery and never fixed the real Wine failure, which is the bottle's
-      # Universal CRT (ucrtbase) being too old for the bundled MSVC 14.44
-      # runtime that Qt 6.x links against. Fix that in the bottle (recent
-      # CrossOver / matching VC++ redist), not by moving DLLs around.
 
       - name: Zip onedir build
         shell: pwsh
@@ -111,32 +119,81 @@ jobs:
           --name "GameInstaller"
           main.py
 
-      - name: Publish GitHub Release
+      - name: Upload Windows release files
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-files
+          path: |
+            dist/GameInstaller.zip
+            dist/GameInstaller.exe
+          if-no-files-found: error
+
+  build_macos:
+    needs: release_info
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build native Mac app
+        env:
+          APP_DISPLAY_NAME: Game Installer
+          APP_BUNDLE_IDENTIFIER: com.kevinawesomecoding.GameInstaller
+          APP_DESTINATION: ${{ runner.temp }}/Game Installer.app
+        run: |
+          bash macos/build_preview.sh
+          ditto -c -k --sequesterRsrc --keepParent "$APP_DESTINATION" "$RUNNER_TEMP/GameInstaller-macOS.zip"
+
+      - name: Upload Mac release file
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release-files
+          path: ${{ runner.temp }}/GameInstaller-macOS.zip
+          if-no-files-found: error
+
+  publish_release:
+    needs: [release_info, build_windows, build_macos]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-release-files
+          path: release-assets
+
+      - name: Download Mac build
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-release-files
+          path: release-assets
+
+      - name: Publish combined GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: Game Installer ${{ steps.tag.outputs.tag }}
+          tag_name: ${{ needs.release_info.outputs.tag }}
+          name: Game Installer ${{ needs.release_info.outputs.tag }}
           draft: false
           prerelease: false
           files: |
-            dist/GameInstaller.zip
-            dist/GameInstaller.exe
+            release-assets/GameInstaller.zip
+            release-assets/GameInstaller.exe
+            release-assets/GameInstaller-macOS.zip
           body: |
-            **Version:** ${{ steps.tag.outputs.version }}
+            **Version:** ${{ needs.release_info.outputs.version }}
             **Commit:** `${{ github.sha }}`
             **Trigger:** ${{ github.event_name }}
 
-            ### Windows users (recommended)
-            Download **`GameInstaller.zip`**, extract it, and run `GameInstaller\GameInstaller.exe` from inside the folder.
-            This folder build is the least likely to trip antivirus false positives.
+            ### Windows and Highball users
+            Download **`GameInstaller.zip`**, extract it, and run `GameInstaller\GameInstaller.exe`.
+            This Windows build also runs inside a configured Highball Windows bottle.
 
-            Prefer one file? **`GameInstaller.exe`** works too. Because it is unsigned and
-            self-extracting, Windows Defender may show a false-positive warning. If it does:
-            click **More info → Run anyway**, or allow it in Windows Security →
-            Virus & threat protection → Protection history.
+            ### Native macOS users
+            Download **`GameInstaller-macOS.zip`**, extract it, then open **Game Installer.app**.
+            Requires macOS 14 or later. The app is ad-hoc signed, so macOS may require
+            opening it from Finder and approving it in Privacy & Security. Highball's
+            version-matched helper and Python 3 are required for the current Mac setup flow.
 
-            ### Highball users (Mac)
-            Download **`GameInstaller.zip`**, extract it, then run `GameInstaller\GameInstaller.exe` from inside the extracted folder.
-            Run the installer inside a configured Highball Windows bottle.
+            **Windows single-file option:** `GameInstaller.exe`.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

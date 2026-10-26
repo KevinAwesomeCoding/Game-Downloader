@@ -472,7 +472,7 @@ struct ContentView: View {
                             }
                         }
                     } else if error.localizedCaseInsensitiveContains("helper") {
-                        Text("This preview also requires a separate, version-matched Highball helper. Highball alone is not enough for Game Installer integration yet.")
+                        Text("The Mac app requires a separate, version-matched Highball helper. Highball alone is not enough for Game Installer integration yet.")
                             .font(.callout).foregroundStyle(.secondary)
                     }
                 } else {

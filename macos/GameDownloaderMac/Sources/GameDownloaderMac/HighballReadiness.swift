@@ -65,7 +65,7 @@ enum HighballReadinessError: LocalizedError {
         case .helperMissing: return "The local Highball helper is not installed."
         case .helperVersionMismatch: return "The helper manifest does not match Highball 0.10.22."
         case .helperHashMismatch: return "The helper does not match its local build manifest."
-        case .pythonMissing: return "Python 3 was not found. This preview uses the local readiness checker."
+        case .pythonMissing: return "Python 3 was not found. It is required for the Highball readiness check."
         case .reportInvalid(let detail): return "The readiness report could not be read: \(detail)"
         case .commandFailed(let detail): return detail
         }

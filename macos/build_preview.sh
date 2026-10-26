@@ -5,7 +5,9 @@ readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly PROJECT="$ROOT/macos/GameDownloaderMac"
 readonly RESOURCES="$PROJECT/Sources/GameDownloaderMac/Resources"
 readonly PRODUCT="GameDownloaderMac"
-readonly DESTINATION="$HOME/Applications/Game Installer Preview.app"
+readonly APP_DISPLAY_NAME="${APP_DISPLAY_NAME:-Game Installer Preview}"
+readonly APP_BUNDLE_IDENTIFIER="${APP_BUNDLE_IDENTIFIER:-com.kevinawesomecoding.GameInstallerPreview}"
+readonly DESTINATION="${APP_DESTINATION:-$HOME/Applications/$APP_DISPLAY_NAME.app}"
 
 mkdir -p "$RESOURCES"
 cp "$ROOT/games.json" "$RESOURCES/games.json"
@@ -43,10 +45,11 @@ ditto "$resource_bundle" "$stage/Contents/Resources/${PRODUCT}_${PRODUCT}.bundle
 
 python3 - "$stage/Contents/Info.plist" <<'PY'
 import plistlib,sys
+import os
 info={
-    "CFBundleName":"Game Installer Preview",
-    "CFBundleDisplayName":"Game Installer Preview",
-    "CFBundleIdentifier":"com.kevinawesomecoding.GameInstallerPreview",
+    "CFBundleName":os.environ.get("APP_DISPLAY_NAME", "Game Installer Preview"),
+    "CFBundleDisplayName":os.environ.get("APP_DISPLAY_NAME", "Game Installer Preview"),
+    "CFBundleIdentifier":os.environ.get("APP_BUNDLE_IDENTIFIER", "com.kevinawesomecoding.GameInstallerPreview"),
     "CFBundleExecutable":"GameDownloaderMac",
     "CFBundlePackageType":"APPL",
     "CFBundleShortVersionString":"0.1.0",
@@ -72,4 +75,4 @@ if ! mv "$stage" "$DESTINATION"; then
   exit 1
 fi
 stage=""
-printf 'Built local Mac preview at %s\n' "$DESTINATION"
+printf 'Built Mac app at %s\n' "$DESTINATION"
