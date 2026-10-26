@@ -60,7 +60,7 @@
 | 42 | How To Train Your Cock | Marked as recorded, but the actual launch result was not preserved in the checklist messages available here. | Not verified. | — |
 | 43 | Lucid Cats | Reached its hosting flow. Kevin confirmed hosting worked after native-first DLL overrides were applied. | Host flow works; joining, invitations, and voice were not tested. | Steam was already running in the same Games bottle. The Highball pin lacked overrides for `winmm.dll`, `OnlineFix64.dll`, and `SteamOverlay64.dll`; setting all three to native-first fixed hosting. The installer had skipped setup because this exact archive build was not yet recorded. |
 | 44 | MOGGED: Looksmaxx or Die | Kevin confirmed the game/menu works. | Kevin confirmed the friend-invite check works. | This is user-confirmed; the detailed steps and renderer were not present in the retained summary. |
-| 45 | Needle In A Haystack | No launch result recorded in the available notes. | Not verified. | — |
+| 45 | Needle In A Haystack | Unity reaches the Lobby scene after adding `steam_appid.txt` with App ID `5085740`, but a blocking “Steam isn’t available” dialog appears. | Not playable; Steamworks initialization fails. | Direct launches first exited with “No appID found.” Native-first DLL overrides did not resolve the Steam error. With the App ID file, `Player.log` reports `ConnectToGlobalUser failed`; Steam’s console reports `LaunchApp failed with AppError_5`. Steam was running in the bottle and its logs show a logged-on session. |
 | 46 | Cheater's Table | Kevin reports that the game works. | Multiplayer, invites, and voice were not specified. | User-confirmed; exact setup and tested gameplay scope were not specified. |
 | 47 | Supermarket Chaos | Kevin reports that the game works. | Multiplayer, invites, and voice were not specified. | User-confirmed; exact setup and tested gameplay scope were not specified. |
 
@@ -94,6 +94,13 @@ These are the games with the clearest saved setup recipes or troubleshooting his
 - The folder contained `winmm.dll`, `OnlineFix64.dll`, and `SteamOverlay64.dll`, but the Highball pin had no `WINEDLLOVERRIDES`. Setting these three to `native,builtin` fixed the host flow; Kevin confirmed it worked.
 - The installer now has an exact archive size/SHA-256 build gate for this main archive and repair archive. It applies the universal D3DMetal/windowed setup and detects these DLLs for native-first overrides before adding the game to Highball.
 - Joining, invite delivery, voice, and extended gameplay have not been tested.
+
+### Needle In A Haystack
+
+- The recorded build initializes Unity and Direct3D 11 on the M5. Two direct Highball launches exited within 5–7 seconds because Steamworks could not find App ID `5085740`.
+- The game folder did not contain `steam_appid.txt`. Adding that file with the catalog App ID let the game load its authored Lobby scene, but it stopped at a “Steam isn’t available” dialog.
+- The resulting `Player.log` reports `k_ESteamAPIInitResult_FailedGeneric` / `ConnectToGlobalUser failed`. Steam was running in the Games bottle; its connection log showed a logged-on session, while its console logged `LaunchApp failed with AppError_5` for App ID `5085740`.
+- Native-first Highball overrides for `steam_api64`, `OnlineFix64`, and `SteamOverlay64` did not clear the Steamworks error. Graphics initialized, so the current blocker is Steamworks/App ID access, not the initial renderer startup. Playability and multiplayer remain unverified.
 
 ### Cut That Wire
 
