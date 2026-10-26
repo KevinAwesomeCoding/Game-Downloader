@@ -910,12 +910,17 @@ class Game:
         self.size = str(raw.get("size", "")).strip()
         self.players = str(raw.get("players", "")).strip()
         self.thumbnail = str(raw.get("thumbnail", "")).strip()
-        # zipUrl / fixZipUrl may be a single URL string *or* a list of volumes
-        # (multi-part RAR sets). Normalize both into ordered [{url, name}] lists
-        # and keep the first URL as a scalar for back-compat (steam:// checks,
-        # logging, temp-file naming, availability).
+        # Primary and backup link lists are independently normalized. Backup
+        # entries correspond by index to the primary volumes; they are never
+        # concatenated into the primary list because that means multipart data.
         self.zip_parts = _normalize_parts(raw.get("zipUrl", ""))
         self.fix_parts = _normalize_parts(raw.get("fixZipUrl", ""))
+        self.zip_backup_parts = _normalize_parts(raw.get("zipBackupUrl", ""))
+        self.fix_backup_parts = _normalize_parts(raw.get("fixBackupUrl", ""))
+        if not self.zip_parts and self.zip_backup_parts:
+            self.zip_parts, self.zip_backup_parts = self.zip_backup_parts, []
+        if not self.fix_parts and self.fix_backup_parts:
+            self.fix_parts, self.fix_backup_parts = self.fix_backup_parts, []
         self.zip_url = self.zip_parts[0]["url"] if self.zip_parts else ""
         self.fix_url = self.fix_parts[0]["url"] if self.fix_parts else ""
         self.entry_type = str(raw.get("type", "game")).strip().lower()
@@ -1930,7 +1935,8 @@ class InstallWorker(QObject):
                 self._stage_start = time.monotonic()
                 fix_archive = self._download_parts(
                     self.game.fix_parts, "Downloading fix",
-                    self.fix_download_progress, stage_idx=2, kind="fix")
+                    self.fix_download_progress, stage_idx=2, kind="fix",
+                    fallback_parts=self.game.fix_backup_parts)
                 if fix_archive is None:
                     return
                 if self._cancelled():
@@ -1961,7 +1967,8 @@ class InstallWorker(QObject):
             self._stage_start = time.monotonic()
             main_archive = self._download_parts(
                 self.game.zip_parts, "Downloading game",
-                self.download_progress, stage_idx=0, kind="main")
+                self.download_progress, stage_idx=0, kind="main",
+                fallback_parts=self.game.zip_backup_parts)
             if main_archive is None:
                 return
             if self._cancelled():
@@ -2015,7 +2022,8 @@ class InstallWorker(QObject):
                 self._stage_start = time.monotonic()
                 fix_archive = self._download_parts(
                     self.game.fix_parts, "Downloading fix",
-                    self.fix_download_progress, stage_idx=2, kind="fix")
+                    self.fix_download_progress, stage_idx=2, kind="fix",
+                    fallback_parts=self.game.fix_backup_parts)
                 if fix_archive is None:
                     return
                 _log.debug("run FIX ARCHIVE  path=%s", fix_archive)
@@ -2071,7 +2079,8 @@ class InstallWorker(QObject):
 
     # -- download -----------------------------------------------------------
     def _download(self, url, dest_file, status_text, progress_signal, stage_idx=0,
-                  frac_base=0.0, frac_span=1.0) -> bool:
+                  frac_base=0.0, frac_span=1.0, part_suffix=".part",
+                  report_errors=True) -> bool:
         """Download ``url`` to ``dest_file`` (a persistent cache path), resuming
         an interrupted attempt when possible.
 
@@ -2094,6 +2103,10 @@ class InstallWorker(QObject):
             progress_signal.emit(scaled)
             self._stage_progress[stage_idx] = scaled
 
+        def _report_error(message):
+            if report_errors:
+                self.error.emit(message)
+
         _emit_pct(0)
         self._update_overall_progress()
 
@@ -2108,7 +2121,7 @@ class InstallWorker(QObject):
         except OSError:
             pass
 
-        part_file = dest_file + ".part"
+        part_file = dest_file + part_suffix
         try:
             resume_offset = os.path.getsize(part_file) if os.path.exists(part_file) else 0
         except OSError:
@@ -2138,7 +2151,7 @@ class InstallWorker(QObject):
             file_id = _gdrive_file_id(url)
             _log.debug("_download GDRIVE route  file_id=%r  url=%s", file_id, url)
             if not file_id:
-                self.error.emit("Could not read the Google Drive file ID from the link.")
+                _report_error("Could not read the Google Drive file ID from the link.")
                 return False
 
             stage_start = time.monotonic()
@@ -2176,7 +2189,7 @@ class InstallWorker(QObject):
                                      resume_offset=resume_offset)
             except OSError as exc:
                 _log.debug("_download GDRIVE OSError  stage=%d  %s", stage_idx, exc)
-                self.error.emit(f"Could not write the downloaded file:\n{exc}")
+                _report_error(f"Could not write the downloaded file:\n{exc}")
                 return False
 
             if self._cancel.is_set():
@@ -2185,7 +2198,7 @@ class InstallWorker(QObject):
             # _validate_not_html deletes the .part if Google handed us the HTML
             # warning page, so a retry starts clean rather than resuming garbage.
             if not ok or not _validate_not_html(part_file):
-                self.error.emit(
+                _report_error(
                     "Google Drive download failed.\n\n"
                     "The file may be private, the per-file download quota may be "
                     "exceeded, or Google returned its virus-scan warning page "
@@ -2280,6 +2293,13 @@ class InstallWorker(QObject):
                             self._emit_status(status_text, -1, f"{self._fmt_bytes(done)}")
 
             _finalize()
+            # When a backup is configured, a host may respond with an HTML
+            # error/download page and HTTP 200. Treat that as a failed source
+            # so the matching backup is attempted instead of passing the page
+            # to archive extraction.
+            if not report_errors and not _validate_not_html(dest_file):
+                _log.debug("_download rejected HTML response  stage=%d  url=%s", stage_idx, url)
+                return False
             _emit_pct(100)
             self._update_overall_progress()
             try:
@@ -2297,39 +2317,39 @@ class InstallWorker(QObject):
         # the next attempt resumes instead of restarting.
         except requests.exceptions.MissingSchema:
             _log.debug("_download ERROR  stage=%d  MissingSchema  url=%s", stage_idx, url)
-            self.error.emit("The download URL is invalid.")
+            _report_error("The download URL is invalid.")
             return False
         except requests.exceptions.InvalidURL:
             _log.debug("_download ERROR  stage=%d  InvalidURL  url=%s", stage_idx, url)
-            self.error.emit("The download URL is invalid.")
+            _report_error("The download URL is invalid.")
             return False
         except requests.exceptions.ConnectionError as exc:
             _log.debug("_download ERROR  stage=%d  ConnectionError  %s", stage_idx, exc)
-            self.error.emit(
+            _report_error(
                 "Network error: could not reach the download server.\n"
                 "Check your connection and try again."
             )
             return False
         except requests.exceptions.Timeout as exc:
             _log.debug("_download ERROR  stage=%d  Timeout  %s", stage_idx, exc)
-            self.error.emit("The download timed out. Please try again.")
+            _report_error("The download timed out. Please try again.")
             return False
         except requests.exceptions.HTTPError as exc:
             _log.debug("_download ERROR  stage=%d  HTTPError  %s", stage_idx, exc)
-            self.error.emit(f"Download failed (server returned an error):\n{exc}")
+            _report_error(f"Download failed (server returned an error):\n{exc}")
             return False
         except requests.exceptions.RequestException as exc:
             _log.debug("_download ERROR  stage=%d  RequestException  %s", stage_idx, exc)
-            self.error.emit(f"Download failed:\n{exc}")
+            _report_error(f"Download failed:\n{exc}")
             return False
         except OSError as exc:
             _log.debug("_download ERROR  stage=%d  OSError  %s", stage_idx, exc)
-            self.error.emit(f"Could not write the downloaded file:\n{exc}")
+            _report_error(f"Could not write the downloaded file:\n{exc}")
             return False
 
     # -- multi-volume download ---------------------------------------------
     def _download_parts(self, parts, status_text, progress_signal, stage_idx=0,
-                        kind="main"):
+                        kind="main", fallback_parts=None):
         """Download one or more archive volumes into a single shared cache dir
         and return the path of the first volume (the one to hand to the
         extractor), or None on failure / cancellation.
@@ -2344,7 +2364,16 @@ class InstallWorker(QObject):
         rest by name. A single-archive download is just a one-element list, so
         the common path behaves exactly as before.
         """
-        part_dir = cache_set_dir(self.game.id, kind, parts)
+        fallback_parts = fallback_parts or []
+        if fallback_parts and len(fallback_parts) != len(parts):
+            self.error.emit(
+                "The backup links do not match the number of archive parts. "
+                "Each primary part needs one matching backup link."
+            )
+            return None
+        # Include both source sets in the cache identity so a changed backup
+        # configuration cannot accidentally reuse another download set.
+        part_dir = cache_set_dir(self.game.id, kind, parts + fallback_parts)
         if part_dir not in self._cache_sets:
             self._cache_sets.append(part_dir)
         count = len(parts)
@@ -2354,11 +2383,39 @@ class InstallWorker(QObject):
             dest = os.path.join(part_dir, filename)
             suffix = f"  (part {index + 1}/{count})" if count > 1 else ""
             self._stage_start = time.monotonic()
-            ok = self._download(
-                part["url"], dest, status_text + suffix, progress_signal,
-                stage_idx=stage_idx,
-                frac_base=index / count, frac_span=1 / count,
-            )
+            backup = fallback_parts[index] if fallback_parts else None
+            if backup:
+                ok = self._download(
+                    part["url"], dest, status_text + suffix, progress_signal,
+                    stage_idx=stage_idx,
+                    frac_base=index / count, frac_span=1 / count,
+                    report_errors=False,
+                )
+                if not ok and not self._cancel.is_set():
+                    _log.warning(
+                        "Primary download failed; trying backup  game=%s kind=%s part=%d",
+                        self.game.id, kind, index + 1,
+                    )
+                    self._emit_status(
+                        f"{status_text}{suffix} failed; trying backup link", -1
+                    )
+                    ok = self._download(
+                        backup["url"], dest, status_text + suffix + " (backup)",
+                        progress_signal, stage_idx=stage_idx,
+                        frac_base=index / count, frac_span=1 / count,
+                        part_suffix=".backup.part", report_errors=False,
+                    )
+                if not ok and not self._cancel.is_set():
+                    self.error.emit(
+                        "The primary and backup download links both failed. "
+                        "Check the links and try again."
+                    )
+            else:
+                ok = self._download(
+                    part["url"], dest, status_text + suffix, progress_signal,
+                    stage_idx=stage_idx,
+                    frac_base=index / count, frac_span=1 / count,
+                )
             if not ok:
                 return None
             if self._cancel.is_set():
@@ -4690,6 +4747,16 @@ class MainWindow(QMainWindow):
             "_open_install  id=%r  name=%r  type=%r  zip_url=%r  fix_url=%r",
             game.id, game.name, game.entry_type, game.zip_url, game.fix_url,
         )
+        if game.entry_type == "steam":
+            try:
+                os.startfile(game.zip_url)
+            except OSError:
+                subprocess.Popen(
+                    ["cmd", "/c", "start", game.zip_url],
+                    creationflags=_NO_WINDOW,
+                )
+            return
+
         if game.is_patch:
             # Step 1 — ask whether the user already has the base game installed.
             ownership_dlg = FixOwnershipDialog(game, self)
@@ -4956,4 +5023,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

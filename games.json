@@ -1248,5 +1248,34 @@
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
     "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "needle-in-a-haystack",
+    "steamAppId": "5085740",
+    "name": "Needle In A Haystack",
+    "description": "Search for a needle hidden among millions of pieces of hay, then earn money and buy equipment to help the search. Play alone or with up to five friends.",
+    "version": "1.2.7",
+    "size": "",
+    "players": "Up to 6 players (online co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/5085740/c4f0eebd5422df95a4dc9984eaa4304c0f1990c0/header.jpg?t=1791928860",
+    "zipUrl": "steam://install/5085740",
+    "fixZipUrl": "",
+    "type": "steam",
+    "requirements": {
+      "os": "Windows 10/11",
+      "cpu": "Intel Core i5-3570 or equivalent",
+      "ram": "4 GB",
+      "gpu": "NVIDIA GeForce GTX 1050 or equivalent",
+      "network": "Broadband Internet connection",
+      "storage": "4 GB available space"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "No reliable macOS launch result is recorded for this game in the project's compatibility evidence.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T08:24:04.000000-05:00"
+    },
+    "requirementsPlatform": "Windows"
   }
 ]

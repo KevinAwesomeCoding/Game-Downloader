@@ -21,6 +21,10 @@ app, catalog, and Windows release workflow remain separate and unchanged.
   content or ignored ranges start a separate transfer, preserving the old partial.
   Unidentified partials cannot safely resume and are likewise preserved separately.
   HTML, sign-in, quota, and unsupported responses produce an explicit error.
+- **Primary and backup catalog links:** `zipBackupUrl` and `fixBackupUrl` are
+  tried only after the corresponding primary link fails. Multipart backup lists
+  must match primary part-for-part and use the same order; each host keeps a
+  separate partial download.
 - **Staged extraction and repairs:** ZIP, including traditional password-protected
   ZIP using the catalog's existing password. RAR/7z uses optional local `unar` and
   `lsar`. Paths, links, case/Unicode collisions and each extracted file's size are

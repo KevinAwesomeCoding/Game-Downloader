@@ -98,6 +98,20 @@ click **Execute / Install**.
 | `thumbnail`  | Image URL for the card. Leave `""` for a placeholder.                   |
 | `zipUrl`     | Direct URL to the game archive (`.zip` or `.rar`). **Leave `""` to mark "Coming Soon".** |
 | `fixZipUrl`  | *(optional)* URL to a second "repair/fix patch" archive (`.zip` or `.rar`). Leave `""` to skip. |
+| `zipBackupUrl` | *(optional)* Backup URL(s) for the main archive, attempted only if the matching `zipUrl` download fails. |
+| `fixBackupUrl` | *(optional)* Backup URL(s) for the repair archive, attempted only if the matching `fixZipUrl` download fails. |
+
+Backup links are aligned with primary links by position. For a single archive,
+each field contains one URL. For a multipart archive, list every part in the
+same order in both fields, separated by commas. For example, the first backup
+must be a mirror of primary part 1, the second backup a mirror of primary part
+2, and so on. Keep each set of multipart volumes within its own field; do not
+put primary and backup URLs in the same comma-separated list. Use backups only
+when they serve the same game build and archive parts as the primary links.
+
+The installer tries the primary first, then its corresponding backup if the
+primary fails. Each source uses a separate partial download file, so a partial
+transfer from one host is never combined with bytes from the other host.
 
 A game with an empty `zipUrl` shows a **Coming Soon** badge and its install
 button is disabled.
