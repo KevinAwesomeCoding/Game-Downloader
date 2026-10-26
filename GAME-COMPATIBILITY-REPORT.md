@@ -58,7 +58,7 @@
 | 40 | BOMBANANA! | Marked as recorded, but the actual launch result was not preserved in the checklist messages available here. | Not verified. | — |
 | 41 | Scam With Your Friends | The checklist has conflicting interim notes: one reported a DXVK launch, while a later correction says launch failed on both D3DMetal and DXVK before a menu. Use the later corrected status: **not confirmed working**. | Menu, friends, and invite not verified. | Crash reports and renderer logs were retained; the exact final failure details were not included in the summary. |
 | 42 | How To Train Your Cock | Marked as recorded, but the actual launch result was not preserved in the checklist messages available here. | Not verified. | — |
-| 43 | Lucid Cats | Marked as recorded, but the actual launch result was not preserved in the checklist messages available here. | Not verified. | — |
+| 43 | Lucid Cats | Reached its hosting flow. Kevin confirmed hosting worked after native-first DLL overrides were applied. | Host flow works; joining, invitations, and voice were not tested. | Steam was already running in the same Games bottle. The Highball pin lacked overrides for `winmm.dll`, `OnlineFix64.dll`, and `SteamOverlay64.dll`; setting all three to native-first fixed hosting. The installer had skipped setup because this exact archive build was not yet recorded. |
 | 44 | MOGGED: Looksmaxx or Die | Kevin confirmed the game/menu works. | Kevin confirmed the friend-invite check works. | This is user-confirmed; the detailed steps and renderer were not present in the retained summary. |
 
 ## Detailed fixes and useful setup records
@@ -84,6 +84,13 @@ These are the games with the clearest saved setup recipes or troubleshooting his
 - Start Steam inside the Games bottle before starting the game. This cleared “Steam is not launched.”
 - Vulkan through MoltenVK initialized and the multiplayer lobby appeared. Kevin says Lobby ID sharing works; the Steam invite button did nothing in the recorded attempt.
 - The saved Highball pin contains per-game DLL-loading settings. A live join and invitation acceptance were not independently verified.
+
+### Lucid Cats
+
+- Build 2.4 reached the hosting flow. Steam was confirmed running in the same Highball Games bottle; the failure was not caused by Steam being closed.
+- The folder contained `winmm.dll`, `OnlineFix64.dll`, and `SteamOverlay64.dll`, but the Highball pin had no `WINEDLLOVERRIDES`. Setting these three to `native,builtin` fixed the host flow; Kevin confirmed it worked.
+- The installer now has an exact archive size/SHA-256 build gate for this main archive and repair archive. It applies the universal D3DMetal/windowed setup and detects these DLLs for native-first overrides before adding the game to Highball.
+- Joining, invite delivery, voice, and extended gameplay have not been tested.
 
 ### Cut That Wire
 
@@ -128,4 +135,4 @@ The earlier per-game notes are in `/Users/kevinanil/Documents/Game-Downloader Ma
 
 ## Installer recipe progress
 
-The Mac installer’s build-matched recipe catalog now includes **MECCHA CHAMELEON, Cut That Wire, Buckshot Roulette, and Party Animals**. Buckshot keeps its normal Vulkan path and shows a reminder to start Steam in the bottle. Party Animals’ exact multipart build is checked for `UnityPlayer.dll` and its data directory before installation is published. The other saved long-debug cases are not yet automated: Scratch Creek relies on extra runtime/content and a local game-file patch, while several other recorded setups depend on DLL changes that are not included in the installer recipe set.
+The Mac installer’s build-matched recipe catalog now includes **MECCHA CHAMELEON, Cut That Wire, Buckshot Roulette, Party Animals, and Lucid Cats**. Buckshot keeps its normal Vulkan path and shows a reminder to start Steam in the bottle. Party Animals’ exact multipart build is checked for `UnityPlayer.dll` and its data directory before installation is published. Lucid Cats’ recorded archives are hash-gated; the installer detects its `winmm.dll`, `OnlineFix64.dll`, and `SteamOverlay64.dll` collisions and prepares native-first overrides. Scratch Creek still relies on extra runtime/content and a local game-file patch, while several other recorded setups are not yet automated.

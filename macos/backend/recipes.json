@@ -142,6 +142,32 @@
         "invites": "Steam friend chooser opened after local workaround; no invite sent",
         "joining": "untested"
       }
+    },
+    "lucid-cats": {
+      "main": [
+        {
+          "bytes": 536003258,
+          "sha256": "d565321763587ee91874f01d17d397948b4579426355deaa0e0c25a9330a7027"
+        }
+      ],
+      "repair": [
+        {
+          "bytes": 11259182,
+          "sha256": "ab20d666a2e87b6b462ba8de840c6ca5e86f8c87ef387834c0e3b4fcf14faa83"
+        }
+      ],
+      "engine": "x64-sikarugir10.0_6-r28",
+      "tested": {
+        "date": "2026-10-26",
+        "highball": "0.10.22",
+        "macOS": "26.5.1",
+        "chip": "M5",
+        "startup": "observed",
+        "menu": "observed",
+        "gameplay": "user confirmed host flow works after native-first overrides for winmm, OnlineFix64, and SteamOverlay64",
+        "invites": "not separately tested",
+        "joining": "not tested"
+      }
     }
   },
   "deltas": {
@@ -192,6 +218,10 @@
           "backupPath": "Fears to Fathom - Scratch Creek_Data/Managed/Assembly-CSharp.original.dll"
         }
       ]
+    },
+    "lucid-cats": {
+      "executable": "LucidCats.exe",
+      "requiredRecipes": ["steam", "vcrun2022"]
     }
   }
 }

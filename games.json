@@ -990,11 +990,11 @@
       "storage": "1 GB"
     },
     "macCompatibility": {
-      "tier": "Unverified",
+      "tier": "Runs with a recipe",
       "riskLevel": "Standard",
-      "reasoning": "The title was marked as recorded, but no actual launch result is preserved in the available notes.",
-      "confidence": "Low",
-      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+      "reasoning": "The recorded Windows build launched in Highball. Hosting initially failed until native-first DLL overrides were set for winmm.dll, OnlineFix64.dll, and SteamOverlay64.dll while Steam was running in the same bottle; Kevin then confirmed hosting works. Joining, invitations, and voice were not tested.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T18:19:44-05:00"
     },
     "requirementsPlatform": "Windows"
   },

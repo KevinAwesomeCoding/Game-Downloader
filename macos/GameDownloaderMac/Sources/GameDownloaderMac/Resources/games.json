@@ -1,0 +1,1336 @@
+[
+  {
+    "id": "gang-beasts",
+    "steamAppId": "285900",
+    "name": "Gang Beasts",
+    "description": "A slapstick physics party brawler with gelatinous fighters and hazardous arenas.",
+    "version": "1.18.195",
+    "size": "752 MB",
+    "players": "Up to 8 players online / 4 local",
+    "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/285900/header.jpg",
+    "zipUrl": "https://archive.org/download/gang-beasts_202606/Gang%20Beasts.zip",
+    "fixZipUrl": "https://files.catbox.moe/d67oj8.zip",
+    "requirements": {
+      "os": "Windows 7",
+      "cpu": "2nd generation Intel Core i3, AMD A6, or higher",
+      "ram": "4 GB",
+      "gpu": "Nvidia 8800 GT / AMD 5670 / Intel HD 3000",
+      "directx": "Version 10",
+      "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Native",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists an official macOS version. The tested Windows build also opened; invitations and multiplayer were not verified.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows",
+    "macRequirements": {
+      "os": "macOS Snow Leopard",
+      "cpu": "2nd-generation Intel Core i3 or AMD A6 or higher",
+      "ram": "4 GB",
+      "gpu": "Nvidia 8800 GT, AMD 5670, or Intel HD 3000",
+      "storage": "2 GB"
+    }
+  },
+  {
+    "id": "mimesis",
+    "steamAppId": "2827200",
+    "name": "MIMESIS",
+    "description": "A four-player co-op survival horror game where monsters imitate your teammates’ voices and behavior.",
+    "version": "0.2.6",
+    "size": "1.4 GB",
+    "players": "Up to 4 players (online co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2827200/12344cf4308921c50f6603b618dd197a2ec54263/header_alt_assets_1.jpg?t=1781504870",
+    "zipUrl": "https://archive.org/download/mimesis.v-0.2.6.-multiplayer/MIMESIS.v0.2.6.Multiplayer.zip",
+    "fixZipUrl": "",
+    "requirements": {
+      "os": "Windows 10 64-bit or newer",
+      "cpu": "Intel Core i3-8100 / AMD Ryzen 3 2200G",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GTX 1050 Ti 4GB / AMD RX 570 4GB",
+      "storage": "4 GB",
+      "additionalNotes": "A microphone is required; a headset or earphones are recommended."
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "Unity reached its main menu and Kevin reported multiplayer works in the recorded Highball test. The specific invite flow was not separately verified.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "human-fall-flat",
+    "steamAppId": "477160",
+    "name": "Human Fall Flat",
+    "description": "A physics-based platformer set in dreamlike levels, playable solo or online with up to eight players.",
+    "version": "1.0",
+    "size": "2.1 GB",
+    "players": "Solo or up to 8 players co-op",
+    "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/477160/header.jpg",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1YUCmW6t7SOWDqIpTUwKKtm1n9hWHXO_u&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1kdeK8yPu1XfdNF815aZSYWnQoTxSJgK9&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows XP/Vista/7/8/8.1/10",
+      "cpu": "Intel Core2 Duo E6750 / AMD Athlon 64 X2 6000+",
+      "ram": "1 GB",
+      "gpu": "GeForce GT 740 2GB / Radeon HD 5770",
+      "storage": "500 MB"
+    },
+    "macCompatibility": {
+      "tier": "Native",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists an official macOS version. The tested Windows build opened and its Steam friends window appeared; sending or accepting an invite was not verified.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows",
+    "macRequirements": {
+      "os": "macOS 10.11 El Capitan",
+      "cpu": "Intel Core i5-6500, 3.2 GHz",
+      "ram": "8 GB",
+      "gpu": "AMD Radeon R9 M390",
+      "storage": "500 MB",
+      "additionalNotes": "Requires a two-button mouse or controller."
+    }
+  },
+  {
+    "id": "gamble-with-your-friends",
+    "steamAppId": "3892270",
+    "name": "Gamble With Your Friends",
+    "description": "A 1–6 player co-op casino crawler about gambling, questionable purchases, and sharing a growing debt.",
+    "version": "1.0.11",
+    "size": "550 MB",
+    "players": "1-6 players (solo or online co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3892270/395e6d7972474333a698b26f8aa5597bf38109a1/header.jpg?t=1778274309",
+    "zipUrl": "https://archive.org/download/gameble-with-your-friends-v-1.0.11/Gameble%20With%20Your%20Friends%20v1.0.11.rar",
+    "fixZipUrl": "https://files.catbox.moe/ugmph7.zip",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i5-6600",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GTX 970",
+      "directx": "Version 11",
+      "storage": "3 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "The game opened in the recorded Highball test. Friend-list contents, invitations, and a full session were not verified.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "meccha-chameleon",
+    "steamAppId": "4704690",
+    "name": "MECCHA CHAMELEON",
+    "description": "A hide-and-seek game where chameleons paint themselves to blend into the stage and evade other players.",
+    "version": "1.0",
+    "size": "3.8 GB",
+    "players": "2-10 players (online PvP)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4704690/163e2a742e5fb8e1f5d1e3a890da98f04ab809d4/header.jpg?t=1781108224",
+    "zipUrl": "https://archive.org/download/meccha-chameleon_202606/MECCHA%20CHAMELEON.zip",
+    "fixZipUrl": "https://files.catbox.moe/su1vwl.zip",
+    "comment": "Reference URL: https://files.catbox.moe/su1vwl.zip",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i5",
+      "gpu": "DirectX 11 or 12 compatible graphics card"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "The game launched after a per-game DLL-loading adjustment in Highball. Online play and invitations were not tested.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "among-us",
+    "steamAppId": "945360",
+    "name": "Among Us",
+    "description": "A 4–15 player party game of teamwork and betrayal, playable online or locally.",
+    "version": "17.3I",
+    "size": "711 MB",
+    "players": "4-15 players",
+    "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/945360/header.jpg",
+    "zipUrl": "https://archive.org/download/among-us-to-u-mod/Among%20Us%20ToU%20Mod.zip",
+    "fixZipUrl": "",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i3-4330",
+      "ram": "1 GB",
+      "gpu": "Intel HD Graphics 4600"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "The game opened in the recorded Highball test. A full play session and online features were not verified.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "hardware-store-simulator",
+    "steamAppId": "3358560",
+    "name": "Hardware Store Simulator",
+    "description": "Run a hardware store: design the shop, manage stock, hire staff, and compete with up to three other players.",
+    "version": "Early Access",
+    "size": "271 MB",
+    "players": "1-4 players (solo or co-op)",
+    "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/3358560/header.jpg",
+    "zipUrl": "https://archive.org/download/hardware-store-simulator/Hardware%20Store%20Simulator.zip",
+    "fixZipUrl": "https://files.catbox.moe/7v42l3.zip",
+    "requirements": {
+      "os": "Windows 10/11 64-bit",
+      "cpu": "Intel Core i5-3550",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GeForce GTX 1050 4GB",
+      "directx": "Version 11",
+      "storage": "5 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "The game and friends window opened in the recorded Highball test. Sending an invite or completing a co-op session was not verified.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "liars-bar",
+    "steamAppId": "3097560",
+    "name": "Liar's Bar",
+    "description": "Play Liar’s Dice or Liar’s Deck in an online bluffing game for up to four players.",
+    "version": "0.985",
+    "size": "4.6 GB",
+    "players": "Up to 4 players (online)",
+    "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/3097560/header.jpg",
+    "zipUrl": "https://archive.org/download/liars-bar/Liars%20Bar.zip",
+    "fixZipUrl": "https://files.catbox.moe/15p7h7.zip",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i5-4670 (quad-core) / AMD FX-4350 (quad-core)",
+      "ram": "4 GB",
+      "gpu": "NVIDIA GTX 1050 2GB / AMD RX 460 4GB / Intel Arc A380 6GB",
+      "directx": "Version 11",
+      "storage": "15 GB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "No reliable compatibility result is recorded. The launch attempt coincided with macOS process-creation problems, so it does not establish that the game is incompatible.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "backseat-drivers",
+    "steamAppId": "3558400",
+    "name": "Backseat Drivers",
+    "description": "A 2–4 player driving co-op where one player cannot see and another cannot drive.",
+    "version": "Early Access",
+    "size": "2 GB",
+    "players": "2-4 players (online co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3558400/2dc867af11f5ed2794aa5566ff9f5a0cb8efd978/header.jpg?t=1773298919",
+    "zipUrl": "steam://install/3558400",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1rCoowpFAJtLmFcdECXaC5nA6PaKj9y9_&export=download&confirm=t",
+    "type": "fix",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Quad-core CPU or equivalent",
+      "ram": "4 GB",
+      "gpu": "DirectX 11 compatible with at least 2GB VRAM",
+      "directx": "Version 11",
+      "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "The tested flow was blocked before the game launched because its Steam install entry did not provide an installable game. Highball compatibility remains untested.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "night-shippers",
+    "steamAppId": "3761880",
+    "name": "Night Shippers",
+    "description": "Deliver food through the underworld, complete changing night shifts, and avoid the creatures that hunt you.",
+    "version": "Early Access",
+    "size": "2 GB",
+    "players": "1–4 players (solo or online co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3761880/a7747d30784d6a8b7e86198d5bd336715ae805c3/header.jpg?t=1781524054",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1G5bPLPxxoptPEuAHicIfkTAHEm7ARNaa&export=download&confirm=t",
+    "fixZipUrl": "https://files.catbox.moe/438ijn.rar",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i5-7400 @ 3.00GHz / AMD Ryzen 5 1400",
+      "ram": "8 GB",
+      "gpu": "GeForce GTX 1050 Ti / AMD R9 270X",
+      "directx": "Version 11",
+      "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "The game and Steam friends window opened in the recorded Highball test. Invitations and a full session were not verified.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "rewind-99",
+    "steamAppId": "3977290",
+    "name": "Rewind 99",
+    "description": "Run a video rental store in a 1990s-inspired town, build an underground business, and play solo or in four-player co-op.",
+    "version": "Early Access",
+    "size": "8 GB",
+    "players": "1-4 players (solo or co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3977290/027fdbc9a353708547f7452dd1395054bdc8afa1/header.jpg?t=1774388187",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1dNSB4cWN94zO5PZuVT9yTWqzAo42SIQJ&export=download&confirm=t",
+    "fixZipUrl": "https://files.catbox.moe/opuzil.rar",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "3GHz 4-Core or similar",
+      "ram": "8 GB",
+      "gpu": "GeForce GTX 1060 / Radeon RX 580",
+      "storage": "8 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "The game opened in the recorded Highball test. Gameplay and multiplayer were not verified.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "cut-that-wire",
+    "steamAppId": "3498650",
+    "name": "Cut That Wire",
+    "description": "A multiplayer bluffing game where players vote, identify an imposter, and decide who must cut a dangerous wire.",
+    "version": "1.0",
+    "size": "2 GB",
+    "players": "3+ players (online; solo via matchmaking)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3498650/426bf9536f4783a5c5b9cf068bd58946a1e4b399/header.jpg?t=1770277031",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1cBq828jP_-Xa1tyeuuial08ezbbdph7n&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1MPmM1h2bj1cVeP5E6amVdwOC-oOOX707&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i3-8130U 3.4 GHz",
+      "ram": "4 GB",
+      "gpu": "NVIDIA GeForce GTX 770 / AMD R9 380",
+      "directx": "Version 12",
+      "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "Reached the main menu and Kevin reported multiplayer works. The tested Highball bottle reported Direct3D 11 feature level 11.1 despite the store listing a DirectX 12 minimum; the invite flow was not separately recorded.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "golf-gambit",
+    "steamAppId": "2761350",
+    "name": "Golf Gambit",
+    "description": "A mini-golf party game for up to eight players, with traps and hazards that can change the route to the hole.",
+    "version": "1.0",
+    "size": "5 GB",
+    "players": "Up to 8 players",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2761350/35ef2a7ea9f5d60c0ec8e574ee2cd47c2499b70e/header.jpg?t=1768228614",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=11u1VUGHQHpuA-D6oRDnGVzDlh8ylCVdh&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1Xe0Bsm0cZFunx9eZtzN2L-TDk-B0e8v5&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 7 64-bit or higher",
+      "cpu": "Intel Core i3-2130 3.4GHz / AMD FX-6300 3.5GHz",
+      "ram": "4 GB",
+      "gpu": "Nvidia GTX 960 / AMD R9 280",
+      "directx": "Version 10",
+      "storage": "5 GB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "The recorded attempt did not produce a game window, but the retained notes do not identify a reliable cause. Compatibility is unresolved.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "keep-talking-and-nobody-explodes",
+    "steamAppId": "341800",
+    "name": "Keep Talking and Nobody Explodes",
+    "description": "One player defuses a bomb while teammates use the manual to guide them through it.",
+    "version": "1.0",
+    "size": "1 GB",
+    "players": "2+ players (1 defuser + experts)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/341800/header.jpg?t=1699020889",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1KIFCvy4uTHB9xEiO5mkRm8DhT_w-eB0I&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1GCtvxgu-qlQ2ls3-RxwJBPeYtFVo44d-&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 7 or higher",
+      "cpu": "1.5 GHz",
+      "ram": "2 GB",
+      "gpu": "256MB DirectX 9 compatible",
+      "storage": "1 GB"
+    },
+    "macCompatibility": {
+      "tier": "Native",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists an official macOS version. The tested Windows build opened and its friends window appeared; friend-list contents and invites were not verified.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows",
+    "macRequirements": {
+      "os": "OS X 10.9 Mavericks or later",
+      "cpu": "1.5 GHz Intel processor",
+      "gpu": "256 MB or higher",
+      "storage": "1 GB",
+      "additionalNotes": "Requires a printed Bomb Defusal Manual or a separate web-enabled device. VR is not supported on macOS."
+    }
+  },
+  {
+    "id": "knights-end",
+    "steamAppId": "4204530",
+    "name": "Knights End",
+    "description": "A co-op horror game about serving villagers and surviving dangerous night shifts in a cursed kingdom.",
+    "version": "Early Access",
+    "size": "2 GB",
+    "players": "Solo or online co-op",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4204530/f6d03e5943bb0bf6ae626fe5fdc485ec7c5bd9e0/header.jpg?t=1777696405",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1Vnw8VSprJR-8EX2nqet01FXWFcJvQFCk&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1SFnTYrkbWqIU1cV12NpEMDGqk9ABZwAA&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 11",
+      "cpu": "Intel Core i5-750 or higher (4 threads)",
+      "ram": "8 GB",
+      "gpu": "2 GB VRAM or more",
+      "directx": "Version 12",
+      "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Partial",
+      "riskLevel": "Standard",
+      "reasoning": "A startup message rendered, but the process exited after about a minute and the main menu was not confirmed. Kevin said it worked; gameplay and multiplayer remain unverified.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "mage-arena",
+    "steamAppId": "3716600",
+    "name": "Mage Arena",
+    "description": "A voice-driven arena game where players cast spells and compete in team battles or duels.",
+    "version": "Early Access",
+    "size": "1 GB",
+    "players": "Up to 4v4 or 1v1 duels",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3716600/e09e178465c67642c1214736e29d64846d966e52/header.jpg?t=1754585254",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1m09DsjnBTNmwqJhfgypHWTHrSMNBlynz&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1OKeexiEA1h7fpq0wEZEPT60oKTUSAkDb&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i5-7400",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GeForce GTX 1060",
+      "directx": "Version 11",
+      "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "The game and Steam friends window opened in the recorded Highball test. Invitations and a full match were not verified.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "jackbox-party-pack-11",
+    "steamAppId": "3364070",
+    "name": "The Jackbox Party Pack 11",
+    "description": "A party pack with five games for groups: drawing, recording, social deduction, comedy, and trivia.",
+    "version": "1.0",
+    "size": "3 GB",
+    "players": "1-8 players",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3364070/35c35317cc3f6ac5733896ab00c4cfbd5a1a025d/header.jpg?t=1774630140",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1ooO3iW4ffNEhVenkCketIgBo0KlifjO2&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1j5jk_M-TT8SgQMnsR7NDa5MYbcPcQ5rx&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Core 2 Duo 2.66 GHz or greater",
+      "ram": "4 GB",
+      "gpu": "GeForce 500+ / Radeon 5000+ or greater",
+      "storage": "3 GB"
+    },
+    "macCompatibility": {
+      "tier": "Native",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists an official macOS version. The tested Windows build opened and its friends window appeared; invite delivery was not verified.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows",
+    "macRequirements": {
+      "os": "macOS 13 or later",
+      "cpu": "2.66 GHz Core 2 Duo or greater",
+      "ram": "4 GB",
+      "gpu": "GeForce 500 series or Radeon 5000 series or greater",
+      "storage": "3 GB"
+    }
+  },
+  {
+    "id": "repo",
+    "steamAppId": "3241660",
+    "name": "R.E.P.O.",
+    "description": "A physics-based online co-op horror game for up to six players, focused on finding and extracting valuable objects.",
+    "version": "Early Access",
+    "size": "1 GB",
+    "players": "1-6 players (online co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3241660/a12c92856b71315da885924ea5e1d5290c8025b8/header_alt_assets_2.jpg?t=1778158882",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1mZctjpAbAdP2JM3v2G6EDKMDgpmqhEVb&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1rl94l8zKVzNio_4vqVbxISK0EWDZqiWb&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i5-6600",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GTX 970",
+      "directx": "Version 10",
+      "storage": "1 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "The game and friends window opened in the recorded Highball test. Invitations and a full co-op session were not verified.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "buckshot-roulette",
+    "steamAppId": "2835570",
+    "name": "Buckshot Roulette",
+    "description": "A tense shotgun roulette game where players face a sequence of live and blank shells.",
+    "version": "1.0",
+    "size": "500 MB",
+    "players": "1-4 players (solo or online multiplayer)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2835570/header.jpg?t=1781870706",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1Od5L3lyQj9ZM46cGVzhe_16tFYGCuxUh&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1dB2JlYgiQKERyEJxkmoxMKNFEfV1KJDl&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i3",
+      "ram": "2 GB",
+      "gpu": "Modern dedicated graphics card; Vulkan support required",
+      "storage": "500 MB",
+      "graphicsApi": "Vulkan support required"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "Reached its main menu and multiplayer lobby after Steam was started in the same Highball bottle. Kevin reported Lobby ID sharing works; the Steam Invite Friends button did not work in the recorded attempt.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "midnight-heist",
+    "steamAppId": "2204350",
+    "name": "Midnight Heist",
+    "description": "Work alone or with up to four players on nighttime heists, hacking jobs, and missions across Midnight City.",
+    "version": "Full Release",
+    "size": "7 GB",
+    "players": "1-4 players (solo or co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2204350/header.jpg?t=1778107091",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1sI-HB-mZQBJLI5kZk6Ykd1iuTrRm-sip&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1HuDsRWoL7F--xpW1uweUX-eu5NpNT4eo&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 7 64-bit",
+      "cpu": "Intel Core i5-4570 / AMD Ryzen 5 1600",
+      "ram": "4 GB",
+      "gpu": "NVIDIA GTX 760 / AMD Radeon R9 290",
+      "storage": "7 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "The game and Steam friends window opened in the recorded Highball test. Invite delivery and a full session were not verified.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "backrooms-rec",
+    "steamAppId": "2275020",
+    "name": "Backrooms Rec",
+    "description": "Explore the Backrooms alone or with up to six players in a survival game with story and escape modes.",
+    "version": "Early Access",
+    "size": "6 GB",
+    "players": "1-6 players (solo or online co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2275020/header.jpg?t=1781257174",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1DoGiNqdyv7ZRjY_IaESZksczELI1Gqy4&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=10elWdM5L9a-xdkKSElAmk61noZ2mIheH&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 8/10/11 64-bit",
+      "cpu": "Intel Core i5-7400 @ 3.00GHz / Shader Model 5",
+      "ram": "4 GB",
+      "gpu": "NVIDIA GeForce GTX 960 2GB",
+      "directx": "Version 11",
+      "storage": "6 GB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "A launch failure was recorded, but the retained notes do not preserve a specific cause. Compatibility is unresolved.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "lethal-company",
+    "steamAppId": "1966720",
+    "name": "Lethal Company",
+    "description": "Scavenge abandoned moons for scrap to sell to the Company while avoiding the dangers left behind.",
+    "version": "1.0",
+    "size": "8 GB",
+    "players": "Online co-op",
+    "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/1966720/header.jpg",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=14gTeaNRWxr5ZZ6fnupjRZGReCKUXnmQX&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1DPGvcnZGkOSfK2bmYckWRG1ye4Oyfh9i&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 (64-bit)",
+      "cpu": "Intel Core i5-7400 @ 3.00 GHz",
+      "gpu": "NVIDIA GeForce GTX 1050",
+      "directx": "Version 11",
+      "storage": "4 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "A titled game window and Unity graphics initialisation were observed. This confirms startup only; gameplay and multiplayer were not verified.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "airport-security-sucks",
+    "steamAppId": "4285690",
+    "name": "Airport Security Sucks!",
+    "description": "Work airport security, spot smugglers, manage the crowd, and use voice commands in a chaotic multiplayer game.",
+    "version": "1.0",
+    "size": "4 GB",
+    "players": "2-8 players (online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4285690/83c3f74745f699f49074f3e37b3795ded1ecc841/header.jpg?t=1781148486",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=149ITJq8wAoITMMX5eQKmoybxZipf0u6v&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=18QtMGtzp5vbkQJbHLVqacTc46JndTKK3&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 (64-bit)",
+      "cpu": "Intel Core i5-8400 / AMD Ryzen 5 2600",
+      "ram": "2 GB",
+      "gpu": "NVIDIA GTX 1060 (6 GB) / AMD RX 580",
+      "directx": "Version 11",
+      "storage": "3 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "Game and credits windows were observed in the recorded Highball test. Full gameplay and multiplayer were not verified.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "game-of-life-2",
+    "steamAppId": "1455630",
+    "name": "The Game of Life 2",
+    "description": "A 3D adaptation of The Game of Life with new choices, customisable characters, and local or online play.",
+    "version": "1.0",
+    "size": "600 MB",
+    "players": "1-4 players (local or online)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1455630/7e459241dc9cdd601baa81e8d576bc563cd5765b/header.jpg?t=1779870109",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1iSzffpCCGLFoLskwpO066V3-IBkrDONp&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1oGzbeiRn1C5ssn95w9Ie5bsflTZ0N1BE&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 7 64-bit",
+      "cpu": "2 GHz single core",
+      "gpu": "DirectX 10-class GPU (1280 × 720)",
+      "storage": "600 MB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "Download and extraction completed, but a launch check was blocked by host process exhaustion. The game itself was not verified.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "fears-to-fathom-scratch-creek",
+    "steamAppId": "4121170",
+    "name": "Fears to Fathom - Scratch Creek",
+    "description": "An online co-op horror story following Tessa and Marcus after their journey takes them to Scratch Creek.",
+    "version": "1.0",
+    "size": "14 GB",
+    "players": "2 players (online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4121170/803663dce78da494e9d061cf6652ade566b96331/header.jpg?t=1781141362",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1DyQYYpQVWWCMaMtC-DnHv39rzFIYC9HM&export=download&confirm=t, https://drive.usercontent.google.com/download?id=1MIos8hUxmPEUAn8q5kZVFT3YMzJv4yb0&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1fi1Ht2NHO87sP1Rz6hlgEFnlOCu_f_Ye&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10/11 64-bit",
+      "cpu": "Intel Core i5-6600K / AMD Ryzen 5 1600",
+      "ram": "12 GB",
+      "gpu": "NVIDIA GTX 1050 Ti / AMD RX 580 / Intel Arc A380",
+      "directx": "Version 12",
+      "storage": "14 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "Reached a playable main menu after a local repair. Steam’s friend chooser opened and showed friends after a compatibility adjustment; sending an invite, joining, co-op, and voice were not verified.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "funnel-runners",
+    "steamAppId": "3712080",
+    "name": "Funnel Runners",
+    "description": "Scavenge parts with up to seven friends, repair a van, and escape a city threatened by a destructive tornado.",
+    "version": "Early Access",
+    "size": "10 GB",
+    "players": "1-8 players (solo or online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3712080/5e03554f7fd68edf54813a8d5a576a8791672227/header.jpg?t=1784567934",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1oPy1kSoDU0nZMpLroMErN4jClaQXlBqp&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1Wf98FmAmV12gLv8tZTGy6gY-dEL0z_rH&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10/11 64-bit",
+      "cpu": "Intel Core i5-10400F / AMD Ryzen 5 3600X",
+      "ram": "16 GB",
+      "gpu": "NVIDIA GTX 1070 8GB / AMD RX 580 8GB",
+      "storage": "10 GB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "The retained checklist does not include a launch result for this title. Compatibility is not established.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "forest-escape-last-train",
+    "steamAppId": "4090360",
+    "name": "Forest Escape: Last Train",
+    "description": "A 1–4 player co-op horror game about exploring strange places, solving puzzles, and keeping a train running.",
+    "version": "0.48",
+    "size": "6 GB",
+    "players": "1-4 players (solo or online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4090360/b9e41870c9bd8686298faa22d64041e220ec5727/header_alt_assets_2.jpg?t=1784587101",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1IHcoAvtIxmxak5YjO3147F4whpyza4g2&export=download&confirm=t, https://drive.usercontent.google.com/download?id=11DyP3v2itOvKWA2ONeDBjIs9d4zjgh12&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1lNHymenbDOvC8IsjF7tgDemJUasi7DvW&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i5 8400",
+      "ram": "16 GB",
+      "gpu": "NVIDIA GeForce GTX 1050",
+      "directx": "Version 12",
+      "storage": "6 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "Reached a playable main menu and Kevin confirmed multiplayer works. A brief capture showed low frame rate; sustained performance was not measured.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "backrooms-rescue-expedition",
+    "steamAppId": "3267550",
+    "name": "The Backrooms: Rescue Expedition",
+    "description": "A first-person co-op horror game about searching the Backrooms for a missing expedition team.",
+    "version": "1.0",
+    "size": "25 GB",
+    "players": "1-4 players (solo or online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3267550/84d40a8ae6ff5d504375d5ec616422caf3947f9a/header.jpg?t=1774547275",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1BMJZr23qAWv8qGoEwvP5Qitr8OhMnSxN&export=download&confirm=t, https://drive.usercontent.google.com/download?id=1Ek8VrvYHmhWTLzztdefrp879Wbe2comd&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1_8wH7e8QurSQH9K3oBALbharhWiqVmWI&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "AMD Ryzen 5 1600X / Intel Core i5-4430",
+      "ram": "16 GB",
+      "gpu": "Radeon RX 5700 / NVIDIA GeForce RTX 2060",
+      "directx": "Version 12",
+      "storage": "25 GB"
+    },
+    "macCompatibility": {
+      "tier": "Partial",
+      "riskLevel": "Standard",
+      "reasoning": "Reached an in-game screen, but the friend list appeared empty and online play was not verified. The game folder was later removed at Kevin’s request.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "happys-humble-burger-cult",
+    "steamAppId": "3453910",
+    "name": "Happy's Humble Burger Cult",
+    "description": "Cook and serve food with up to three teammates before a restaurant shift turns into a horror escape.",
+    "version": "1.0.25",
+    "size": "10 GB",
+    "players": "1-4 players (solo or online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3453910/9cc27ec2c690ca34d4440b9ca8eb03e15b963fb1/header.jpg?t=1784365074",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1Jr2x4HBkQv-pICukQwcEHl4cUkK0H6NY&export=download&confirm=t, https://drive.usercontent.google.com/download?id=1q4hPZNkwC93y1tfeKIvqGrFuW1NHYkF6&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1i3V-pcaswQenGMprHHlAWYz9zlFYEK64&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i7-3820 or equivalent",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GTX 1070 or equivalent",
+      "directx": "Version 11",
+      "storage": "10 GB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "The test was blocked by an installer/archive issue before a verified game launch. Compatibility is not established.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "scamper",
+    "steamAppId": "2481930",
+    "name": "Scamper",
+    "description": "Play as a rat searching for a lost companion and guide it through dangerous environments, solo or with friends.",
+    "version": "1.0",
+    "size": "3 GB",
+    "players": "1-4 players (solo or online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2481930/73a7159a1472f2e6a27dbc826fc877ed524ec578/header.jpg?t=1746296371",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1LqXdRGA-d711wuBlIMkA7s4s9JJQB0Ih&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1Dpt3eiEh-HHpcTsteOoTP4eI-NoEKotL&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i5-4590 / AMD FX 8350",
+      "ram": "4 GB",
+      "gpu": "NVIDIA GTX 970 / AMD Radeon R9 290",
+      "storage": "3 GB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "The title was marked as recorded, but no actual launch outcome is preserved in the available notes.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "pyramidion",
+    "steamAppId": "4024600",
+    "name": "Pyramidion",
+    "description": "A 2–3 player physics co-op challenge: move a massive stone block from the base of a pyramid to its summit.",
+    "version": "Early Access",
+    "size": "1 GB",
+    "players": "2–3 players (online or LAN co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4024600/c95119865f21441535386af017872f90a6343a81/header.jpg?t=1780968306",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=1dzMCHKMBuC1YT2YBHNt2pcQdxpBi67_C&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=1ADlD2S-DQgmd6Phxu6y7L_5ZurJQaZFl&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i3",
+      "ram": "4 GB",
+      "gpu": "NVIDIA GTX 1050",
+      "directx": "Version 11",
+      "storage": "1 GB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "A launch failure was recorded without a retained error or diagnosis. This does not establish a general compatibility result.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "shift-at-midnight",
+    "steamAppId": "3722330",
+    "name": "Shift At Midnight",
+    "description": "Run an isolated gas station with up to two partners and identify which customers are hiding something inhuman.",
+    "version": "1.0.1.0717.2216",
+    "size": "3 GB",
+    "players": "Up to 3 players online co-op (proximity chat) / solo",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3722330/759ecea2ffe1ad3819aefdda79e265b8b332bf8f/header.jpg?t=1784981268",
+    "zipUrl": "https://drive.usercontent.google.com/download?id=19CUAEd65gwHFdpKJLnvL4s-2ZgJtQADj&export=download&confirm=t",
+    "fixZipUrl": "https://drive.usercontent.google.com/download?id=14cr8hB54tWVaNPeZKRrbnkF7ayDDxggd&export=download&confirm=t",
+    "requirements": {
+      "os": "Windows 10/11 64-bit",
+      "cpu": "Intel Core i5-10400F or equivalent",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GeForce GTX 1050 Ti or equivalent",
+      "directx": "Version 11",
+      "storage": "3 GB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "The title was marked as recorded, but no actual launch outcome is preserved in the available notes.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "big-walk",
+    "steamAppId": "1478500",
+    "name": "Big Walk",
+    "description": "Explore a large world with friends in a cooperative adventure built around talking, puzzles, and shared challenges.",
+    "version": "1.5.1.2608271531",
+    "size": "3.5 GB",
+    "players": "2-12 players (online co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1478500/62eeee1507dbac905e128a62f2ce690550238db0/header.jpg?t=1785911674",
+    "zipUrl": "https://pixeldrain.com/api/file/Uc5yLTMM?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/cRcgvMnh?download",
+    "requirements": {
+      "os": "Windows 10 (64-bit)",
+      "cpu": "Intel Core i7-7700K / AMD Ryzen 5 1600X",
+      "ram": "12 GB",
+      "gpu": "NVIDIA GeForce GTX 750 TI / AMD Radeon R7 370 / Intel Arc A380"
+    },
+    "macCompatibility": {
+      "tier": "Native",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists an official macOS version. The Windows build was not brought to a main menu in Highball and further testing was skipped at Kevin’s request.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows",
+    "macRequirements": {
+      "os": "macOS 15",
+      "cpu": "Apple Silicon M1 or newer",
+      "ram": "16 GB"
+    }
+  },
+  {
+    "id": "party-animals",
+    "steamAppId": "1260320",
+    "name": "Party Animals",
+    "description": "A physics-based party brawler where players fight as animals online or together on one screen.",
+    "version": "1.17.2.0",
+    "size": "12.4 GB",
+    "players": "Up to 8 players online / 4 local",
+    "thumbnail": "https://cdn.akamai.steamstatic.com/steam/apps/1260320/header.jpg",
+    "zipUrl": "https://pixeldrain.com/api/file/VwEWm2An?download, https://pixeldrain.com/api/file/kWXyxY3r?download, https://pixeldrain.com/api/file/u6PPTaCF?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/Y4or5zsR?download",
+    "requirements": {
+      "os": "Windows 10 64-bit / Windows 11 64-bit",
+      "cpu": "Intel Core i5 / AMD equivalent",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GTX 750-Ti / AMD RX 550 (2 GB VRAM)",
+      "directx": "Version 11",
+      "storage": "12 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "Kevin confirmed the game works after the incomplete multipart extraction was fixed. The Invite Friends panel opened but showed no friends, so invitation delivery remains unverified.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "happy-wheels",
+    "steamAppId": "4705510",
+    "name": "Happy Wheels",
+    "description": "A side-scrolling physics game built around dangerous courses and a roster of ill-prepared racers.",
+    "version": "1.99.2-s (Online-Fix mod 1.0.0)",
+    "size": "288 MB",
+    "players": "Up to 4 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4705510/acd7fedba57cc1d506f18886ae6c937f754da6c1/header.jpg?t=1791030748",
+    "zipUrl": "https://pixeldrain.com/api/file/LUCs9wvT?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/yPa6v5NH?download",
+    "requirements": {
+      "os": "Windows 10 64-bit or later",
+      "cpu": "Intel Core i3 / AMD equivalent, 2.0 GHz or better",
+      "ram": "4 GB",
+      "gpu": "Any GPU with WebGL / DirectX 11 support (Intel HD Graphics 4000 or better)",
+      "directx": "Version 11",
+      "storage": "1 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "The recorded Windows build launched in Highball. Hosting initially failed until native-first DLL overrides were set for winmm.dll, OnlineFix64.dll, and SteamOverlay64.dll while Steam was running in the same bottle; Kevin then confirmed hosting works. Joining, invitations, and voice were not tested.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T18:19:44-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "dub-together",
+    "steamAppId": "5020310",
+    "name": "Dub Together",
+    "description": "Record new dialogue for video clips with friends, then watch the edits and vote on the results.",
+    "version": "Build 26092026",
+    "size": "648 MB",
+    "players": "Up to 8 players (online)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5020310/5120fdb5c1622bf7317187323aac962b3034fb93/header.jpg?t=1790943462",
+    "zipUrl": "https://pixeldrain.com/api/file/oZL9RbeH?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/FDuqxzYK?download",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "4 cores, 2.5 GHz",
+      "ram": "4 GB",
+      "gpu": "Vulkan-capable GPU with 1 GB VRAM (GeForce GTX 750 or Radeon RX 460 or better)",
+      "storage": "2 GB",
+      "graphicsApi": "Vulkan-capable GPU required"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "Testing was marked as recorded, but no actual launch result is preserved in the available notes.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "how-to-fish",
+    "steamAppId": "4001890",
+    "name": "How to Fish",
+    "description": "A physics-based fishing game for up to four players, beginning after a boating trip leaves you stranded on an island.",
+    "version": "1.0.10",
+    "size": "408 MB",
+    "players": "Up to 4 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4001890/45c4ddff4901e32c4b8b643e1b97d0d01898d299/header.jpg?t=1792508550",
+    "zipUrl": "https://pixeldrain.com/api/file/FyK47Rtw?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/WkEbG6uv?download",
+    "requirements": {
+      "os": "Windows 10 or newer",
+      "cpu": "Intel Core i5-5257U / AMD Ryzen 3 1200 or equivalent",
+      "ram": "8 GB",
+      "gpu": "GeForce GTX 1050 / AMD RX 460 or equivalent",
+      "storage": "1 GB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "The title was marked as recorded, but no actual launch result is preserved in the available notes.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "machine-party",
+    "steamAppId": "4108000",
+    "name": "Machine Party",
+    "description": "A collection of high-stakes party games where players compete through dangerous challenges.",
+    "version": "1.0.6",
+    "size": "492 MB",
+    "players": "Up to 4 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4108000/00ae7d0e0fd0ad72635bddb1dd80ee68cc94eed5/header.jpg?t=1790860377",
+    "zipUrl": "https://pixeldrain.com/api/file/nWXkkwbU?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/1NgJ7rke?download",
+    "requirements": {
+      "os": "Windows 11",
+      "cpu": "Dual-core 2.4 GHz",
+      "ram": "8 GB",
+      "gpu": "Radeon RX 6500 XT / NVIDIA GTX 1660",
+      "storage": "1 GB",
+      "graphicsApi": "Vulkan support required"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "Not tested in Highball. Steam lists a Vulkan requirement; that requirement alone is not enough to predict whether this build works.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "mimic-party",
+    "steamAppId": "5053820",
+    "name": "Mimic Party",
+    "description": "A voice party game for 1–5 players: imitate sounds together and compete on pitch and rhythm.",
+    "version": "0.1.60",
+    "size": "182 MB",
+    "players": "Up to 5 players online",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5053820/cb42d784567e89c1c409e49856ece32c9cf8ab36/header.jpg?t=1789831835",
+    "zipUrl": "https://pixeldrain.com/api/file/a2g2uJnC?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/LWMA1jBQ?download",
+    "requirements": {
+      "ram": "4 GB",
+      "storage": "2 GB",
+      "additionalNotes": "A microphone is required; online multiplayer only."
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "The title was marked as recorded, but no actual launch result is preserved in the available notes.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "bombanana",
+    "steamAppId": "4656000",
+    "name": "BOMBANANA!",
+    "description": "A three-player co-op bomb-disposal game where each player has different information and abilities.",
+    "version": "1.0.0",
+    "size": "313 MB",
+    "players": "3 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4656000/d26ac7a7fb6e1bcc2a89cbbaefcb359dfd5d1eeb/header_alt_assets_0.jpg?t=1792877964",
+    "zipUrl": "https://pixeldrain.com/api/file/oUb2EprH?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/uwqPCVSG?download",
+    "requirements": {
+      "os": "Windows 10/11 64-bit",
+      "cpu": "Intel Core i3-6100 / AMD Ryzen 3 1200",
+      "ram": "8 GB",
+      "gpu": "Intel HD Graphics 520 / AMD Radeon Vega 3 or equivalent",
+      "storage": "300 MB"
+    },
+    "macCompatibility": {
+      "tier": "Native",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists an official macOS version. No Highball test result is preserved for this title.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows",
+    "macRequirements": {
+      "os": "macOS 11 Big Sur or later",
+      "cpu": "Apple M1 or Intel Core i3 (6th generation or later)",
+      "ram": "4 GB",
+      "gpu": "Apple M1 integrated GPU or Intel Iris Plus Graphics 640 or equivalent",
+      "storage": "600 MB",
+      "additionalNotes": "Broadband internet connection; built-in audio is sufficient."
+    }
+  },
+  {
+    "id": "scam-with-your-friends",
+    "steamAppId": "4954910",
+    "name": "Scam With Your Friends",
+    "description": "Run a scam call centre with friends, trick AI callers, meet daily quotas, and keep the office from falling apart.",
+    "version": "0.1.82",
+    "size": "3.4 GB",
+    "players": "Up to 8 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4954910/128effac3212fc1b92b4f6cd8891995df0d4b199/header.jpg?t=1792556475",
+    "zipUrl": "https://pixeldrain.com/api/file/4RC4SHrf?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/5dQaRnN5?download",
+    "requirements": {
+      "os": "Windows 10/11 64-bit",
+      "cpu": "Intel Core i5-8400 / AMD Ryzen 5 2600",
+      "ram": "3 GB",
+      "gpu": "NVIDIA GTX 1060 (6 GB) / AMD RX 580",
+      "directx": "Version 11",
+      "storage": "5 GB"
+    },
+    "macCompatibility": {
+      "tier": "Not yet",
+      "riskLevel": "Standard",
+      "reasoning": "The recorded build failed to reach a menu with both D3DMetal and DXVK. The result applies to this tested build; the exact cause was not preserved.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "how-to-train-your-cock",
+    "steamAppId": "3673060",
+    "name": "How To Train Your Cock",
+    "description": "An idle game about training and decorating a growing rooster while you do other things.",
+    "version": "1.3.1",
+    "size": "134 MB",
+    "players": "Up to 2 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3673060/3c70157695f083806dcc7ba0d54a5b7ba3a9a40b/header.jpg?t=1789497863",
+    "zipUrl": "https://pixeldrain.com/api/file/eBRvdnSX?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/Y332nMW4?download",
+    "requirements": {
+      "os": "64-bit Windows; version not specified",
+      "storage": "400 MB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "The title was marked as recorded, but no actual launch result is preserved in the available notes.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "lucid-cats",
+    "steamAppId": "4778540",
+    "name": "Lucid Cats",
+    "description": "An online co-op horror extraction game about looting a shared nightmare and escaping with your valuables.",
+    "version": "2.4",
+    "size": "536 MB",
+    "players": "Up to 4 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4778540/a7eca735be2b883b76eb788d1e84dd5ff8de96df/header.jpg?t=1790360738",
+    "zipUrl": "https://pixeldrain.com/api/file/dwitfm8x?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/bMiYDhta?download",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i5-6600",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GeForce GTX 1050 Ti",
+      "directx": "Version 11",
+      "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "The title was marked as recorded, but no actual launch result is preserved in the available notes.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "mogged-looksmaxx-or-die",
+    "steamAppId": "4917440",
+    "name": "MOGGED: Looksmaxx or Die",
+    "description": "A co-op survival horror game about gathering supplies, meeting a rising quota, and avoiding a creature hunting the group.",
+    "version": "1.0.1.132",
+    "size": "3.5 GB",
+    "players": "Up to 8 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4917440/fa8c5b270baa4d82503897806748376f91e0a340/header.jpg?t=1791114490",
+    "zipUrl": "https://pixeldrain.com/api/file/mmt4ErLv?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/aHppK2Jr?download",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i3-10100 / Intel Core i5-1235U / AMD Ryzen 5 5500U",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GeForce GTX 1650 / AMD Radeon RX 570 / Intel Iris Xe Graphics",
+      "directx": "Version 11",
+      "storage": "6 GB"
+    },
+    "macCompatibility": {
+      "tier": "Runs with a recipe",
+      "riskLevel": "Standard",
+      "reasoning": "Kevin confirmed the game and friend-invite check work in the recorded Highball test. The exact renderer and detailed setup were not preserved.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "needle-in-a-haystack",
+    "steamAppId": "5085740",
+    "name": "Needle In A Haystack",
+    "description": "Search for a needle hidden among millions of pieces of hay, then earn money and buy equipment to help the search. Play alone or with up to five friends.",
+    "version": "1.2.7",
+    "size": "",
+    "players": "Up to 6 players (online co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/5085740/c4f0eebd5422df95a4dc9984eaa4304c0f1990c0/header.jpg?t=1791928860",
+    "zipUrl": "https://pixeldrain.com/api/file/nCkDAZw7?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/Caspxw1f?download",
+    "type": "game",
+    "requirements": {
+      "os": "Windows 10/11",
+      "cpu": "Intel Core i5-3570 or equivalent",
+      "ram": "4 GB",
+      "gpu": "NVIDIA GeForce GTX 1050 or equivalent",
+      "network": "Broadband Internet connection",
+      "storage": "4 GB available space"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "No reliable macOS launch result is recorded for this game in the project's compatibility evidence.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T08:24:04.000000-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "cheaters-table",
+    "steamAppId": "3951810",
+    "name": "Cheater's Table",
+    "description": "A 2–4 player online card game where you bluff, hide cards, catch cheats, and set traps at the table.",
+    "version": "0.8.3.6",
+    "size": "1.6 GB",
+    "players": "2-4 players (online multiplayer)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3951810/c2960759b4088d432df3668e5da0e94117cd5f80/header.jpg?t=1792614886",
+    "zipUrl": "https://pixeldrain.com/api/file/k2nnbQv8?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/EjriV2J6?download",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Q9450 @ 2.6 GHz / AMD Phenom II X6 @ 3.3 GHz",
+      "ram": "2 GB",
+      "gpu": "NVIDIA GeForce GTX 650 / AMD Radeon 7750",
+      "storage": "5 GB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "No reliable macOS launch result is recorded for this game in the project's compatibility evidence.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T08:51:40.000000-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "supermarket-chaos",
+    "steamAppId": "4800590",
+    "name": "Supermarket Chaos",
+    "description": "A cozy organizing simulator about returning thousands of scattered products to their proper shelves, with online co-op for up to four players.",
+    "version": "1.2.4",
+    "size": "1.2 GB",
+    "players": "Up to 4 players (online co-op)",
+    "thumbnail": "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4800590/12972366c9e8812cbd1ba7a3e367d7dfc100314a/header.jpg?t=1787575741",
+    "zipUrl": "https://pixeldrain.com/api/file/Xus4dWjC?download",
+    "fixZipUrl": "https://pixeldrain.com/api/file/fvgDZSw3?download",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i7-4790K / AMD Ryzen 5 1500X",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GeForce GTX 980 Ti 6 GB / AMD Radeon RX 6500 XT",
+      "directx": "Version 12",
+      "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "No reliable macOS launch result is recorded for this game in the project's compatibility evidence.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-26T08:51:40.000000-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  }
+]
