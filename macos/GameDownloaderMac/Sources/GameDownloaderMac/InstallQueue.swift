@@ -261,6 +261,7 @@ extension AppModel {
 
     private func startInstallation(_ job: InstallJob) {
         do {
+            DownloadCompletionNotifier.shared.prepareForDownload()
             try FileManager.default.createDirectory(at: Self.supportFolder, withIntermediateDirectories: true)
             let jobFile = Self.supportFolder.appending(path: "\(job.id).json")
             try JSONEncoder().encode(job).write(to: jobFile, options: .atomic)
@@ -280,6 +281,7 @@ extension AppModel {
             } completion: { [weak self] code, diagnostics in
                 guard let self else { return }
                 self.updateDownloadEstimate(jobID: job.id, status: "finished", done: 0, total: 0)
+                let hadStopIntent = self.stopIntents[job.id] != nil
                 self.updateJob(job.id) { item in
                     if let intent = self.stopIntents.removeValue(forKey: job.id) {
                         item.status = item.isInstalled ? "installed" : intent
@@ -291,6 +293,11 @@ extension AppModel {
                         item.status = "failed"
                         item.message = "Worker finished without confirming the installation. Retry to check the saved receipt."
                     }
+                }
+                let completedWithoutStop = code == 0 && !hadStopIntent
+                    && self.jobs.first(where: { $0.id == job.id })?.isInstalled == true
+                if completedWithoutStop {
+                    DownloadCompletionNotifier.shared.notifyDownloadCompleted(for: job.game.name)
                 }
                 self.installSession = nil
                 self.activeJobID = nil
