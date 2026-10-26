@@ -19,6 +19,9 @@ final class AppModel: ObservableObject {
     @Published var actionLogPath: String?
     @Published var operationBusy = false
     @Published var rarAvailable = false
+    @Published var availableUpdate: AppUpdate?
+    @Published var updateMessage: String?
+    @Published var isInstallingUpdate = false
     @Published var selectedBottle = UserDefaults.standard.string(forKey: "selectedBottle") ?? "" {
         didSet { UserDefaults.standard.set(selectedBottle, forKey: "selectedBottle") }
     }
@@ -65,6 +68,23 @@ final class AppModel: ObservableObject {
         loadCatalog()
         restoreQueue()
         restoreGameFolderAccess()
+    }
+
+    func checkForAppUpdate() async {
+        do { availableUpdate = try await AppUpdater.check() }
+        catch { updateMessage = "Could not check for updates: \(error.localizedDescription)" }
+    }
+
+    func installAppUpdate() {
+        guard let update = availableUpdate else { return }
+        isInstallingUpdate = true
+        Task {
+            do { try await AppUpdater.install(update) }
+            catch {
+                isInstallingUpdate = false
+                updateMessage = "Update could not be installed: \(error.localizedDescription)"
+            }
+        }
     }
 
     func restoreGameFolderAccess() {
@@ -448,6 +468,29 @@ struct ContentView: View {
                 if !game.isSteamEntry { page = .downloads }
             }
                 .frame(minWidth: 720, idealWidth: 820, minHeight: 620, idealHeight: 760)
+        }
+        .task {
+            guard model.gameFolderAccessGranted else { return }
+            await model.checkForAppUpdate()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(120))
+                guard !Task.isCancelled else { return }
+                await model.checkForAppUpdate()
+            }
+        }
+        .alert("Update available", item: $model.availableUpdate) { update in
+            Button("Later", role: .cancel) { model.availableUpdate = nil }
+            Button("Update") { model.installAppUpdate() }
+        } message: { update in
+            Text("Version \(update.version) is available.\n\n\(update.notes)")
+        }
+        .alert("Update status", isPresented: Binding(
+            get: { model.updateMessage != nil },
+            set: { if !$0 { model.updateMessage = nil } }
+        )) {
+            Button("OK") { model.updateMessage = nil }
+        } message: {
+            Text(model.updateMessage ?? "")
         }
         .task {
             guard model.gameFolderAccessGranted else { return }
@@ -896,6 +939,15 @@ struct ContentView: View {
                             .font(.caption).foregroundStyle(.secondary)
                         Button("Check archive tools") { model.beginOperation(["tools"], jobID: nil, bottle: model.selectedBottle) }
                             .disabled(model.operationBusy)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }
+                GroupBox("App updates") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Checks GitHub for updates at launch and every two minutes. Downloads are verified with SHA-256 before installation.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Button("Check for updates") { Task { await model.checkForAppUpdate() } }
+                            .disabled(model.isInstallingUpdate)
+                        if model.isInstallingUpdate { ProgressView("Preparing update…") }
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }
                 GroupBox("Highball integration") {

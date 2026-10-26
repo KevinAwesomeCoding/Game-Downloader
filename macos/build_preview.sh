@@ -106,7 +106,7 @@ info={
     "CFBundleIdentifier":os.environ.get("APP_BUNDLE_IDENTIFIER", "com.kevinawesomecoding.GameInstallerPreview"),
     "CFBundleExecutable":"GameDownloaderMac",
     "CFBundlePackageType":"APPL",
-    "CFBundleShortVersionString":"0.1.0",
+    "CFBundleShortVersionString":os.environ.get("RELEASE_VERSION", "0.1.0"),
     "CFBundleVersion":"1",
     "LSMinimumSystemVersion":"14.0",
     "NSHighResolutionCapable":True,

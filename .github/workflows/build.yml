@@ -142,6 +142,7 @@ jobs:
         env:
           APP_DISPLAY_NAME: Game Installer
           APP_BUNDLE_IDENTIFIER: com.kevinawesomecoding.GameInstaller
+          RELEASE_VERSION: ${{ needs.release_info.outputs.tag }}
           APP_DESTINATION: ${{ runner.temp }}/Game Installer.app
         run: |
           bash macos/build_preview.sh

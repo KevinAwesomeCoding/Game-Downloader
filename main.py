@@ -195,13 +195,15 @@ def find_7zip():
 
 
 def _parse_version(tag: str) -> tuple:
-    """Return (major, minor, patch) ints from a tag like 'v1.2.3' or 'v1.2.3-20260624-42'."""
-    core = tag.lstrip("v").split("-")[0]
+    """Compare semantic version first, then the date/run suffix used by CI."""
+    core, *suffix = tag.lstrip("v").split("-")
     parts = core.split(".")
     try:
-        return tuple(int(p) for p in parts[:3])
+        semantic = tuple(int(p) for p in parts)
     except ValueError:
         return (0, 0, 0)
+    extra = tuple(int(p) for p in suffix if p.isdigit())
+    return semantic + extra
 
 
 def _launch_update_bat(new_exe: str, current_exe: str) -> None:
@@ -1387,7 +1389,8 @@ class DefenderWorker(QObject):
 # ---------------------------------------------------------------------------
 class UpdateChecker(QObject):
     """Fetches the latest GitHub release and signals if a newer version exists."""
-    update_available = pyqtSignal(str, str)  # tag_name, exe_download_url
+    update_available = pyqtSignal(str, str, str, str)  # tag, asset url, sha256, notes
+    finished = pyqtSignal()
 
     @pyqtSlot()
     def run(self):
@@ -1441,11 +1444,10 @@ class UpdateChecker(QObject):
             if not is_newer:
                 return
 
-            exe_url = next(
-                (a["browser_download_url"] for a in data.get("assets", [])
-                 if a.get("name", "").endswith(".exe")),
-                None,
-            )
+            asset = next((a for a in data.get("assets", [])
+                          if a.get("name") == "GameInstaller.exe"), None)
+            exe_url = asset.get("browser_download_url") if asset else None
+            digest = (asset.get("digest") or "").removeprefix("sha256:") if asset else ""
             _log.debug("UpdateChecker: matched exe asset url = %r", exe_url)
             if exe_url:
                 # Step 5 — update dialog will be shown.
@@ -1453,7 +1455,10 @@ class UpdateChecker(QObject):
                     "[5] Update dialog will be shown for tag=%r  exe_url=%r",
                     tag, exe_url,
                 )
-                self.update_available.emit(tag, exe_url)
+                if re.fullmatch(r"[0-9a-fA-F]{64}", digest):
+                    self.update_available.emit(tag, exe_url, digest.lower(), data.get("body", ""))
+                else:
+                    _ulog.warning("Release %s has no valid SHA-256 digest; refusing update", tag)
             else:
                 _ulog.warning(
                     "[5] Newer tag %r found but no .exe asset on release — "
@@ -1471,6 +1476,8 @@ class UpdateChecker(QObject):
             _log.exception("UpdateChecker: update check failed with an exception")
             # still fail silently to the UI — update check must never affect
             # normal operation — but now it's logged instead of invisible.
+        finally:
+            self.finished.emit()
 
 
 class UpdateDownloadWorker(QObject):
@@ -1479,9 +1486,10 @@ class UpdateDownloadWorker(QObject):
     success = pyqtSignal(str)    # path to downloaded temp file
     error = pyqtSignal(str) #test again
 
-    def __init__(self, url: str):
+    def __init__(self, url: str, expected_sha256: str):
         super().__init__()
         self.url = url
+        self.expected_sha256 = expected_sha256
 
     @pyqtSlot()
     def run(self):
@@ -1490,6 +1498,7 @@ class UpdateDownloadWorker(QObject):
         try:
             fd, dest = tempfile.mkstemp(suffix=".exe", prefix="GameInstaller_update_")
             os.close(fd)
+            digest = hashlib.sha256()
             with requests.get(self.url, stream=True, timeout=REQUEST_TIMEOUT) as resp:
                 resp.raise_for_status()
                 total = int(resp.headers.get("Content-Length") or 0)
@@ -1499,8 +1508,12 @@ class UpdateDownloadWorker(QObject):
                         if not chunk:
                             continue
                         fh.write(chunk)
+                        digest.update(chunk)
                         done += len(chunk)
                         self.progress.emit(int(done * 100 / total) if total else -1)
+            if digest.hexdigest().lower() != self.expected_sha256:
+                os.remove(dest)
+                raise ValueError("The update checksum did not match. The downloaded file was deleted.")
             self.progress.emit(100)
             self.success.emit(dest)
         except Exception as exc:
@@ -4175,10 +4188,11 @@ class DownloadsPage(QWidget):
 # Self-update dialog
 # ---------------------------------------------------------------------------
 class UpdateDialog(QDialog):
-    def __init__(self, tag: str, exe_url: str, parent=None):
+    def __init__(self, tag: str, exe_url: str, expected_sha256: str, notes: str = "", parent=None):
         super().__init__(parent)
         self.tag = tag
         self.exe_url = exe_url
+        self.expected_sha256 = expected_sha256
         self._thread = None
         self._worker = None
         self._new_exe: str | None = None
@@ -4194,6 +4208,13 @@ class UpdateDialog(QDialog):
         title = QLabel(f"Version {tag} is available")
         title.setObjectName("DialogTitle")
         root.addWidget(title)
+
+        if notes:
+            changes = QLabel(notes[:6000])
+            changes.setObjectName("CardDesc")
+            changes.setWordWrap(True)
+            changes.setMaximumHeight(180)
+            root.addWidget(changes)
 
         sub = QLabel(
             "A new version of Game Installer is ready.\n"
@@ -4233,7 +4254,7 @@ class UpdateDialog(QDialog):
         self.status_label.setVisible(True)
 
         self._thread = QThread()
-        self._worker = UpdateDownloadWorker(self.exe_url)
+        self._worker = UpdateDownloadWorker(self.exe_url, self.expected_sha256)
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
         self._worker.progress.connect(self._on_progress)
@@ -4360,6 +4381,10 @@ class MainWindow(QMainWindow):
         self.load_manifest()
         # Defer update check so the window is painted before any network I/O.
         QTimer.singleShot(2000, self._start_update_check)
+        self._update_timer = QTimer(self)
+        self._update_timer.setInterval(120_000)
+        self._update_timer.timeout.connect(self._start_update_check)
+        self._update_timer.start()
 
     def closeEvent(self, event):
         # Stop any in-flight downloads so no QThread is left running at exit.
@@ -4379,23 +4404,34 @@ class MainWindow(QMainWindow):
 
     # -- self-update ----------------------------------------------------------
     def _start_update_check(self):
+        if self._update_thread is not None:
+            return
         self._update_thread = QThread()
         self._update_worker = UpdateChecker()
         self._update_worker.moveToThread(self._update_thread)
         self._update_thread.started.connect(self._update_worker.run)
+        self._update_worker.finished.connect(self._update_thread.quit)
+        self._update_thread.finished.connect(self._update_check_finished)
         self._update_worker.update_available.connect(self._on_update_available)
         self._update_thread.finished.connect(self._update_thread.deleteLater)
         self._update_thread.start()
 
-    @pyqtSlot(str, str)
-    def _on_update_available(self, tag: str, exe_url: str):
+    def _update_check_finished(self):
+        if self._update_thread is not None:
+            self._update_worker.deleteLater()
+            self._update_thread.deleteLater()
+            self._update_worker = None
+            self._update_thread = None
+
+    @pyqtSlot(str, str, str, str)
+    def _on_update_available(self, tag: str, exe_url: str, sha256: str, notes: str):
         if self._update_thread is not None:
             self._update_thread.quit()
             self._update_thread.wait()
             self._update_worker.deleteLater()
             self._update_thread = None
             self._update_worker = None
-        UpdateDialog(tag, exe_url, parent=self).exec()
+        UpdateDialog(tag, exe_url, sha256, notes, parent=self).exec()
 
     def _update_downloads_badge(self, active):
         self.downloads_btn.setText("Downloads" if active == 0 else f"Downloads ({active})")
