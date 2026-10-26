@@ -5,4 +5,8 @@ dist/
 build/
 *.spec
 project_game_catalog_workflow.md
+macos/GameDownloaderMac/.build/
+macos/GameDownloaderMac/Sources/GameDownloaderMac/Resources/games.json
+macos/GameDownloaderMac/Sources/GameDownloaderMac/Resources/probe.py
+macos/GameDownloaderMac/Sources/GameDownloaderMac/Resources/readiness.py
 Game-Downloader/

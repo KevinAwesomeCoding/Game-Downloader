@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "games": {
+    "meccha-chameleon": {
+      "executable": "Chameleon/Binaries/Win64/PenguinHotel-Win64-Shipping.exe",
+      "renderer": "d3dmetal",
+      "arguments": ["-windowed", "-ResX=1280", "-ResY=720"],
+      "environment": {"WINEDLLOVERRIDES": "winmm=n,b"},
+      "engine": "x64-sikarugir10.0_6-r28",
+      "requiredRecipes": ["steam", "vcrun2022"],
+      "mainHashes": ["8ec3f4331ad0a773094bd141a8da7893c2f04d000c1a73a2bbba1b68e232c5ba"],
+      "repairHashes": ["85a1791813e57da31d7cb75406a4e28251f6d485b65d69004786030d6226d622"],
+      "tested": {"date": "2026-10-24", "highball": "0.10.22", "macOS": "26.5.1", "chip": "M5", "startup": "observed", "menu": "observed", "gameplay": "not separately tested", "hosting": "untested", "invites": "untested", "joining": "untested"},
+      "note": "Local launch/menu result with native winmm. Full gameplay and multiplayer unverified; external install location is a new test condition. Hashes identify tested files, not publisher authentication."
+    },
+    "cut-that-wire": {
+      "executable": "Cut That Wire.exe",
+      "renderer": "d3dmetal",
+      "arguments": ["-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", "720"],
+      "environment": {"WINEDLLOVERRIDES": "winmm=n,b;OnlineFix64=n,b;SteamOverlay64=n,b;steam_api64=n,b"},
+      "engine": "x64-sikarugir10.0_6-r28",
+      "requiredRecipes": ["steam", "vcrun2022"],
+      "mainHashes": ["d632ab1cea958a8863bf922f570a10949aae479c2b371ec017c704cdb3ef020d"],
+      "repairHashes": ["a1e0efd16c42333e6320867f4aa981dae65d532c0b2c5e58d3836260ba5d3cb3"],
+      "tested": {"date": "2026-10-24", "highball": "0.10.22", "macOS": "26.5.1", "chip": "M5", "startup": "observed", "menu": "observed", "gameplay": "user reports game/multiplayer works", "hosting": "not separately recorded", "invites": "not separately recorded", "joining": "not separately recorded"},
+      "note": "Recorded build v1.1.0.104-OFME; catalog label is 1.0. Multiplayer is user-confirmed without separate host/invite/join verification. External install location remains a new test condition."
+    }
+  }
+}
