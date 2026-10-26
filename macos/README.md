@@ -35,12 +35,16 @@ app, catalog, and Windows release workflow remain separate and unchanged.
   owned, partially configured pin is supported. Highball's GUI must be closed
   during registration to avoid stale settings writes; Windows Steam may remain up.
   Pin operations use the supported CLI; artwork uses Highball's cover-file layout.
-- **Two recorded recipes:** MECCHA CHAMELEON and Cut That Wire, from the local
-  compatibility notebook. The exact main/repair archive hashes, tested engine,
-  renderer availability and installed prerequisites must match before applying
-  their saved executable/arguments/environment/renderer. The saved settings are
-  read back before registration is marked complete. These are local observations,
-  not universal fixes or proof that the new external install path works in-game.
+- **Four recorded recipes:** MECCHA CHAMELEON, Cut That Wire, Buckshot Roulette,
+  and Party Animals. Exact main/repair archive hashes and the tested Highball
+  engine must match before a recipe can be applied. Recipes may leave renderer,
+  arguments, or environment at the bottle defaults when no override was verified.
+  Party Animals also checks for `UnityPlayer.dll` and `PartyAnimals_Data`; if either
+  is missing, the install completes but its recorded Highball recipe is unavailable.
+  On the first Play click, recipes that need Steam open the Steam pin; sign in, then
+  click Play again to launch the game. Wine-name DLL conflicts are reported, not
+  overridden, and Steam install records are never fabricated. These local
+  observations do not prove every gameplay or multiplayer feature works.
 - **Other games:** Choose .exe & add selects an executable within the installed
   folder and creates a pin using bottle defaults, without inferred DLL fixes.
   A prior recorded-settings pin is not silently converted to default settings.
@@ -137,8 +141,7 @@ bash macos/build_preview.sh
   private Drive authentication or split-ZIP reconstruction flow.
 - ZIP AES/unsupported compression methods stop clearly. RAR/7z requires local
   tools; shipping needs a reviewed, signed extraction runtime and license notices.
-- Only the two recorded build-specific recipes are included. Scratch Creek's
-  incomplete package/local assembly workaround is not automated. Other historical
+- Scratch Creek's incomplete package/local assembly workaround is not automated. Other historical
   settings are not guessed from detected DLLs or compatibility predictions.
 - Startup, menu, gameplay, hosting, invites and joining remain separate results.
   Archive hashes identify tested bytes, not publisher authenticity. Menu arrival,

@@ -1,29 +1,138 @@
 {
-  "schemaVersion": 1,
-  "games": {
+  "schemaVersion": 2,
+  "builds": {
     "meccha-chameleon": {
-      "executable": "Chameleon/Binaries/Win64/PenguinHotel-Win64-Shipping.exe",
-      "renderer": "d3dmetal",
-      "arguments": ["-windowed", "-ResX=1280", "-ResY=720"],
-      "environment": {"WINEDLLOVERRIDES": "winmm=n,b"},
+      "main": [
+        {
+          "bytes": 4435111962,
+          "sha256": "8ec3f4331ad0a773094bd141a8da7893c2f04d000c1a73a2bbba1b68e232c5ba"
+        }
+      ],
+      "repair": [
+        {
+          "bytes": 27388066,
+          "sha256": "85a1791813e57da31d7cb75406a4e28251f6d485b65d69004786030d6226d622"
+        }
+      ],
       "engine": "x64-sikarugir10.0_6-r28",
-      "requiredRecipes": ["steam", "vcrun2022"],
-      "mainHashes": ["8ec3f4331ad0a773094bd141a8da7893c2f04d000c1a73a2bbba1b68e232c5ba"],
-      "repairHashes": ["85a1791813e57da31d7cb75406a4e28251f6d485b65d69004786030d6226d622"],
-      "tested": {"date": "2026-10-24", "highball": "0.10.22", "macOS": "26.5.1", "chip": "M5", "startup": "observed", "menu": "observed", "gameplay": "not separately tested", "hosting": "untested", "invites": "untested", "joining": "untested"},
-      "note": "Local launch/menu result with native winmm. Full gameplay and multiplayer unverified; external install location is a new test condition. Hashes identify tested files, not publisher authentication."
+      "tested": {
+        "date": "2026-10-24",
+        "highball": "0.10.22",
+        "macOS": "26.5.1",
+        "chip": "M5",
+        "startup": "observed",
+        "menu": "user confirmed",
+        "gameplay": "not separately tested",
+        "invites": "untested",
+        "joining": "untested"
+      }
     },
     "cut-that-wire": {
-      "executable": "Cut That Wire.exe",
-      "renderer": "d3dmetal",
-      "arguments": ["-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", "720"],
-      "environment": {"WINEDLLOVERRIDES": "winmm=n,b;OnlineFix64=n,b;SteamOverlay64=n,b;steam_api64=n,b"},
+      "main": [
+        {
+          "bytes": 762185942,
+          "sha256": "d632ab1cea958a8863bf922f570a10949aae479c2b371ec017c704cdb3ef020d"
+        }
+      ],
+      "repair": [
+        {
+          "bytes": 10597822,
+          "sha256": "a1e0efd16c42333e6320867f4aa981dae65d532c0b2c5e58d3836260ba5d3cb3"
+        }
+      ],
       "engine": "x64-sikarugir10.0_6-r28",
-      "requiredRecipes": ["steam", "vcrun2022"],
-      "mainHashes": ["d632ab1cea958a8863bf922f570a10949aae479c2b371ec017c704cdb3ef020d"],
-      "repairHashes": ["a1e0efd16c42333e6320867f4aa981dae65d532c0b2c5e58d3836260ba5d3cb3"],
-      "tested": {"date": "2026-10-24", "highball": "0.10.22", "macOS": "26.5.1", "chip": "M5", "startup": "observed", "menu": "observed", "gameplay": "user reports game/multiplayer works", "hosting": "not separately recorded", "invites": "not separately recorded", "joining": "not separately recorded"},
-      "note": "Recorded build v1.1.0.104-OFME; catalog label is 1.0. Multiplayer is user-confirmed without separate host/invite/join verification. External install location remains a new test condition."
+      "tested": {
+        "date": "2026-10-25",
+        "highball": "0.10.22",
+        "macOS": "26.5.1",
+        "chip": "M5",
+        "startup": "observed",
+        "menu": "observed",
+        "gameplay": "user reports game/multiplayer works",
+        "invites": "not separately recorded",
+        "joining": "not separately recorded"
+      }
+    },
+    "buckshot-roulette": {
+      "main": [
+        {
+          "bytes": 976136686,
+          "sha256": "26f7700e2b0b1a2e75bdbc2fe4b578291179bb26d28334f4029428058a1ff288"
+        }
+      ],
+      "repair": [
+        {
+          "bytes": 11502734,
+          "sha256": "a3f17fcdc0e11824640124e6bd6ae228f31087bb2d7b70e7e361501eb179a2fa"
+        }
+      ],
+      "engine": "x64-sikarugir10.0_6-r28",
+      "tested": {
+        "date": "2026-10-25",
+        "highball": "0.10.22",
+        "macOS": "26.5.1",
+        "chip": "M5",
+        "startup": "observed",
+        "menu": "user confirmed",
+        "gameplay": "lobby observed",
+        "invites": "Steam invite button did nothing",
+        "joining": "Lobby ID sharing reported working; live join not independently verified"
+      }
+    },
+    "party-animals": {
+      "main": [
+        {
+          "bytes": 5368709120,
+          "sha256": "2b1b3fdd8d9915c99bdf76a734f8ad17c3d755cf2b7bd9ed6677d978ac801bc2"
+        },
+        {
+          "bytes": 5368709120,
+          "sha256": "fed7a6f820b5d5089f143e41b581da1748e8c48da8c2cb97f3910694315c33bd"
+        },
+        {
+          "bytes": 1648384362,
+          "sha256": "0c3182605ea594544414c47b760e32a9e37d45a0c5002633887c0966f416ddad"
+        }
+      ],
+      "repair": [
+        {
+          "bytes": 2568542,
+          "sha256": "7f877486ca26e613ad41ee80b109eb68eb916b5792ee65477cb91e1aeb6aa7ef"
+        }
+      ],
+      "engine": "x64-sikarugir10.0_6-r28",
+      "tested": {
+        "date": "2026-10-25",
+        "highball": "0.10.22",
+        "macOS": "26.5.1",
+        "chip": "M5",
+        "startup": "user confirmed",
+        "menu": "user confirmed",
+        "gameplay": "not separately tested",
+        "invites": "friend panel opened with empty list",
+        "joining": "untested"
+      }
+    }
+  },
+  "deltas": {
+    "meccha-chameleon": {
+      "executable": "Chameleon/Binaries/Win64/PenguinHotel-Win64-Shipping.exe"
+    },
+    "cut-that-wire": {
+      "executable": "Cut That Wire.exe"
+    },
+    "buckshot-roulette": {
+      "executable": "Buckshot Roulette.exe",
+      "rendererOverride": "vulkan"
+    },
+    "party-animals": {
+      "executable": "PartyAnimals.exe",
+      "extraFilesToVerify": [
+        "UnityPlayer.dll"
+      ],
+      "extraDirectoriesToVerify": [
+        "PartyAnimals_Data"
+      ]
     }
   }
 }

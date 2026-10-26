@@ -163,9 +163,12 @@ class Highball:
             raise ValueError("Close Highball's window/app before adding a program to avoid stale settings writes. Steam may remain running.")
         root = Path(receipt["installPath"]).resolve(strict=True)
         if recipe:
-            if (set(recipe["environment"]) - {"WINEDLLOVERRIDES"} or
-                    recipe["renderer"] not in {"wined3d", "dxmt", "d3dmetal", "dxvk"} or
-                    not all(isinstance(arg, str) for arg in recipe["arguments"])):
+            environment = recipe.get("environment", {})
+            arguments = recipe.get("arguments", [])
+            renderer = recipe.get("renderer")
+            if (not isinstance(environment, dict) or set(environment) - {"WINEDLLOVERRIDES"} or
+                    (renderer is not None and renderer not in {"wined3d", "dxmt", "d3dmetal", "dxvk"}) or
+                    not isinstance(arguments, list) or not all(isinstance(arg, str) for arg in arguments)):
                 raise ValueError("Unreviewed recipe setting; no pin was changed.")
             if receipt["mainHashes"] != recipe["mainHashes"] or receipt["repairHashes"] != recipe["repairHashes"]:
                 raise ValueError("Files differ from the tested recipe; select an executable manually instead.")
@@ -174,7 +177,7 @@ class Highball:
             if not set(recipe["requiredRecipes"]).issubset(selected["recipes"].split(",")):
                 raise ValueError("This recipe requires Steam and vcrun2022 setup in Highball first.")
             engine = next(e for e in runtime["engines"] if e["id"] == selected["engine"])
-            if not engine["renderers"].get(recipe["renderer"], {}).get("available"):
+            if renderer and not engine["renderers"].get(renderer, {}).get("available"):
                 raise ValueError("Recipe renderer is unavailable or needs its license accepted in Highball.")
             executable = recipe["executable"]
         if not executable:
@@ -204,9 +207,11 @@ class Highball:
         receipt["registration"] = {"bottle": bottle, "pin": name, "executable": executable, "complete": False,
                                    "settingsMode": "recorded" if recipe else "default"}
         if recipe:
-            self.command(["pin", "set", bottle, name, "renderer", recipe["renderer"]])
-            self.command(["pin", "set", bottle, name, "args", "--", *recipe["arguments"]])
-            for key, value in recipe["environment"].items():
+            if renderer:
+                self.command(["pin", "set", bottle, name, "renderer", renderer])
+            if arguments:
+                self.command(["pin", "set", bottle, name, "args", "--", *arguments])
+            for key, value in environment.items():
                 if key != "WINEDLLOVERRIDES":
                     raise ValueError("Unreviewed recipe environment field.")
                 self.command(["pin", "set", bottle, name, "env", f"{key}={value}"])
@@ -214,8 +219,13 @@ class Highball:
         if not saved or not same_external_path(saved["path"], target):
             raise ValueError("Highball did not confirm the saved executable path. Retry registration.")
         if recipe:
-            expected = [f"renderer={recipe['renderer']}", "args=" + " ".join(recipe["arguments"]),
-                        "env=" + ";".join(f"{key}={value}" for key, value in sorted(recipe["environment"].items()))]
+            expected = []
+            if renderer:
+                expected.append(f"renderer={renderer}")
+            if arguments:
+                expected.append("args=" + " ".join(arguments))
+            if environment:
+                expected.append("env=" + ";".join(f"{key}={value}" for key, value in sorted(environment.items())))
             if not all(value in saved["extras"] for value in expected):
                 raise ValueError("Highball did not confirm every recorded pin setting. Retry registration.")
         try:
@@ -238,6 +248,21 @@ class Highball:
         target = Path(receipt["installPath"]) / safe_path(registration["executable"])
         if not stored or not target.is_file() or not same_external_path(stored["path"], target):
             raise ValueError("The registered executable is missing or its Highball pin changed.")
+        setup = receipt.get("universalSetup") or {}
+        if (setup.get("settings") or {}).get("requiresSteamFirst"):
+            if not registration.get("steamReadyForNextLaunch"):
+                pins = parse_pins(self.command(["pin", "list", bottle]))
+                steam = pins.get("steam")
+                if not steam or not steam["path"].replace("\\", "/").lower().endswith("/steam.exe"):
+                    raise ValueError("Windows Steam is not pinned in this bottle. Open Highball and install/sign in to Steam first.")
+                announce("Opening Windows Steam. Sign in there, then click Play in the installer again.")
+                result = self.dispatch(["run", bottle, steam["name"]])
+                registration["steamReadyForNextLaunch"] = True
+                receipt["registration"] = registration
+                return {**result, "steamStarted": True}
+            # A second Play click is the user's confirmation that Steam is ready.
+            registration["steamReadyForNextLaunch"] = False
+            receipt["registration"] = registration
         announce("Sending launch request through Highball. Check the game's window for startup.")
         return self.dispatch(["run", bottle, pin])
 

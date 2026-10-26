@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import shutil
 import stat
@@ -17,7 +18,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from downloads import Downloader, Stopped, atomic_json, canonical_source, drive_confirmation, parts, sha256
 from archives import extract, merge_repair, safe_path, validate_entries, find_tool
 from highball import Highball, parse_pins, same_external_path
-from worker import install, publish_directory
+from worker import install, publish_directory, highball_recipe
+from universal_setup import apply_universal_setup, recipe_catalog
+import universal_setup
 
 
 class Response(io.BytesIO):
@@ -99,6 +102,7 @@ class DownloadTests(TemporaryTest):
                     Downloader(Opener(response)).fetch(self.url, destination)
                 self.assertEqual(partial.read_bytes(), b"123")
 
+
     def test_416_is_not_promoted_to_success(self):
         destination, partial = self.partial()
         error = urllib.error.HTTPError(self.url, 416, "range", {}, io.BytesIO(b""))
@@ -167,6 +171,65 @@ class DownloadTests(TemporaryTest):
             canonical_source("http://example.com/file")
         self.assertEqual(len(parts("https://a/1, https://a/2\nhttps://a/3")), 3)
         self.assertEqual(parts([{"url": "https://a/1", "name": "a.part1.rar"}])[0]["name"], "a.part1.rar")
+
+
+class UniversalSetupTests(TemporaryTest):
+    def setUp(self):
+        super().setUp()
+        self.catalog = recipe_catalog()
+        self.build = self.catalog["builds"]["party-animals"]
+        self.install = self.root / "Party Animals"
+        self.install.mkdir()
+        (self.install / "PartyAnimals.exe").write_bytes(b"exe")
+        (self.install / "UnityPlayer.dll").write_bytes(b"fixture")
+        (self.install / "PartyAnimals_Data").mkdir()
+        (self.install / "winhttp.dll").write_bytes(b"proxy")
+
+    def game(self, records=None):
+        return {"gameID": "party-animals", "installPath": self.install,
+                "mainArchives": records or self.build["main"], "repairArchives": self.build["repair"],
+                "fixZipUrl": "https://fixture/fix", "steamAppId": "12345"}
+
+    def test_verified_build_prepares_universal_profile_and_only_scans_dlls(self):
+        result = apply_universal_setup(self.game())
+        self.assertTrue(result["readyForHighball"])
+        self.assertEqual(result["settings"]["renderer"], "d3dmetal")
+        self.assertEqual(result["settings"]["arguments"], ["-windowed", "-ResX=1280", "-ResY=720"])
+        self.assertTrue(result["settings"]["requiresSteamFirst"])
+        self.assertEqual(result["collidingDlls"], ["winhttp.dll"])
+        self.assertFalse((self.root / "steamapps/appmanifest_12345.acf").exists())
+        self.assertEqual(apply_universal_setup(self.game()), result)
+
+    def test_mismatched_archive_applies_no_settings_and_skips_scan(self):
+        bad = [dict(self.build["main"][0], sha256="0" * 64)]
+        result = apply_universal_setup(self.game(records=bad))
+        self.assertFalse(result["buildMatched"])
+        self.assertFalse(result["readyForHighball"])
+        self.assertIsNone(result["settings"])
+        self.assertEqual(result["collidingDlls"], [])
+
+    def test_party_animals_delta_checks_expected_files(self):
+        (self.install / "UnityPlayer.dll").unlink()
+        result = apply_universal_setup(self.game())
+        self.assertTrue(result["buildMatched"])
+        self.assertFalse(result["readyForHighball"])
+        self.assertIsNone(result["settings"])
+        self.assertTrue(any(item["step"] == "Game files" and item["status"] == "skipped"
+                            for item in result["report"]))
+
+    def test_recipe_catalog_is_universal_plus_delta_with_no_duplicated_settings(self):
+        catalog = recipe_catalog()
+        self.assertEqual(set(catalog["deltas"]["meccha-chameleon"]), {"executable"})
+        self.assertNotIn("renderer", catalog["deltas"]["meccha-chameleon"])
+        self.assertNotIn("arguments", catalog["deltas"]["meccha-chameleon"])
+        receipt = {"gameID": "meccha-chameleon", "mainHashes": ["main"], "repairHashes": ["repair"],
+                   "universalSetup": {"readyForHighball": True,
+                       "settings": {"renderer": "d3dmetal", "arguments": ["-windowed"],
+                                    "requiresSteamFirst": True, "engine": "fixture"}}}
+        combined = highball_recipe(receipt)
+        self.assertEqual(combined["executable"], catalog["deltas"]["meccha-chameleon"]["executable"])
+        self.assertEqual(combined["renderer"], "d3dmetal")
+        self.assertEqual(combined["arguments"], ["-windowed"])
 
 
 class ArchiveTests(TemporaryTest):
@@ -245,16 +308,51 @@ class ArchiveTests(TemporaryTest):
             shutil.copyfile(files[url], destination)
             return sha256(destination)
         downloader.fetch.side_effect = fetch
+        steamapps = self.root / "Steam/steamapps"
+        steamapps.mkdir(parents=True)
         job = {"id": "fixture", "game": {"id": "fixture", "name": "Fixture",
-               "zipUrl": "https://fixture/main, https://fixture/main-extra", "fixZipUrl": "https://fixture/repair"},
+               "steamAppId": "12345", "zipUrl": "https://fixture/main, https://fixture/main-extra",
+               "fixZipUrl": "https://fixture/repair"},
                "installFolder": str(self.root / "Games")}
-        receipt = install(job, self.root / "cache", notify=Mock(), downloader=downloader)
+        with patch.dict(os.environ, {"HIGHBALL_STEAMAPPS": str(steamapps)}):
+            receipt = install(job, self.root / "cache", notify=Mock(), downloader=downloader)
         self.assertEqual((Path(receipt["installPath"]) / "runtime.dll").read_bytes(), b"new")
         self.assertEqual((Path(receipt["installPath"]) / "UnityPlayer.dll").read_bytes(), b"matching runtime")
+        self.assertFalse((steamapps / "appmanifest_12345.acf").exists())
         self.assertFalse(receipt["recordedRecipeAvailable"])
         # A new job cannot overwrite a prior game or borrow its ownership.
         with self.assertRaisesRegex(ValueError, "already exists"):
             install(dict(job, id="other"), self.root / "other-cache", notify=Mock(), downloader=downloader)
+
+    def test_fixture_install_runs_universal_setup_after_repair_and_reports_steps(self):
+        main = self.zipped("fixture-main.zip", {"Fixture/Game.exe": b"exe", "Fixture/winhttp.dll": b"proxy"})
+        repair = self.zipped("fixture-fix.zip", {"Fixture/fix.txt": b"fixed"})
+        records = lambda path: [{"bytes": path.stat().st_size, "sha256": sha256(path)}]
+        catalog = {"builds": {"fixture": {"main": records(main), "repair": records(repair),
+                                           "engine": "x64-sikarugir10.0_6-r28"}},
+                   "deltas": {"fixture": {"executable": "Game.exe"}}}
+        files = {"https://fixture/main": main, "https://fixture/fix": repair}
+        downloader = Mock()
+        def fetch(url, destination):
+            shutil.copyfile(files[url], destination)
+            return sha256(destination)
+        downloader.fetch.side_effect = fetch
+        steamapps = self.root / "Highball/Test/drive_c/Program Files (x86)/Steam/steamapps"
+        steamapps.mkdir(parents=True)
+        job = {"id": "fixture-e2e", "game": {"id": "fixture", "name": "Fixture",
+               "steamAppId": "987654", "zipUrl": "https://fixture/main", "fixZipUrl": "https://fixture/fix"},
+               "installFolder": str(self.root / "Games")}
+        notifications = []
+        with patch.object(universal_setup, "recipe_catalog", return_value=catalog), \
+                patch.dict(os.environ, {"HIGHBALL_STEAMAPPS": str(steamapps)}):
+            receipt = install(job, self.root / "cache-e2e", notify=lambda *a, **kw: notifications.append((a, kw)),
+                              downloader=downloader)
+        self.assertTrue(receipt["universalSetup"]["readyForHighball"])
+        self.assertTrue((Path(receipt["installPath"]) / "fix.txt").is_file())
+        self.assertFalse((steamapps / "appmanifest_987654.acf").exists())
+        status = next(args[1] for args, _ in notifications if args and args[0] == "installed")
+        self.assertIn("DLL overrides", status)
+        self.assertIn("D3DMetal prepared", status)
 
     def test_publish_refuses_even_an_empty_existing_directory(self):
         source, target = self.root / "source", self.root / "existing"
@@ -344,7 +442,7 @@ class HighballTests(TemporaryTest):
         self.game = self.root / "game"
         self.game.mkdir()
         (self.game / "Game.exe").write_bytes(b"not executed")
-        self.receipt = {"gameName": "Fixture", "installPath": str(self.game), "mainHashes": ["main"], "repairHashes": ["repair"]}
+        self.receipt = {"gameName": "Game Installer · Fixture", "installPath": str(self.game), "mainHashes": ["main"], "repairHashes": ["repair"]}
         self.recipe = {"executable": "Game.exe", "arguments": ["-windowed"], "renderer": "d3dmetal", "environment": {"WINEDLLOVERRIDES": "winmm=n,b"},
                        "mainHashes": ["main"], "repairHashes": ["repair"], "requiredRecipes": ["steam", "vcrun2022"], "engine": "fixture-engine"}
         self.report = {"readiness": {"home": str(self.root / "Highball"), "engines": [{"id": "fixture-engine", "renderers": {"d3dmetal": {"available": True}}}],
@@ -359,11 +457,10 @@ class HighballTests(TemporaryTest):
             if command[1:3] == ["pin", "add"]:
                 self.pinned = True
             if command[1:3] == ["pin", "list"]:
+                output = "Steam\tProgram Files (x86)/Steam/steam.exe\n"
                 if self.pinned:
                     extras = "" if self.bad_settings else "\targs=-windowed\tenv=WINEDLLOVERRIDES=winmm=n,b\trenderer=d3dmetal"
-                    output = "Game Installer · Fixture\t" + str(self.game / "Game.exe") + extras + "\n"
-                else:
-                    output = "Steam\tProgram Files (x86)/Steam/steam.exe\n"
+                    output += "Game Installer · Fixture\t" + str(self.game / "Game.exe") + extras + "\n"
             else:
                 output = "ok\n"
             return subprocess.CompletedProcess(command, 0, output, "")
@@ -448,6 +545,19 @@ class HighballTests(TemporaryTest):
         self.client.register(self.receipt, "Disposable", executable="Game.exe")
         self.client.launch(self.receipt)
         self.assertEqual(self.commands[-1], ["run", "Disposable", "Game Installer · Fixture"])
+
+    def test_steam_first_opens_steam_then_waits_for_second_play_click(self):
+        self.client.register(self.receipt, "Disposable", executable="Game.exe")
+        self.receipt["universalSetup"] = {"settings": {"requiresSteamFirst": True}}
+        self.client.dispatch = Mock(return_value={"pid": 123, "logPath": str(self.root / "launch.log")})
+        first = self.client.launch(self.receipt)
+        self.assertTrue(first["steamStarted"])
+        self.assertTrue(self.receipt["registration"]["steamReadyForNextLaunch"])
+        self.assertEqual(self.client.dispatch.call_args.args[0], ["run", "Disposable", "Steam"])
+        second = self.client.launch(self.receipt)
+        self.assertNotIn("steamStarted", second)
+        self.assertFalse(self.receipt["registration"]["steamReadyForNextLaunch"])
+        self.assertEqual(self.client.dispatch.call_args.args[0], ["run", "Disposable", "Game Installer · Fixture"])
 
     def test_manual_executable_cannot_escape_install_folder(self):
         with self.assertRaises(ValueError):

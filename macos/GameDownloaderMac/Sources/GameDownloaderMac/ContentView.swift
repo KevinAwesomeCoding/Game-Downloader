@@ -402,7 +402,7 @@ struct ContentView: View {
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }
                 GroupBox("Highball integration") {
-                    Text("Installation, registration, and launch are separate actions. Only two recorded build-specific recipes are included. Other games require selecting an executable and use Highball defaults. Compatibility badges are catalog predictions, not verification of gameplay or multiplayer.")
+                    Text("Installation, registration, and launch are separate actions. Recorded recipes apply only when the downloaded archives match the tested build. Other games require selecting an executable and use Highball defaults. Compatibility badges do not confirm gameplay or multiplayer.")
                         .foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
