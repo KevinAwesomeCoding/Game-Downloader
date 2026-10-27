@@ -610,6 +610,12 @@ struct ContentView: View {
                 .buttonStyle(InstallerButtonStyle(tint: Color(red: 0.24, green: 0.38, blue: 0.62)))
                 .help("Hand installation to Windows Steam inside the selected Highball bottle")
                 .disabled(model.operationBusy || model.selectedBottle.isEmpty)
+                Button { model.requestSteam("steam://open/main") } label: {
+                    Label("Launch Steam", systemImage: "play.fill")
+                }
+                .buttonStyle(InstallerButtonStyle(tint: Color(red: 0.20, green: 0.25, blue: 0.36)))
+                .help("Open Windows Steam inside the selected Highball bottle")
+                .disabled(model.operationBusy || model.selectedBottle.isEmpty)
             }
             updateCheckButton
             Button {
