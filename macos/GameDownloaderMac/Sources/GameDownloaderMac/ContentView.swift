@@ -478,11 +478,13 @@ struct ContentView: View {
                 await model.checkForAppUpdate()
             }
         }
-        .alert("Update available", item: $model.availableUpdate) { update in
-            Button("Later", role: .cancel) { model.availableUpdate = nil }
-            Button("Update") { model.installAppUpdate() }
-        } message: { update in
-            Text("Version \(update.version) is available.\n\n\(update.notes)")
+        .alert(item: $model.availableUpdate) { update in
+            Alert(
+                title: Text("Update available"),
+                message: Text("Version \(update.version) is available.\n\n\(update.notes)"),
+                primaryButton: .default(Text("Update")) { model.installAppUpdate() },
+                secondaryButton: .cancel(Text("Later")) { model.availableUpdate = nil }
+            )
         }
         .alert("Update status", isPresented: Binding(
             get: { model.updateMessage != nil },

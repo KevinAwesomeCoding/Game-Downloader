@@ -37,6 +37,7 @@ enum AppUpdater {
         return AppUpdate(id: release.tag_name, version: release.tag_name, notes: release.body ?? "No release notes provided.", url: asset.browser_download_url, sha256: digest)
     }
 
+    @MainActor
     static func install(_ update: AppUpdate) async throws {
         let (data, _) = try await URLSession.shared.data(from: update.url)
         let actual = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
