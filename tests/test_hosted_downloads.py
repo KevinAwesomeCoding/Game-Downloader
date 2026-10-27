@@ -1,5 +1,6 @@
 """Transfer/session regressions shared by the native Mac and Windows adapters."""
 import ast
+import asyncio
 import hashlib
 import io
 import json
@@ -9,8 +10,9 @@ import sys
 import tempfile
 import threading
 import time
+import types
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, AsyncMock, patch
 
 from download_support import Downloader, Stopped, atomic_json, fetch_with_backup
 from host_resolver import ResolutionError, single_file
@@ -148,6 +150,26 @@ class HostedTests(unittest.TestCase):
             resolve_source(self.source, stop=cancelled.is_set,
                            status=lambda message: cancelled.set(), command=[sys.executable, "-u", "-c", script])
         self.assertEqual(marker.read_text(), "closed")
+
+    def test_link_preparation_retries_transient_failures_three_times(self):
+        import host_resolver
+        contexts = [types.SimpleNamespace(close=AsyncMock()) for _ in range(3)]
+        browser = types.SimpleNamespace(new_context=AsyncMock(side_effect=contexts), close=AsyncMock())
+        manager = types.SimpleNamespace(chromium=types.SimpleNamespace(launch=AsyncMock(return_value=browser)))
+        scope = Mock()
+        scope.__aenter__ = AsyncMock(return_value=manager)
+        scope.__aexit__ = AsyncMock(return_value=False)
+        module = types.ModuleType("playwright.async_api")
+        module.async_playwright = Mock(return_value=scope)
+        with patch.dict(sys.modules, {"playwright.async_api": module}), \
+                patch.object(host_resolver, "gofile", new=AsyncMock(side_effect=[TimeoutError(), TimeoutError(), self.info])) as get, \
+                patch.object(host_resolver, "emit"), patch.object(host_resolver.asyncio, "sleep", new=AsyncMock()):
+            result = asyncio.run(host_resolver.resolve(self.source))
+        self.assertEqual(result["content_id"], "file")
+        self.assertEqual(get.await_count, 3)
+        for context in contexts:
+            context.close.assert_awaited_once()
+        browser.close.assert_awaited_once()
 
     def test_windows_adapter_uses_shared_transfer_and_preserves_progress(self):
         # Execute the actual Windows worker method without importing winreg/Qt

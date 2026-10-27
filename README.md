@@ -1,6 +1,6 @@
 # Game Installer
 
-A lightweight Windows desktop game launcher / installer built with **Python +
+A Windows desktop game launcher / installer built with **Python +
 PyQt6**. It shows a grid of games, lets you pick an install location, then
 downloads the game zip and extracts it into the folder you chose — with live
 download and extraction progress, full cancellation support, and a responsive

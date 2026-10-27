@@ -74,7 +74,11 @@ async def download_page(context, source, provider):
     downloads = []
     page.on("download", lambda download: (downloads.append(download), arrived.set()))
     try:
-        await page.goto(source, wait_until="domcontentloaded", timeout=40_000)
+        response = await page.goto(source, wait_until="domcontentloaded", timeout=40_000)
+        if response and response.status in (404, 410):
+            raise ResolutionError("The file host reports that this file is unavailable.")
+    except ResolutionError:
+        raise
     except Exception:
         if not downloads:
             raise
@@ -99,7 +103,7 @@ async def download_page(context, source, provider):
                     break
             await asyncio.sleep(1)
         if not downloads:
-            raise ResolutionError("The file host did not start a public download. Retry later.")
+            raise TimeoutError("The file host did not start a public download.")
     download = downloads[0]
     # A download event fires when headers arrive. Cancel its browser transfer;
     # the installer will stream through its own resumable HTTP client.

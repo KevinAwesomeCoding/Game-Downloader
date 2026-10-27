@@ -197,6 +197,7 @@ jobs:
 
       - name: Check shared downloads and Mac backend
         run: |
+          python3 -m pip install 'requests>=2.28'
           python3 -m unittest discover -s tests -v
           python3 -m unittest discover -s macos/backend/tests -v
 
@@ -270,8 +271,9 @@ jobs:
 
             ### Windows x64 and Highball users
             Download **`GameInstaller-windows-x64.exe`** for the single-file app. The onedir
-            Highball package is **`GameInstaller.zip`**; extract it and run `GameInstaller\GameInstaller.exe`.
-            It also runs inside a configured Highball Windows bottle.
+            folder package is **`GameInstaller.zip`**; extract it and run `GameInstaller\GameInstaller.exe`.
+            The included download browser targets native Windows 11 or later. Its operation
+            inside Wine/Highball has not been verified; Mac users should use the native Mac app.
 
             ### Native macOS users
             Download **`GameInstaller-macOS-arm64.zip`**, extract it, then open **Game Installer.app**.

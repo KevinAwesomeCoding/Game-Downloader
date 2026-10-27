@@ -87,6 +87,13 @@ The earlier full GoFile browser downloads also succeeded for roughly 8.5 MiB and
 1.1 GiB archives. Per-platform CI smoke checks establish packaged browser startup;
 they do not prove that every third-party URL will remain available.
 
+The catalog audit checked all 32 new GoFile primary links and confirmed one
+accessible file in each share. All 30 FileKeeper backup archives matched their
+GoFile primary's decoded filename and exact byte size. The two Pixeldrain backup
+volumes also passed range and size checks. One FileKeeper attempt failed
+transiently and passed on retry. These are availability and metadata checks,
+not a claim that separate hosts' entire archive bytes were hashed and compared.
+
 Run local deterministic checks:
 
 ```sh
