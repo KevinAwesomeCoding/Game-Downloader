@@ -12,7 +12,8 @@ import threading
 
 from archives import (content_root, extract, extract_rar_volume_set, find_tool,
                       is_rar_volume_set, merge_archive_part, merge_repair, safe_path)
-from downloads import Downloader, Stopped, atomic_json, checkpoint, fetch_with_backup, parts, sha256
+from downloads import (Downloader, Stopped, atomic_json, checkpoint, download_host_name,
+                       fetch_with_backup, parts, sha256)
 from highball import Highball
 from universal_setup import apply_universal_setup, recipe_catalog, report_lines
 
@@ -130,18 +131,22 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None):
             checkpoint(stop)
             suffix = f".part{index + 1}.rar" if len(sources) > 1 else ".archive"
             filename = cache / (label + suffix)
-            notify("downloading", f"Downloading {label} archive {index + 1} of {len(sources)}…", done=0, total=0)
-            transfer = downloader or Downloader(stop=stop, progress=lambda done, total: notify(
-                "downloading", f"Downloading {label} {index + 1}/{len(sources)}", done=done, total=total),
-                status=lambda message: notify("downloading", message, done=0, total=0))
+            active_host = {"name": download_host_name(source["url"])}
             backup_source = backups[index]["url"] if backups else ""
+
+            def fallback(_error):
+                active_host["name"] = download_host_name(backup_source)
+                notify("downloading",
+                       f"Primary {label} link failed; trying backup {index + 1} via {active_host['name']}…",
+                       done=0, total=0)
+
+            notify("downloading", f"Downloading {label} archive {index + 1} of {len(sources)} via {active_host['name']}…", done=0, total=0)
+            transfer = downloader or Downloader(stop=stop, progress=lambda done, total: notify(
+                "downloading", f"Downloading {label} {index + 1}/{len(sources)} via {active_host['name']}", done=done, total=total),
+                status=lambda message: notify("downloading", message, done=0, total=0))
             hashes.append(fetch_with_backup(
                 transfer, source["url"], backup_source, filename,
-                on_fallback=lambda _error, label=label, index=index: notify(
-                    "downloading",
-                    f"Primary {label} link failed; trying backup {index + 1}…",
-                    done=0, total=0,
-                ),
+                on_fallback=fallback,
             ))
             files.append(filename)
         all_hashes.append(hashes)

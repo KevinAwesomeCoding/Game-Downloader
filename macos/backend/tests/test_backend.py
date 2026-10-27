@@ -325,6 +325,26 @@ class ArchiveTests(TemporaryTest):
         with self.assertRaisesRegex(ValueError, "already exists"):
             install(dict(job, id="other"), self.root / "other-cache", notify=Mock(), downloader=downloader)
 
+    def test_download_status_names_primary_and_active_backup_host(self):
+        archive = self.zipped("host-fixture.zip", {"Fixture/Game.exe": b"fixture never executed"})
+        data = archive.read_bytes()
+        primary = "https://archive.org/download/fixture/game.zip"
+        backup = "https://pixeldrain.com/api/file/fixture?download"
+        error = urllib.error.HTTPError(primary, 503, "offline", {}, io.BytesIO(b""))
+        opener = Opener(error, Response(data, headers={"Content-Length": str(len(data))}))
+        notify = Mock()
+        job = {"id": "host-label", "game": {"id": "fixture", "name": "Fixture",
+               "zipUrl": primary, "zipBackupUrl": backup}, "installFolder": str(self.root / "Games")}
+        with patch("worker.Downloader", side_effect=lambda **kwargs: Downloader(opener, **kwargs)):
+            install(job, self.root / "cache", notify=notify)
+        messages = [call.args[1] for call in notify.call_args_list if call.args[0] == "downloading"]
+        self.assertTrue(any("via Internet Archive" in message for message in messages))
+        self.assertTrue(any("trying backup 1 via Pixeldrain" in message for message in messages))
+        transferred = [call.args[1] for call in notify.call_args_list
+                       if call.args[0] == "downloading" and call.kwargs.get("done", 0) > 0]
+        self.assertTrue(transferred)
+        self.assertTrue(all("via Pixeldrain" in message for message in transferred))
+
     def test_fixture_install_runs_universal_setup_after_repair_and_reports_steps(self):
         main = self.zipped("fixture-main.zip", {"Fixture/Game.exe": b"exe", "Fixture/winhttp.dll": b"proxy"})
         repair = self.zipped("fixture-fix.zip", {"Fixture/fix.txt": b"fixed"})

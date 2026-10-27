@@ -9,5 +9,5 @@ if not (Path(__file__).parent / "download_support.py").is_file():
 
 from download_support import (  # noqa: F401
     Downloader, DownloadForm, HTTPSRedirect, Stopped, atomic_json, canonical_source,
-    checkpoint, drive_confirmation, fetch_with_backup, https_url, parts, sha256,
+    checkpoint, download_host_name, drive_confirmation, fetch_with_backup, https_url, parts, sha256,
 )

@@ -37,6 +37,24 @@ def sha256(path, stop=lambda: False):
     return digest.hexdigest()
 
 
+def download_host_name(url):
+    """User-facing service name; never display a signed URL or session token."""
+    host = (urllib.parse.urlsplit(url).hostname or "").lower()
+    services = (
+        (("gofile.io",), "GoFile"),
+        (("filekeeper.net", "fetchio.cc"), "FileKeeper"),
+        (("drive.google.com", "drive.usercontent.google.com", "docs.google.com",
+          "googleusercontent.com"), "Google Drive"),
+        (("archive.org",), "Internet Archive"),
+        (("pixeldrain.com",), "Pixeldrain"),
+        (("catbox.moe",), "Catbox"),
+    )
+    for domains, name in services:
+        if any(host == domain or host.endswith("." + domain) for domain in domains):
+            return name
+    return host or "Unknown host"
+
+
 def https_url(url):
     parsed = urllib.parse.urlsplit(url)
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:

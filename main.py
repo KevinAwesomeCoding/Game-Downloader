@@ -45,7 +45,8 @@ import zipfile
 from datetime import datetime
 
 import requests
-from download_support import Downloader as HostedDownloader, Stopped as DownloadStopped, canonical_source
+from download_support import (Downloader as HostedDownloader, Stopped as DownloadStopped,
+                              canonical_source, download_host_name)
 from host_resolver_client import provider_for, helper_command
 from update_support import (UpdateNoticeState, UpdateRelease, compatible_release,
                             download_verified_file, schedule_background_check,
@@ -2059,6 +2060,7 @@ class InstallWorker(QObject):
         skipped outright.
         """
         _log.debug("_download ENTER  stage=%d  url=%s", stage_idx, url)
+        status_text = f"{status_text} via {download_host_name(url)}"
 
         # When this download is one volume of a multi-part set, frac_base /
         # frac_span map its local 0-100% onto the slice of the stage it owns
@@ -2078,6 +2080,7 @@ class InstallWorker(QObject):
         self._update_overall_progress()
 
         if provider_for(url):
+            self._emit_status(status_text, -1)
             # Use the same browser-session and verified transfer engine as the
             # native Mac app. Never append one host's bytes to another's partial.
             target = dest_file + ".backup" if part_suffix == ".backup.part" else dest_file
@@ -2424,7 +2427,7 @@ class InstallWorker(QObject):
                         self.game.id, kind, index + 1,
                     )
                     self._emit_status(
-                        f"{status_text}{suffix} failed; trying backup link", -1
+                        f"{status_text}{suffix} failed; trying backup via {download_host_name(backup['url'])}", -1
                     )
                     ok = self._download(
                         backup["url"], dest, status_text + suffix + " (backup)",

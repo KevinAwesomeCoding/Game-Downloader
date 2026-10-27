@@ -14,7 +14,7 @@ import types
 import unittest
 from unittest.mock import Mock, AsyncMock, patch
 
-from download_support import Downloader, Stopped, atomic_json, fetch_with_backup
+from download_support import Downloader, Stopped, atomic_json, download_host_name, fetch_with_backup
 from host_resolver import ResolutionError, single_file
 from host_resolver_client import ResolutionStopped, resolve_source, validate_result
 
@@ -140,6 +140,21 @@ class HostedTests(unittest.TestCase):
         cdn = {**self.info, "url": "https://edge01.fetchio.cc/file", "cookies": []}
         validate_result(cdn, "https://filekeeper.net/fixture")
 
+    def test_host_labels_name_services_without_exposing_urls(self):
+        for url, expected in [
+            ("https://store-na-phx-5.gofile.io/download/web/file/game.rar", "GoFile"),
+            ("https://filekeeper.net/file/game.rar", "FileKeeper"),
+            ("https://edge01.fetchio.cc/file?token=secret", "FileKeeper"),
+            ("https://drive.usercontent.google.com/download?id=file", "Google Drive"),
+            ("https://ia800100.us.archive.org/file.zip", "Internet Archive"),
+            ("https://pixeldrain.com/u/file", "Pixeldrain"),
+            ("https://files.catbox.moe/file.zip", "Catbox"),
+            ("https://user:secret@downloads.example.test/file?token=secret", "downloads.example.test"),
+            ("https://gofile.io.attacker.example/file", "gofile.io.attacker.example"),
+        ]:
+            with self.subTest(url=url):
+                self.assertEqual(download_host_name(url), expected)
+
     def test_helper_cancellation_closes_process_and_its_input(self):
         marker = self.root / "stopped"
         script = ("import sys,json,pathlib;sys.stdin.readline();"
@@ -178,7 +193,8 @@ class HostedTests(unittest.TestCase):
         cls = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "InstallWorker")
         method = next(node for node in cls.body if isinstance(node, ast.FunctionDef) and node.name == "_download")
         context = {"os": os, "time": time, "_log": Mock(), "provider_for": lambda url: "gofile",
-                   "DOWNLOAD_CHUNK": 65536, "DownloadStopped": Stopped}
+                   "DOWNLOAD_CHUNK": 65536, "DownloadStopped": Stopped,
+                   "download_host_name": download_host_name}
         context["HostedDownloader"] = lambda **kwargs: Downloader(Opener(self.response()), resolver=self.resolver, **kwargs)
         exec(compile(ast.Module(body=[method], type_ignores=[]), "main.py", "exec"), context)
         worker = Mock()
@@ -189,6 +205,7 @@ class HostedTests(unittest.TestCase):
         self.assertEqual(self.destination.read_bytes(), self.payload)
         signal.emit.assert_called_with(100)
         worker.speed_text.emit.assert_called()
+        self.assertTrue(all("via GoFile" in call.args[0] for call in worker._emit_status.call_args_list))
 
 
 if __name__ == "__main__":
