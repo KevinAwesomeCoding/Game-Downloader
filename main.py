@@ -45,6 +45,8 @@ import zipfile
 from datetime import datetime
 
 import requests
+from download_support import Downloader as HostedDownloader, Stopped as DownloadStopped, canonical_source
+from host_resolver_client import provider_for, helper_command
 from update_support import (UpdateNoticeState, UpdateRelease, compatible_release,
                             download_verified_file, schedule_background_check,
                             windows_update_script)
@@ -2075,6 +2077,51 @@ class InstallWorker(QObject):
         _emit_pct(0)
         self._update_overall_progress()
 
+        if provider_for(url):
+            # Use the same browser-session and verified transfer engine as the
+            # native Mac app. Never append one host's bytes to another's partial.
+            target = dest_file + ".backup" if part_suffix == ".backup.part" else dest_file
+            transfer = {"start": None, "offset": 0}
+
+            def hosted_progress(done, total):
+                now = time.monotonic()
+                if transfer["start"] is None:
+                    transfer.update(start=now, offset=max(0, done - DOWNLOAD_CHUNK))
+                elapsed = max(now - transfer["start"], 0.001)
+                speed = (done - transfer["offset"]) / elapsed
+                self.speed_text.emit(f"{speed / 1e6:.1f} MB/s")
+                self.eta_text.emit(f"{self._fmt_time((total - done) / speed)} remaining"
+                                   if total and speed > 0 else "calculating...")
+                if total:
+                    pct = min(100, int(done * 100 / total))
+                    _emit_pct(pct)
+                    self._emit_status(status_text, pct,
+                                      f"{self._fmt_bytes(done)} / {self._fmt_bytes(total)}")
+                else:
+                    progress_signal.emit(-1)
+                    self._emit_status(status_text, -1, self._fmt_bytes(done))
+                self._update_overall_progress()
+
+            try:
+                HostedDownloader(
+                    stop=self._cancel.is_set, progress=hosted_progress,
+                    status=lambda message: self._emit_status(message, -1),
+                ).fetch(url, target)
+                if target != dest_file:
+                    os.replace(target, dest_file)
+                    if os.path.exists(target + ".json"):
+                        os.replace(target + ".json", dest_file + ".json")
+                _emit_pct(100)
+                self._update_overall_progress()
+                return True
+            except DownloadStopped:
+                self._abort()
+                return False
+            except Exception as exc:
+                # Resolver output includes temporary credentials; never log it.
+                _report_error(f"Download failed: {exc}")
+                return False
+
         # Fully downloaded on a previous attempt → nothing to fetch.
         try:
             if os.path.exists(dest_file) and os.path.getsize(dest_file) > 0:
@@ -2107,6 +2154,8 @@ class InstallWorker(QObject):
 
         session = requests.Session()
         session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        if url.startswith("https://pixeldrain.com/u/"):
+            url = canonical_source(url)
 
         # Google Drive links route through the dedicated handler, which deals
         # with the large-file virus-scan interstitial and validates that we got
@@ -2349,6 +2398,19 @@ class InstallWorker(QObject):
             suffix = f"  (part {index + 1}/{count})" if count > 1 else ""
             self._stage_start = time.monotonic()
             backup = fallback_parts[index] if fallback_parts else None
+            try:
+                with open(dest + ".json", encoding="utf-8") as stream:
+                    receipt = json.load(stream)
+                cached_source = receipt.get("source")
+                choices = {part["url"], backup["url"] if backup else None}
+                if receipt.get("complete") and cached_source in choices and os.path.isfile(dest):
+                    if self._download(cached_source, dest, status_text + suffix, progress_signal,
+                                      stage_idx=stage_idx, frac_base=index / count,
+                                      frac_span=1 / count, report_errors=False):
+                        local_paths.append(dest)
+                        continue
+            except (OSError, ValueError):
+                pass
             if backup:
                 ok = self._download(
                     part["url"], dest, status_text + suffix, progress_signal,
@@ -5089,4 +5151,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if sys.argv[1:] == ["--check-download-browser"]:
+        sys.exit(subprocess.call(helper_command() + ["--self-check"],
+                                 env={**os.environ, "PYINSTALLER_RESET_ENVIRONMENT": "1"}))
+    else:
+        main()

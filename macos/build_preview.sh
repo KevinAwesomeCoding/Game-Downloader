@@ -15,6 +15,10 @@ cp "$ROOT/spikes/highball/readiness.py" "$RESOURCES/readiness.py"
 cp "$ROOT/spikes/highball/probe.py" "$RESOURCES/probe.py"
 mkdir -p "$RESOURCES/Backend"
 cp "$ROOT/macos/backend/"*.py "$RESOURCES/Backend/"
+cp "$ROOT/download_support.py" "$ROOT/host_resolver_client.py" "$RESOURCES/Backend/"
+python3 "$ROOT/tools/build_host_helper.py"
+mkdir -p "$RESOURCES/Backend/HostResolver"
+cp -R "$ROOT/build/host-resolver/HostResolver/." "$RESOURCES/Backend/HostResolver/"
 cp "$ROOT/macos/backend/recipes.json" "$RESOURCES/Backend/recipes.json"
 mkdir -p "$RESOURCES/Backend/HighballRecipes"
 cp "$ROOT/macos/backend/HighballRecipes/"*.json "$RESOURCES/Backend/HighballRecipes/"
@@ -79,6 +83,20 @@ if [[ ! -x "$unrar_resource" ]]; then
 fi
 codesign --force --sign - "$unrar_resource"
 codesign --verify --strict "$unrar_resource"
+
+# Sign nested helper binaries before the outer app; Chromium's headless shell
+# and the frozen Python helper each include their own native libraries.
+python3 - "$resource_bundle/Resources/Backend/HostResolver" <<'PY'
+from pathlib import Path
+import subprocess, sys
+root = Path(sys.argv[1])
+for path in sorted(root.rglob("*"), key=lambda p: len(p.parts), reverse=True):
+    if path.is_file() and not path.is_symlink():
+        with path.open("rb") as stream:
+            magic = stream.read(4)
+        if magic in (b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca"):
+            subprocess.run(["codesign", "--force", "--sign", "-", str(path)], check=True)
+PY
 
 mkdir -p "$HOME/Applications"
 stage="$(mktemp -d "$HOME/Applications/.game-installer-preview.XXXXXX")"

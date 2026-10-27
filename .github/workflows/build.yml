@@ -9,6 +9,11 @@ on:
     paths:
       - 'main.py'
       - 'requirements.txt'
+      - 'download_support.py'
+      - 'host_resolver*.py'
+      - 'tools/build_host_helper.py'
+      - 'tools/requirements-gofile.txt'
+      - 'tests/**'
       - 'version_info.txt'
       - 'VERSION'
       - 'games.json'
@@ -21,6 +26,11 @@ on:
     paths:
       - 'main.py'
       - 'requirements.txt'
+      - 'download_support.py'
+      - 'host_resolver*.py'
+      - 'tools/build_host_helper.py'
+      - 'tools/requirements-gofile.txt'
+      - 'tests/**'
       - 'version_info.txt'
       - 'VERSION'
       - 'games.json'
@@ -29,6 +39,15 @@ on:
       - 'spikes/highball/readiness.py'
       - '.github/workflows/**'
   workflow_dispatch:
+    inputs:
+      gofile_probe_url:
+        description: Optional public single-file GoFile URL for live range checks
+        type: string
+        default: ''
+      filekeeper_probe_url:
+        description: Optional public FileKeeper URL for live range checks
+        type: string
+        default: ''
 
 jobs:
   release_info:
@@ -72,6 +91,9 @@ jobs:
       - name: Check updater release selection and download safety
         run: python -m unittest discover -s tests -v
 
+      - name: Build the download browser helper
+        run: python tools/build_host_helper.py
+
       - name: Bundle 7-Zip binaries
         shell: pwsh
         run: |
@@ -98,6 +120,8 @@ jobs:
           --collect-all PyQt6
           --hidden-import PyQt6.sip
           --contents-directory .
+          --add-data "build/host-resolver/HostResolver;HostResolver"
+          --add-data "games.json;."
           --add-data "bin/7z.exe;bin"
           --add-data "bin/7z.dll;bin"
           --name "GameInstaller"
@@ -117,6 +141,8 @@ jobs:
           --version-file version_info.txt
           --collect-all PyQt6
           --hidden-import PyQt6.sip
+          --add-data "build/host-resolver/HostResolver;HostResolver"
+          --add-data "games.json;."
           --add-data "bin/7z.exe;bin"
           --add-data "bin/7z.dll;bin"
           --name "GameInstaller"
@@ -125,6 +151,28 @@ jobs:
       - name: Label the single-file Windows x64 asset
         shell: pwsh
         run: Move-Item dist\GameInstaller.exe dist\GameInstaller-windows-x64.exe
+
+      - name: Check the packaged Windows browsers
+        shell: pwsh
+        run: |
+          $folder = Start-Process -FilePath dist\GameInstaller\GameInstaller.exe -ArgumentList '--check-download-browser' -Wait -PassThru
+          if ($folder.ExitCode -ne 0) { throw "Folder build browser check failed" }
+          $single = Start-Process -FilePath dist\GameInstaller-windows-x64.exe -ArgumentList '--check-download-browser' -Wait -PassThru
+          if ($single.ExitCode -ne 0) { throw "Single-file build browser check failed" }
+
+      - name: Verify live hosted downloads with the Windows helper
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        env:
+          GOFILE_PROBE_URL: ${{ inputs.gofile_probe_url }}
+          FILEKEEPER_PROBE_URL: ${{ inputs.filekeeper_probe_url }}
+        run: |
+          foreach ($url in @($env:GOFILE_PROBE_URL, $env:FILEKEEPER_PROBE_URL)) {
+            if ($url) {
+              python tools/gofile_probe.py $url --helper dist\GameInstaller\HostResolver\HostResolver.exe
+              if ($LASTEXITCODE -ne 0) { throw "Hosted download range check failed" }
+            }
+          }
 
       - name: Upload Windows release files
         uses: actions/upload-artifact@v4
@@ -142,6 +190,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check shared downloads and Mac backend
+        run: |
+          python3 -m unittest discover -s tests -v
+          python3 -m unittest discover -s macos/backend/tests -v
+
       - name: Build the pinned Highball helper and include its source
         run: bash macos/package_highball_helper.sh
 
@@ -158,6 +216,18 @@ jobs:
       - name: Check macOS updater selection and install flow
         run: bash macos/check_updates.sh
 
+      - name: Verify live hosted downloads with the Mac helper
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GOFILE_PROBE_URL: ${{ inputs.gofile_probe_url }}
+          FILEKEEPER_PROBE_URL: ${{ inputs.filekeeper_probe_url }}
+        run: |
+          for url in "$GOFILE_PROBE_URL" "$FILEKEEPER_PROBE_URL"; do
+            if [[ -n "$url" ]]; then
+              python3 tools/gofile_probe.py "$url" --helper "$RUNNER_TEMP/Game Installer.app/Contents/Resources/GameDownloaderMac_GameDownloaderMac.bundle/Resources/Backend/HostResolver/HostResolver"
+            fi
+          done
+
       - name: Upload Mac release file
         uses: actions/upload-artifact@v4
         with:
@@ -167,7 +237,7 @@ jobs:
 
   publish_release:
     needs: [release_info, build_windows, build_macos]
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Download Windows build

@@ -132,7 +132,8 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None):
             filename = cache / (label + suffix)
             notify("downloading", f"Downloading {label} archive {index + 1} of {len(sources)}…", done=0, total=0)
             transfer = downloader or Downloader(stop=stop, progress=lambda done, total: notify(
-                "downloading", f"Downloading {label} {index + 1}/{len(sources)}", done=done, total=total))
+                "downloading", f"Downloading {label} {index + 1}/{len(sources)}", done=done, total=total),
+                status=lambda message: notify("downloading", message, done=0, total=0))
             backup_source = backups[index]["url"] if backups else ""
             hashes.append(fetch_with_backup(
                 transfer, source["url"], backup_source, filename,

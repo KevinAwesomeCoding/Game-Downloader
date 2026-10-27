@@ -26,6 +26,8 @@ UI at all times.
 - Optional repair/fix ZIP or RAR that merges into the game after install.
 - ZIP support native; RAR support via 7-Zip when installed.
 - Cancel a running download or extraction safely at any time.
+- Public single-file GoFile and FileKeeper links use a bundled browser to prepare
+  the download, then stream through the installer's progress and resume controls.
 - Friendly loading / error states, a **Retry** button, **Refresh**, and a
   "Last updated" timestamp.
 - All long-running work runs on background threads — the window never freezes.
@@ -46,6 +48,7 @@ python -m pip install -r requirements.txt
 ```
 PyQt6
 requests
+playwright
 ```
 
 (Using a virtual environment is recommended but optional.)
@@ -55,6 +58,21 @@ python -m venv venv
 venv\Scripts\activate
 python -m pip install -r requirements.txt
 ```
+
+To run `tools/boytime.py` on macOS, use the same virtual environment to install Playwright, its Chromium browser, and run the script:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+python -m pip install playwright
+python -m playwright install chromium
+python tools/boytime.py
+```
+
+The release builds include their download browser. Source runs need the
+Playwright Chromium installation above for GoFile and FileKeeper sources.
+See [the hosted download implementation notes](GOFILE-INTEGRATION-PLAN.md) for
+packaging, supported platforms, and verification details.
 
 ---
 

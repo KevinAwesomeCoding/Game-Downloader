@@ -219,7 +219,8 @@ class UniversalSetupTests(TemporaryTest):
 
     def test_recipe_catalog_is_universal_plus_delta_with_no_duplicated_settings(self):
         catalog = recipe_catalog()
-        self.assertEqual(set(catalog["deltas"]["meccha-chameleon"]), {"executable"})
+        self.assertEqual(set(catalog["deltas"]["meccha-chameleon"]), {"executable", "requiredRecipes"})
+        self.assertEqual(catalog["deltas"]["meccha-chameleon"]["requiredRecipes"], ["steam", "vcrun2022"])
         self.assertNotIn("renderer", catalog["deltas"]["meccha-chameleon"])
         self.assertNotIn("arguments", catalog["deltas"]["meccha-chameleon"])
         receipt = {"gameID": "meccha-chameleon", "mainHashes": ["main"], "repairHashes": ["repair"],
@@ -459,7 +460,7 @@ class HighballTests(TemporaryTest):
             if command[1:3] == ["pin", "list"]:
                 output = "Steam\tProgram Files (x86)/Steam/steam.exe\n"
                 if self.pinned:
-                    extras = "" if self.bad_settings else "\targs=-windowed\tenv=WINEDLLOVERRIDES=winmm=n,b\trenderer=d3dmetal"
+                    extras = "" if self.bad_settings else "\targs=-windowed\tenv=WINEDLLOVERRIDES=winmm=native,builtin\trenderer=d3dmetal"
                     output += "Game Installer · Fixture\t" + str(self.game / "Game.exe") + extras + "\n"
             else:
                 output = "ok\n"
@@ -476,9 +477,10 @@ class HighballTests(TemporaryTest):
                                gui_running=lambda: False, launcher=launcher, launch_directory=self.root / "launch-logs")
 
     def test_recipe_sets_and_verifies_only_explicit_fields(self):
+        (self.game / "winmm.dll").write_bytes(b"fixture DLL never executed")
         self.client.register(self.receipt, "Disposable", recipe=self.recipe)
         self.assertTrue(self.receipt["registration"]["complete"])
-        self.assertIn(["pin", "set", "Disposable", "Game Installer · Fixture", "env", "WINEDLLOVERRIDES=winmm=n,b"], self.commands)
+        self.assertIn(["pin", "set", "Disposable", "Game Installer · Fixture", "env", "WINEDLLOVERRIDES=winmm=native,builtin"], self.commands)
         self.assertFalse(any(command[0] == "bottle" for command in self.commands))
 
     def test_unknown_build_engine_dependency_or_renderer_does_not_mutate(self):

@@ -68,6 +68,12 @@ fake Steam installation records.
   tried only after the corresponding primary link fails. Multipart backup lists
   must match primary part-for-part and use the same order; each host keeps a
   separate partial download.
+- **GoFile and FileKeeper:** the bundled browser helper prepares a public file's
+  download session, then closes while the shared Python downloader streams the
+  archive with progress, cancellation, and verified resume. GoFile shares must
+  contain exactly one accessible file. The helper and its Chromium headless
+  browser are included in Mac releases; installing Playwright in system Python
+  is not required. Build details are in `GOFILE-INTEGRATION-PLAN.md` at the repo root.
 - **Staged extraction and repairs:** ZIP, including traditional password-protected
   ZIP using the catalog's existing password. RAR/7z uses optional local `unar` and
   `lsar`. Paths, links, case/Unicode collisions and each extracted file's size are
