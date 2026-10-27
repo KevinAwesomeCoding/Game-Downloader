@@ -48,6 +48,9 @@ def download_host_name(url):
         (("archive.org",), "Internet Archive"),
         (("pixeldrain.com",), "Pixeldrain"),
         (("catbox.moe",), "Catbox"),
+        (("fileditchfiles.me", "fileditchfiles.st", "itsfileditchfiles.st"), "FileDitch"),
+        (("rootz.so",), "Rootz"),
+        (("vikingfile.com",), "VikingFile"),
     )
     for domains, name in services:
         if any(host == domain or host.endswith("." + domain) for domain in domains):
