@@ -146,11 +146,14 @@ class HostedTests(unittest.TestCase):
             ("https://filekeeper.net/file/game.rar", "FileKeeper"),
             ("https://edge01.fetchio.cc/file?token=secret", "FileKeeper"),
             ("https://drive.usercontent.google.com/download?id=file", "Google Drive"),
+            ("https://drive.google.com/file/d/file/view", "Google Drive"),
+            ("https://archive.org/download/item/file.zip", "Internet Archive"),
             ("https://ia800100.us.archive.org/file.zip", "Internet Archive"),
             ("https://pixeldrain.com/u/file", "Pixeldrain"),
             ("https://files.catbox.moe/file.zip", "Catbox"),
-            ("https://user:secret@downloads.example.test/file?token=secret", "downloads.example.test"),
-            ("https://gofile.io.attacker.example/file", "gofile.io.attacker.example"),
+            ("https://user:secret@downloads.example.test/file?token=secret", "Custom link"),
+            ("https://gofile.io.attacker.example/file", "Custom link"),
+            ("", "Custom link"),
         ]:
             with self.subTest(url=url):
                 self.assertEqual(download_host_name(url), expected)

@@ -52,7 +52,7 @@ def download_host_name(url):
     for domains, name in services:
         if any(host == domain or host.endswith("." + domain) for domain in domains):
             return name
-    return host or "Unknown host"
+    return "Custom link"
 
 
 def https_url(url):
