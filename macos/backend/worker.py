@@ -344,6 +344,10 @@ def main():
             fallback = registration.get("rendererFallback")
             if fallback:
                 message += f" D3DMetal is unavailable in this Highball engine, so this pin uses the bottle's available {fallback['used']} renderer instead."
+            if registration.get("executableSource") == "automatic detection":
+                message += f" Automatically detected game executable: {registration['executable']}. Use Choose .exe & add if you want to change it."
+            elif registration.get("executableSource") == "manual":
+                message += f" Game executable selected manually: {registration['executable']}."
             dll_overrides = registration.get("nativeFirstDlls", [])
             if dll_overrides:
                 message += f" Native-first DLL overrides applied: {len(dll_overrides)} ({', '.join(dll_overrides)})."

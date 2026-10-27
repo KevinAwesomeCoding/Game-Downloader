@@ -163,7 +163,8 @@ def apply_universal_setup(game):
     if build_matches:
         report.append(_report("Build check", "applied", "Archive sizes and SHA-256 match the recorded build."))
     elif not build:
-        report.append(_report("Build check", "skipped", "No recorded build; automatic setup is disabled."))
+        report.append(_report("Build check", "skipped",
+                              "No recorded build; compatibility settings are withheld. The game can still be added using executable detection."))
     else:
         report.append(_report("Build check", "skipped", "Archive size or SHA-256 differs; no setup settings were applied."))
 

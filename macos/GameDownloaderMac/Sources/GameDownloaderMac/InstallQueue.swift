@@ -127,7 +127,9 @@ extension AppModel {
         let existing = Set(bottle.recipes.split(separator: ",").map(String.init))
         let missing = required.filter { !existing.contains($0) }
         var prepareRecipes: [String]? = missing.isEmpty ? nil : missing
-        var automaticAdd = !required.isEmpty
+        // Add the installed game to Highball by default. If prerequisite setup
+        // is missing, the prompt below still lets the user choose Download Only.
+        var automaticAdd = true
         if !missing.isEmpty {
             let alert = NSAlert()
             alert.messageText = "Prepare Highball for \(game.name)?"
@@ -303,7 +305,7 @@ extension AppModel {
                 self.activeJobID = nil
                 self.saveQueue()
                 if let updated = self.jobs.first(where: { $0.id == job.id }),
-                   updated.isInstalled, updated.recipeAvailable, updated.automaticAdd == true, !updated.registered {
+                   updated.isInstalled, updated.automaticAdd == true, !updated.registered {
                     self.addAutomaticallyToHighball(updated)
                 } else {
                     self.startNext()
@@ -404,10 +406,8 @@ extension AppModel {
         }
         if job.registered {
             runHighball(job, launch: true)
-        } else if job.recipeAvailable {
-            runHighball(job)
         } else {
-            chooseExecutable(job)
+            runHighball(job)
         }
     }
 
@@ -421,13 +421,13 @@ extension AppModel {
 
     private func addAutomaticallyToHighball(_ job: InstallJob) {
         guard operationSession == nil else {
-            updateJob(job.id) { $0.message = "Installed. Highball is busy; use Add with recorded recipe when ready." }
+            updateJob(job.id) { $0.message = "Installed. Highball is busy; retry adding it when ready." }
             startNext()
             return
         }
         let bottle = job.targetBottle ?? selectedBottle
         guard !bottle.isEmpty else {
-            updateJob(job.id) { $0.message = "Installed. Choose a Highball bottle, then use Add with recorded recipe." }
+            updateJob(job.id) { $0.message = "Installed. Choose a Highball bottle, then retry adding it." }
             startNext()
             return
         }
@@ -439,7 +439,7 @@ extension AppModel {
                 wasRunning = try await HighballLifecycle.closeForConfiguration()
             } catch {
                 operationBusy = false
-                updateJob(job.id) { $0.message = "Installed, but automatic Highball setup could not continue: \(error.localizedDescription)" }
+                updateJob(job.id) { $0.message = "Installed, but automatic Highball registration could not continue: \(error.localizedDescription)" }
                 startNext()
                 return
             }
@@ -449,7 +449,7 @@ extension AppModel {
             ) {
                 HighballLifecycle.reopenIfNeeded(wasRunning)
                 if let current = self.jobs.first(where: { $0.id == job.id }), !current.registered {
-                    self.updateJob(job.id) { $0.message = "Installed, but it could not be added automatically. Use Add with recorded recipe to retry." }
+                    self.updateJob(job.id) { $0.message = "Installed, but automatic registration could not finish. Use Choose .exe & add to select or change the game executable." }
                 }
                 self.startNext()
             }

@@ -894,7 +894,7 @@ struct ContentView: View {
                                         if job.recipeAvailable {
                                             Button("Add with recorded recipe") { model.runHighball(job) }.disabled(model.operationBusy)
                                         }
-                                        Button("Choose .exe & add") { model.chooseExecutable(job) }.disabled(model.operationBusy)
+                                        Button(job.registered ? "Change .exe" : "Choose .exe & add") { model.chooseExecutable(job) }.disabled(model.operationBusy)
                                         if job.registered {
                                             Button("Play in Highball") { model.runHighball(job, launch: true) }.disabled(model.operationBusy)
                                             Text(job.bottle ?? "").font(.caption).foregroundStyle(.secondary)
@@ -1023,7 +1023,7 @@ struct ContentView: View {
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }
                 GroupBox("Highball integration") {
-                    Text("Installation, registration, and launch are separate actions. Recorded recipes apply only when the downloaded archives match the tested build. Other games require selecting an executable and use Highball defaults. Compatibility badges do not confirm gameplay or multiplayer.")
+                    Text("After installation, Game Installer looks for the game executable, preferring a match to the game title, and adds it to the selected Highball bottle. If it cannot choose confidently, use Choose .exe & add; after registration, Change .exe lets you correct the selection. Recorded compatibility settings apply only to matching tested builds; other games use Highball defaults plus any detected Wine DLL-loading overrides.")
                         .foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -1397,7 +1397,7 @@ private struct GameDetailsSheet: View {
                 if let version = game.version { Text("v\(version)") }
             }.font(.callout).foregroundStyle(.secondary)
             Spacer()
-            Text("\(game.isSteamEntry ? "This entry opens Windows Steam in the selected Highball bottle. Its repair-only flow is not implemented yet." : model.hasRecordedHighballRecipe(for: game.id) ? "Downloads the game to the selected folder, then adds its verified executable, title, cover, and saved settings to the selected Highball bottle. Missing Steam or Visual C++ components can be set up first. The game does not launch automatically." : "Downloads the game to the selected folder. Afterward, choose its executable to add it to the selected Highball bottle; no unverified fixes are guessed.")")
+            Text("\(game.isSteamEntry ? "This entry opens Windows Steam in the selected Highball bottle. Its repair-only flow is not implemented yet." : model.hasRecordedHighballRecipe(for: game.id) ? "Downloads the game to the selected folder, then adds its verified executable, title, cover, and saved settings to the selected Highball bottle. Missing Steam or Visual C++ components can be set up first. The game does not launch automatically." : "Downloads the game to the selected folder, detects a likely game executable, and adds it to the selected Highball bottle with default settings plus any detected DLL-loading overrides. If detection is uncertain, choose the .exe yourself; you can change it later.")")
                 .font(.footnote).foregroundStyle(.secondary)
             Text(model.installFolder).font(.caption.monospaced()).lineLimit(2).foregroundStyle(.secondary)
             HStack {

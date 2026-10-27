@@ -14,6 +14,66 @@ from archives import safe_path
 from universal_setup import native_first_dll_names
 
 
+_NON_GAME_EXECUTABLES = {
+    "unins000", "uninstaller", "uninstall", "setup", "install", "installer",
+    "vc_redist.x64", "vc_redist.x86", "dxsetup", "unitycrashhandler64",
+    "unitycrashhandler32", "crashreportclient", "easyanticheat_eos_setup",
+    "battleye_launcher", "redist", "directxsetup",
+}
+
+
+def _normalized_name(value):
+    return re.sub(r"[^a-z0-9]", "", value.casefold())
+
+
+def detect_game_executable(root, game_name):
+    """Choose a high-confidence game executable without applying compatibility fixes.
+
+    Exact title matches win. Otherwise recognize common shipping executable names,
+    then use a sole plausible executable only when the folder has no ambiguity.
+    """
+    root = Path(root).resolve(strict=True)
+    title = _normalized_name(game_name)
+    candidates = []
+    for current, directories, filenames in os.walk(root, followlinks=False):
+        directories[:] = sorted(name for name in directories
+                                if not (Path(current) / name).is_symlink())
+        for filename in filenames:
+            path = Path(current) / filename
+            if path.suffix.casefold() != ".exe" or path.is_symlink() or not path.is_file():
+                continue
+            stem = path.stem
+            normalized = _normalized_name(stem)
+            path_parts = {part.casefold() for part in path.relative_to(root).parts[:-1]}
+            if (normalized in _NON_GAME_EXECUTABLES or
+                    any(token in normalized for token in ("crashhandler", "unins", "redist", "prereqsetup")) or
+                    any(part in {"_commonredist", "redist", "redistributables", "support"} for part in path_parts)):
+                continue
+            score = 0
+            if normalized == title:
+                score = 100
+            elif title and (normalized.startswith(title) or title.startswith(normalized)):
+                score = 90
+            elif title and title in normalized and any(tag in normalized for tag in ("win64shipping", "shipping", "game")):
+                score = 85
+            elif title and normalized in title and len(normalized) >= max(5, len(title) // 2):
+                score = 80
+            if "binaries" in path_parts and ("win64" in path_parts or "win32" in path_parts):
+                score += 5
+            candidates.append((score, str(path.relative_to(root))))
+
+    if not candidates:
+        return None
+    ranked = sorted(candidates, key=lambda item: (-item[0], item[1].casefold()))
+    if ranked[0][0] >= 80 and (len(ranked) == 1 or ranked[0][0] > ranked[1][0]):
+        return ranked[0][1]
+    # A single non-installer executable is a safe default; multiple unrelated
+    # executables require the user to choose explicitly.
+    if len(ranked) == 1:
+        return ranked[0][1]
+    return None
+
+
 def parse_pins(output):
     pins = {}
     for line in output.splitlines():
@@ -200,6 +260,7 @@ class Highball:
         if self.gui_running():
             raise ValueError("Close Highball's window/app before adding a program to avoid stale settings writes. Steam may remain running.")
         root = Path(receipt["installPath"]).resolve(strict=True)
+        executable_source = "manual" if executable else None
         if recipe:
             environment = recipe.get("environment", {})
             arguments = recipe.get("arguments", [])
@@ -224,8 +285,22 @@ class Highball:
                 else:
                     raise ValueError("Recipe renderer is unavailable or needs its license accepted in Highball, and the bottle renderer is unavailable too.")
             executable = recipe["executable"]
+            executable_source = "recorded recipe"
         if not executable:
-            raise ValueError("No verified recipe is available. Choose the actual game .exe; default Highball settings will be used.")
+            previous = receipt.get("detectedExecutable")
+            if previous:
+                try:
+                    previous_path = (root / safe_path(previous)).resolve(strict=True)
+                    if not previous_path.is_relative_to(root) or not previous_path.is_file() or previous_path.suffix.lower() != ".exe":
+                        previous = None
+                except (OSError, ValueError):
+                    previous = None
+            executable = previous or detect_game_executable(root, receipt.get("gameName", ""))
+            if executable:
+                executable_source = "automatic detection"
+                receipt["detectedExecutable"] = executable
+            else:
+                raise ValueError("Could not identify one likely game .exe. Choose the game executable manually; no unverified compatibility fixes will be applied.")
         target = (root / safe_path(executable)).resolve(strict=True)
         if not target.is_relative_to(root) or not target.is_file() or target.suffix.lower() != ".exe":
             raise ValueError("Choose an .exe inside this game's installed folder.")
@@ -266,6 +341,8 @@ class Highball:
         # Record ownership immediately so retry can recover after a failed setting.
         receipt["registration"] = {"bottle": bottle, "pin": name, "executable": executable, "complete": False,
                                    "settingsMode": "recorded" if recipe else ("detected-dlls" if native_first else "default")}
+        if executable_source:
+            receipt["registration"]["executableSource"] = executable_source
         if recipe and renderer_fallback:
             receipt["registration"]["rendererFallback"] = renderer_fallback
         if native_first:

@@ -108,8 +108,12 @@ fake Steam installation records.
   that collide with Wine builtins receive per-game native-first overrides. Steam
   install records are never fabricated. These local
   observations do not prove every gameplay or multiplayer feature works.
-- **Other games:** Choose .exe & add selects an executable within the installed
-  folder and creates a pin using bottle defaults, without inferred DLL fixes.
+- **Other games:** after installation, the installer picks a likely executable
+  (exact title match first, then common shipping names or one unambiguous .exe)
+  and creates a pin using bottle defaults plus any detected Wine DLL-loading
+  overrides. If detection is ambiguous, Choose .exe & add remains available;
+  Change .exe can correct a registered pin. No unverified renderer or per-game
+  fixes are inferred.
   A prior recorded-settings pin is not silently converted to default settings.
   Registration errors keep installed files, cache, and receipts for retry.
 - **Launch Steam:** opens the pinned Windows Steam app in the selected Highball
