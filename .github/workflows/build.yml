@@ -69,6 +69,9 @@ jobs:
           pip install -r requirements.txt
           pip install "pyinstaller>=6.0"
 
+      - name: Check updater release selection and download safety
+        run: python -m unittest discover -s tests -v
+
       - name: Bundle 7-Zip binaries
         shell: pwsh
         run: |
@@ -119,13 +122,17 @@ jobs:
           --name "GameInstaller"
           main.py
 
+      - name: Label the single-file Windows x64 asset
+        shell: pwsh
+        run: Move-Item dist\GameInstaller.exe dist\GameInstaller-windows-x64.exe
+
       - name: Upload Windows release files
         uses: actions/upload-artifact@v4
         with:
           name: windows-release-files
           path: |
             dist/GameInstaller.zip
-            dist/GameInstaller.exe
+            dist/GameInstaller-windows-x64.exe
           if-no-files-found: error
 
   build_macos:
@@ -146,13 +153,16 @@ jobs:
           APP_DESTINATION: ${{ runner.temp }}/Game Installer.app
         run: |
           bash macos/build_preview.sh
-          ditto -c -k --sequesterRsrc --keepParent "$APP_DESTINATION" "$RUNNER_TEMP/GameInstaller-macOS.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_DESTINATION" "$RUNNER_TEMP/GameInstaller-macOS-arm64.zip"
+
+      - name: Check macOS updater selection and install flow
+        run: bash macos/check_updates.sh
 
       - name: Upload Mac release file
         uses: actions/upload-artifact@v4
         with:
           name: macos-release-files
-          path: ${{ runner.temp }}/GameInstaller-macOS.zip
+          path: ${{ runner.temp }}/GameInstaller-macOS-arm64.zip
           if-no-files-found: error
 
   publish_release:
@@ -181,25 +191,25 @@ jobs:
           prerelease: false
           files: |
             release-assets/GameInstaller.zip
-            release-assets/GameInstaller.exe
-            release-assets/GameInstaller-macOS.zip
+            release-assets/GameInstaller-windows-x64.exe
+            release-assets/GameInstaller-macOS-arm64.zip
           body: |
             **Version:** ${{ needs.release_info.outputs.version }}
             **Commit:** `${{ github.sha }}`
             **Trigger:** ${{ github.event_name }}
 
-            ### Windows and Highball users
-            Download **`GameInstaller.zip`**, extract it, and run `GameInstaller\GameInstaller.exe`.
-            This Windows build also runs inside a configured Highball Windows bottle.
+            ### Windows x64 and Highball users
+            Download **`GameInstaller-windows-x64.exe`** for the single-file app. The onedir
+            Highball package is **`GameInstaller.zip`**; extract it and run `GameInstaller\GameInstaller.exe`.
+            It also runs inside a configured Highball Windows bottle.
 
             ### Native macOS users
-            Download **`GameInstaller-macOS.zip`**, extract it, then open **Game Installer.app**.
-            Requires macOS 14 or later. The app is ad-hoc signed, so macOS may require
+            Download **`GameInstaller-macOS-arm64.zip`**, extract it, then open **Game Installer.app**.
+            This build targets Apple silicon (arm64) and requires macOS 14 or later. The app is ad-hoc signed, so macOS may require
             opening it from Finder and approving it in Privacy & Security. Highball's
             version-matched helper can be installed from Settings. Python 3 is still
             required for readiness checks and the current Mac setup flow. The app includes
             the helper's GPL-3.0 license and corresponding source archive.
 
-            **Windows single-file option:** `GameInstaller.exe`.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

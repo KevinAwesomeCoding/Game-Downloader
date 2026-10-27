@@ -195,8 +195,8 @@ bash macos/build_preview.sh
   install controls and progress on the actual app, then perform a separately
   authorized disposable-bottle game test before claiming end-to-end compatibility.
 - The repair-only Steam catalog entry can hand off to Windows Steam, but applying
-  its patch to a pre-existing Steam game is not implemented. There is no update,
-  uninstall, overwrite-existing-folder, automated prerequisite installation,
+  its patch to a pre-existing Steam game is not implemented. Uninstall,
+  overwrite-existing-folder, automated prerequisite installation,
   private Drive authentication or split-ZIP reconstruction flow.
 - ZIP AES/unsupported compression methods stop clearly. Split RAR archives are
   extracted as a single volume set by UnRAR. The release build still needs
@@ -209,6 +209,6 @@ bash macos/build_preview.sh
 - Startup, menu, gameplay, hosting, invites and joining remain separate results.
   Archive hashes identify tested bytes, not publisher authenticity. Menu arrival,
   an install receipt or a successful CLI exit cannot establish multiplayer.
-- Bundle the runtime, add Developer ID signing/notarization, GPL corresponding
-  source/notices for the helper, version/update coordination and clean-Mac tests
+- Bundle the Python runtime, add Developer ID signing/notarization, GPL corresponding
+  source/notices for the helper, and clean-Mac end-to-end tests
   before presenting this as a consumer-ready installer.

@@ -19,9 +19,11 @@ final class AppModel: ObservableObject {
     @Published var actionLogPath: String?
     @Published var operationBusy = false
     @Published var rarAvailable = false
-    @Published var availableUpdate: AppUpdate?
+    @Published var updateNotice = UpdateNoticeState()
     @Published var updateMessage: String?
+    @Published var updateAlertMessage: String?
     @Published var isInstallingUpdate = false
+    @Published var isCheckingForAppUpdate = false
     @Published var selectedBottle = UserDefaults.standard.string(forKey: "selectedBottle") ?? "" {
         didSet { UserDefaults.standard.set(selectedBottle, forKey: "selectedBottle") }
     }
@@ -64,25 +66,44 @@ final class AppModel: ObservableObject {
         readinessError?.localizedCaseInsensitiveContains("helper") == true
     }
 
+    var updateInstallSafe: Bool {
+        !operationBusy && !jobs.contains { $0.isActive || $0.status == "queued" }
+    }
+
     init() {
+        updateMessage = AppUpdater.consumeStatus()
+        updateAlertMessage = updateMessage
         loadCatalog()
         restoreQueue()
         restoreGameFolderAccess()
     }
 
-    func checkForAppUpdate() async {
-        do { availableUpdate = try await AppUpdater.check() }
-        catch { updateMessage = "Could not check for updates: \(error.localizedDescription)" }
+    func checkForAppUpdate(manual: Bool = false) async {
+        guard !isCheckingForAppUpdate else { return }
+        isCheckingForAppUpdate = true
+        defer { isCheckingForAppUpdate = false }
+        do {
+            let update = try await AppUpdater.check()
+            if let update { updateNotice.offer(update); updateMessage = nil }
+            else if manual { updateAlertMessage = "No compatible update is available." }
+        } catch {
+            if manual { updateAlertMessage = "Could not check for updates: \(error.localizedDescription)" }
+        }
     }
 
     func installAppUpdate() {
-        guard let update = availableUpdate else { return }
+        guard let update = updateNotice.update else { return }
         isInstallingUpdate = true
         Task {
-            do { try await AppUpdater.install(update) }
+            do {
+                try await AppUpdater.install(update) { [weak self] message in
+                    self?.updateMessage = message
+                }
+            }
             catch {
                 isInstallingUpdate = false
                 updateMessage = "Update could not be installed: \(error.localizedDescription)"
+                updateAlertMessage = updateMessage
             }
         }
     }
@@ -380,6 +401,7 @@ struct ContentView: View {
     @AppStorage("librarySortOrder") private var librarySortOrder = LibrarySortOrder.oldestFirst.rawValue
     @State private var selectedGame: Game?
     @State private var cleanupTarget: InstallJob?
+    @State private var showingUpdateDetails = false
 
     private let columns = [GridItem(.adaptive(minimum: 285, maximum: 360), spacing: 22)]
 
@@ -471,6 +493,25 @@ struct ContentView: View {
         }
         .task {
             guard model.gameFolderAccessGranted else { return }
+            await model.checkHighball()
+            if model.highballSetupComplete && !model.operationBusy {
+                model.beginOperation(["tools"], jobID: nil, bottle: model.selectedBottle)
+            }
+        }
+        }
+        }
+        .sheet(isPresented: $showingUpdateDetails, onDismiss: { model.updateNotice.later() }) {
+            if let update = model.updateNotice.update {
+                UpdateDetailsView(update: update, model: model) {
+                    model.updateNotice.later()
+                    showingUpdateDetails = false
+                }
+                .frame(minWidth: 480, idealWidth: 560, minHeight: 340, idealHeight: 440)
+            }
+        }
+        .task {
+            try? await Task.sleep(for: .seconds(15))
+            guard !Task.isCancelled else { return }
             await model.checkForAppUpdate()
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(120))
@@ -478,30 +519,13 @@ struct ContentView: View {
                 await model.checkForAppUpdate()
             }
         }
-        .alert(item: $model.availableUpdate) { update in
-            Alert(
-                title: Text("Update available"),
-                message: Text("Version \(update.version) is available.\n\n\(update.notes)"),
-                primaryButton: .default(Text("Update")) { model.installAppUpdate() },
-                secondaryButton: .cancel(Text("Later")) { model.availableUpdate = nil }
-            )
-        }
         .alert("Update status", isPresented: Binding(
-            get: { model.updateMessage != nil },
-            set: { if !$0 { model.updateMessage = nil } }
+            get: { model.updateAlertMessage != nil },
+            set: { if !$0 { model.updateAlertMessage = nil } }
         )) {
-            Button("OK") { model.updateMessage = nil }
+            Button("OK") { model.updateAlertMessage = nil }
         } message: {
-            Text(model.updateMessage ?? "")
-        }
-        .task {
-            guard model.gameFolderAccessGranted else { return }
-            await model.checkHighball()
-            if model.highballSetupComplete && !model.operationBusy {
-                model.beginOperation(["tools"], jobID: nil, bottle: model.selectedBottle)
-            }
-        }
-        }
+            Text(model.updateAlertMessage ?? "")
         }
     }
 
@@ -573,6 +597,7 @@ struct ContentView: View {
                 .help("Hand installation to Windows Steam inside the selected Highball bottle")
                 .disabled(model.operationBusy || model.selectedBottle.isEmpty)
             }
+            updateCheckButton
             Button {
                 Task {
                     await model.refreshCatalog()
@@ -590,6 +615,31 @@ struct ContentView: View {
         }
         .padding(.horizontal, 25).padding(.vertical, 16)
         .background(Color(red: 0.075, green: 0.09, blue: 0.145))
+    }
+
+    private var updateCheckButton: some View {
+        let update = model.updateNotice.update
+        return Button {
+            if update != nil {
+                model.updateNotice.openDetails()
+                showingUpdateDetails = true
+            } else {
+                Task { await model.checkForAppUpdate(manual: true) }
+            }
+        } label: {
+            if model.isCheckingForAppUpdate && update == nil {
+                ProgressView().controlSize(.small)
+            } else if let update {
+                Label("Update available · \(update.version)", systemImage: "arrow.down.circle.fill")
+            } else {
+                Label("Check updates", systemImage: "arrow.clockwise")
+            }
+        }
+        .buttonStyle(InstallerButtonStyle(tint: update == nil
+            ? Color(red: 0.20, green: 0.25, blue: 0.36)
+            : Color(red: 0.95, green: 0.61, blue: 0.18), darkText: update != nil))
+        .disabled(model.isCheckingForAppUpdate && update == nil)
+        .help(update == nil ? "Check GitHub for a compatible app update" : "Show release notes and update options")
     }
 
     @ViewBuilder private var pageContent: some View {
@@ -947,8 +997,8 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Checks GitHub for updates at launch and every two minutes. Downloads are verified with SHA-256 before installation.")
                             .font(.caption).foregroundStyle(.secondary)
-                        Button("Check for updates") { Task { await model.checkForAppUpdate() } }
-                            .disabled(model.isInstallingUpdate)
+                        Button("Check for updates") { Task { await model.checkForAppUpdate(manual: true) } }
+                            .disabled(model.isInstallingUpdate || model.isCheckingForAppUpdate)
                         if model.isInstallingUpdate { ProgressView("Preparing update…") }
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -1355,6 +1405,52 @@ private struct InstallerButtonStyle: ButtonStyle {
             .padding(.horizontal, 11).padding(.vertical, 8)
             .foregroundStyle(darkText ? Color.black.opacity(0.82) : .white)
             .background(tint.opacity(configuration.isPressed ? 0.68 : 0.88), in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct UpdateDetailsView: View {
+    let update: AppUpdate
+    @ObservedObject var model: AppModel
+    let later: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Label("Update available", systemImage: "arrow.down.circle.fill")
+                    .font(.title2.bold()).foregroundStyle(.orange)
+                Spacer()
+                Text(update.version).font(.callout.monospaced()).foregroundStyle(.secondary)
+            }
+            Divider()
+            ScrollView {
+                Text(update.notes.isEmpty ? "No release notes were provided." : update.notes)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+            }
+            if let reason = update.manualReason {
+                Text(reason).font(.caption).foregroundStyle(.orange)
+            }
+            if model.isInstallingUpdate, let message = model.updateMessage {
+                HStack(spacing: 8) { ProgressView().controlSize(.small); Text(message).font(.caption) }
+            } else if let message = model.updateMessage {
+                Text(message).font(.caption).foregroundStyle(.red)
+            }
+            if update.canSelfUpdate && !model.updateInstallSafe {
+                Text("Finish or cancel active installs and Highball operations before updating.")
+                    .font(.caption).foregroundStyle(.orange)
+            }
+            HStack {
+                Button("Later", action: later).keyboardShortcut(.cancelAction)
+                Spacer()
+                Button("Open release page") { NSWorkspace.shared.open(update.releaseURL) }
+                if update.canSelfUpdate {
+                    Button("Install update") { model.installAppUpdate() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(model.isInstallingUpdate || !model.updateInstallSafe)
+                }
+            }
+        }
+        .padding(24)
     }
 }
 

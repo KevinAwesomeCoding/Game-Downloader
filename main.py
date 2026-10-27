@@ -28,6 +28,7 @@ import ctypes
 import hashlib
 import logging
 import os
+import platform
 import sys
 import json
 import re
@@ -38,11 +39,15 @@ import threading
 import time
 import traceback
 import urllib.request
+import webbrowser
 import winreg
 import zipfile
 from datetime import datetime
 
 import requests
+from update_support import (UpdateNoticeState, UpdateRelease, compatible_release,
+                            download_verified_file, schedule_background_check,
+                            windows_update_script)
 try:
     from PyQt6.QtCore import (
         Qt, QObject, QThread, QThreadPool, QRunnable, QSize, QRect, QPoint,
@@ -214,21 +219,12 @@ def _launch_update_bat(new_exe: str, current_exe: str) -> None:
     for the PID to disappear before issuing the move.
     """
     pid = os.getpid()
+    os.makedirs(_prefs_dir(), exist_ok=True)
+    status_path = os.path.join(_prefs_dir(), "update-status.txt")
     fd, bat_path = tempfile.mkstemp(suffix=".bat", prefix="gameupdate_")
     os.close(fd)
-    script = (
-        "@echo off\n"
-        ":wait\n"
-        f'tasklist /FI "PID eq {pid}" 2>NUL | find "{pid}" >NUL\n'
-        "if not errorlevel 1 (\n"
-        "    timeout /t 1 /nobreak >nul\n"
-        "    goto wait\n"
-        ")\n"
-        f'move /y "{new_exe}" "{current_exe}"\n'
-        f'start "" "{current_exe}"\n'
-        'del "%~f0"\n'
-    )
-    with open(bat_path, "w", encoding="ascii") as fh:
+    script = windows_update_script(new_exe, current_exe, pid, status_path)
+    with open(bat_path, "w", encoding="utf-8") as fh:
         fh.write(script)
     subprocess.Popen(
         ["cmd.exe", "/c", bat_path],
@@ -287,6 +283,17 @@ def save_prefs(data: dict):
             json.dump(data, fh, indent=2)
     except OSError:
         pass
+
+
+def consume_update_status() -> str:
+    path = os.path.join(_prefs_dir(), "update-status.txt")
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            status = fh.read().strip()
+        os.remove(path)
+        return status
+    except OSError:
+        return ""
 
 
 # ---------------------------------------------------------------------------
@@ -1389,7 +1396,7 @@ class DefenderWorker(QObject):
 # ---------------------------------------------------------------------------
 class UpdateChecker(QObject):
     """Fetches the latest GitHub release and signals if a newer version exists."""
-    update_available = pyqtSignal(str, str, str, str)  # tag, asset url, sha256, notes
+    result = pyqtSignal(object, str)  # UpdateRelease or None, error text
     finished = pyqtSignal()
 
     @pyqtSlot()
@@ -1419,61 +1426,14 @@ class UpdateChecker(QObject):
             )
             _log.debug("UpdateChecker: tag_name from API = %r", tag)
 
-            if not tag:
-                _ulog.warning(
-                    "[3] No tag_name in response — aborting update check. "
-                    "Payload keys: %s", list(data.keys()),
-                )
-                _log.debug("UpdateChecker: no tag_name in response — aborting. "
-                            "Full payload keys: %s", list(data.keys()))
-                return
-
-            local_v = _parse_version(VERSION)
-            remote_v = _parse_version(tag)
-            is_newer = remote_v > local_v
-            # Step 4 — version comparison: log both versions and the result.
-            _ulog.info(
-                "[4] Version comparison  local=%s  remote=%s  update_needed=%s",
-                VERSION, tag, "yes" if is_newer else "no",
-            )
-            _log.debug(
-                "UpdateChecker: comparing remote %s vs local %s -> remote_is_newer=%s",
-                remote_v, local_v, is_newer,
-            )
-
-            if not is_newer:
-                return
-
-            asset = next((a for a in data.get("assets", [])
-                          if a.get("name") == "GameInstaller.exe"), None)
-            exe_url = asset.get("browser_download_url") if asset else None
-            digest = (asset.get("digest") or "").removeprefix("sha256:") if asset else ""
-            _log.debug("UpdateChecker: matched exe asset url = %r", exe_url)
-            if exe_url:
-                # Step 5 — update dialog will be shown.
-                _ulog.info(
-                    "[5] Update dialog will be shown for tag=%r  exe_url=%r",
-                    tag, exe_url,
-                )
-                if re.fullmatch(r"[0-9a-fA-F]{64}", digest):
-                    self.update_available.emit(tag, exe_url, digest.lower(), data.get("body", ""))
-                else:
-                    _ulog.warning("Release %s has no valid SHA-256 digest; refusing update", tag)
-            else:
-                _ulog.warning(
-                    "[5] Newer tag %r found but no .exe asset on release — "
-                    "dialog will NOT show. Asset names: %s",
-                    tag, [a.get("name") for a in data.get("assets", [])],
-                )
-                _log.debug(
-                    "UpdateChecker: newer tag found but no .exe asset attached to "
-                    "the release — dialog will not show. Asset names: %s",
-                    [a.get("name") for a in data.get("assets", [])],
-                )
-        except Exception:
+            update = compatible_release(data, VERSION, platform.system(), platform.machine(),
+                                        packaged=bool(getattr(sys, "frozen", False)))
+            self.result.emit(update, "")
+        except Exception as exc:
             # Step 9 — exception anywhere in the update flow: log full traceback.
             _ulog.exception("[9] Exception in UpdateChecker.run — full traceback:")
             _log.exception("UpdateChecker: update check failed with an exception")
+            self.result.emit(None, str(exc))
             # still fail silently to the UI — update check must never affect
             # normal operation — but now it's logged instead of invisible.
         finally:
@@ -1495,28 +1455,20 @@ class UpdateDownloadWorker(QObject):
     def run(self):
         # Step 6 — download starts: log the download URL.
         _ulog.info("[6] Download started  url=%s", self.url)
+        dest = None
         try:
             fd, dest = tempfile.mkstemp(suffix=".exe", prefix="GameInstaller_update_")
             os.close(fd)
-            digest = hashlib.sha256()
-            with requests.get(self.url, stream=True, timeout=REQUEST_TIMEOUT) as resp:
-                resp.raise_for_status()
-                total = int(resp.headers.get("Content-Length") or 0)
-                done = 0
-                with open(dest, "wb") as fh:
-                    for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK):
-                        if not chunk:
-                            continue
-                        fh.write(chunk)
-                        digest.update(chunk)
-                        done += len(chunk)
-                        self.progress.emit(int(done * 100 / total) if total else -1)
-            if digest.hexdigest().lower() != self.expected_sha256:
-                os.remove(dest)
-                raise ValueError("The update checksum did not match. The downloaded file was deleted.")
+            download_verified_file(self.url, dest, self.expected_sha256,
+                                   progress=self.progress.emit)
             self.progress.emit(100)
             self.success.emit(dest)
         except Exception as exc:
+            if dest and os.path.exists(dest):
+                try:
+                    os.remove(dest)
+                except OSError:
+                    pass
             # Step 7 — download failed: log the exception/error.
             _ulog.exception("[7] Download FAILED  url=%s  error=%s", self.url, exc)
             self.error.emit(str(exc))
@@ -4188,11 +4140,9 @@ class DownloadsPage(QWidget):
 # Self-update dialog
 # ---------------------------------------------------------------------------
 class UpdateDialog(QDialog):
-    def __init__(self, tag: str, exe_url: str, expected_sha256: str, notes: str = "", parent=None):
+    def __init__(self, update: UpdateRelease, parent=None, install_safe=True):
         super().__init__(parent)
-        self.tag = tag
-        self.exe_url = exe_url
-        self.expected_sha256 = expected_sha256
+        self.update = update
         self._thread = None
         self._worker = None
         self._new_exe: str | None = None
@@ -4205,21 +4155,23 @@ class UpdateDialog(QDialog):
         root.setContentsMargins(24, 24, 24, 24)
         root.setSpacing(12)
 
-        title = QLabel(f"Version {tag} is available")
+        title = QLabel(f"Version {update.tag} is available")
         title.setObjectName("DialogTitle")
         root.addWidget(title)
 
-        if notes:
-            changes = QLabel(notes[:6000])
-            changes.setObjectName("CardDesc")
-            changes.setWordWrap(True)
-            changes.setMaximumHeight(180)
-            root.addWidget(changes)
+        changes = QLabel(update.notes[:6000] if update.notes else "No release notes were provided.")
+        changes.setObjectName("CardDesc")
+        changes.setWordWrap(True)
+        changes.setMaximumHeight(180)
+        root.addWidget(changes)
 
-        sub = QLabel(
-            "A new version of Game Installer is ready.\n"
-            "The app will restart automatically after downloading."
-        )
+        if update.self_updatable and not install_safe:
+            sub_text = "Pause or cancel active downloads first. The app can only replace its files after its game-download jobs stop."
+        elif update.self_updatable:
+            sub_text = "A verified Windows x64 download will replace the running app after it closes."
+        else:
+            sub_text = update.manual_reason or "This update must be installed manually from the official release page."
+        sub = QLabel(sub_text)
         sub.setObjectName("CardDesc")
         sub.setWordWrap(True)
         root.addWidget(sub)
@@ -4240,13 +4192,16 @@ class UpdateDialog(QDialog):
         self.later_btn = QPushButton("Later")
         self.later_btn.clicked.connect(self.reject)
         btn_row.addWidget(self.later_btn)
-        self.update_btn = QPushButton("Update")
+        self.update_btn = QPushButton("Update" if update.self_updatable else "Open release page")
         self.update_btn.setObjectName("PrimaryButton")
-        self.update_btn.clicked.connect(self._start_download)
+        self.update_btn.setEnabled(install_safe if update.self_updatable else bool(update.release_url))
+        self.update_btn.clicked.connect(self._start_download if update.self_updatable else self._open_release_page)
         btn_row.addWidget(self.update_btn)
         root.addLayout(btn_row)
 
     def _start_download(self):
+        if not self.update.self_updatable:
+            return
         self.update_btn.setEnabled(False)
         self.later_btn.setEnabled(False)
         self.progress_bar.setVisible(True)
@@ -4254,7 +4209,7 @@ class UpdateDialog(QDialog):
         self.status_label.setVisible(True)
 
         self._thread = QThread()
-        self._worker = UpdateDownloadWorker(self.exe_url, self.expected_sha256)
+        self._worker = UpdateDownloadWorker(self.update.download_url, self.update.sha256)
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
         self._worker.progress.connect(self._on_progress)
@@ -4285,7 +4240,7 @@ class UpdateDialog(QDialog):
         self._new_exe = path
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(100)
-        self.status_label.setText("Download complete — restarting…")
+        self.status_label.setText("Download verified. Closing the app to install the update and restart…")
         QTimer.singleShot(800, self._apply_update)
 
     @pyqtSlot(str)
@@ -4294,8 +4249,17 @@ class UpdateDialog(QDialog):
         _ulog.error("[7] UpdateDialog received download error: %s", message)
         self._teardown_thread()
         self.status_label.setText(f"Update failed: {message}")
+        self.update_btn.setEnabled(True)
+        self.update_btn.setText("Retry")
+        self.update_btn.clicked.disconnect()
+        self.update_btn.clicked.connect(self._start_download)
         self.later_btn.setEnabled(True)
-        self.later_btn.setText("Close")
+        self.later_btn.setText("Later")
+
+    def _open_release_page(self):
+        if self.update.release_url:
+            webbrowser.open(self.update.release_url)
+        self.reject()
 
     def _apply_update(self):
         if not self._new_exe or not os.path.isfile(self._new_exe):
@@ -4304,6 +4268,7 @@ class UpdateDialog(QDialog):
                 self._new_exe,
             )
             self.status_label.setText("Update file missing. Please restart manually.")
+            self._show_apply_error("The staged update file is missing. Try the download again.")
             return
         if not getattr(sys, "frozen", False):
             _ulog.warning(
@@ -4312,8 +4277,8 @@ class UpdateDialog(QDialog):
             self.status_label.setText(
                 "Self-update is only supported for the .exe build."
             )
+            self.update_btn.setEnabled(True)
             self.later_btn.setEnabled(True)
-            self.later_btn.setText("Close")
             return
         # Step 8 — replacement step: log old path and new path.
         _ulog.info(
@@ -4322,11 +4287,21 @@ class UpdateDialog(QDialog):
         )
         try:
             _launch_update_bat(self._new_exe, sys.executable)
-        except Exception:
+        except Exception as exc:
             # Step 9 — exception during replacement.
             _ulog.exception("[9] Exception during _launch_update_bat — full traceback:")
-            raise
+            self._show_apply_error(f"Could not start the updater: {exc}")
+            return
         QApplication.quit()
+
+    def _show_apply_error(self, message):
+        self.status_label.setText(message)
+        self.status_label.setVisible(True)
+        self.update_btn.setEnabled(True)
+        self.update_btn.setText("Open release page")
+        self.update_btn.clicked.disconnect()
+        self.update_btn.clicked.connect(self._open_release_page)
+        self.later_btn.setEnabled(True)
 
     def closeEvent(self, event):
         # Block the close button while a download is in progress.
@@ -4350,6 +4325,9 @@ class MainWindow(QMainWindow):
         self._spacewar_check_done = False  # fires at most once per session
         self._update_thread = None
         self._update_worker = None
+        self._update_notice = UpdateNoticeState()
+        self._manual_update_check = False
+        self._update_restart_status = ""
         self._sweep_thread = None
         self._sweep_worker = None
         self._current_games: list = []
@@ -4361,6 +4339,11 @@ class MainWindow(QMainWindow):
         outer.setSpacing(0)
 
         outer.addWidget(self._build_header())
+        self._update_restart_status = consume_update_status()
+        if self._update_restart_status == "installed":
+            self.check_updates_btn.setToolTip("The update was installed and Game Installer restarted successfully.")
+        elif self._update_restart_status == "failed":
+            self.check_updates_btn.setToolTip("The update could not be applied; the previous app was reopened. Click to retry or open the release page.")
 
         self.stack = QStackedWidget()
         outer.addWidget(self.stack, 1)
@@ -4379,8 +4362,8 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.downloads_page)
 
         self.load_manifest()
-        # Defer update check so the window is painted before any network I/O.
-        QTimer.singleShot(2000, self._start_update_check)
+        # Let the first window paint, then check without holding up the GUI.
+        schedule_background_check(QTimer.singleShot, self._start_update_check)
         self._update_timer = QTimer(self)
         self._update_timer.setInterval(120_000)
         self._update_timer.timeout.connect(self._start_update_check)
@@ -4412,8 +4395,7 @@ class MainWindow(QMainWindow):
         self._update_thread.started.connect(self._update_worker.run)
         self._update_worker.finished.connect(self._update_thread.quit)
         self._update_thread.finished.connect(self._update_check_finished)
-        self._update_worker.update_available.connect(self._on_update_available)
-        self._update_thread.finished.connect(self._update_thread.deleteLater)
+        self._update_worker.result.connect(self._on_update_check_result)
         self._update_thread.start()
 
     def _update_check_finished(self):
@@ -4423,15 +4405,53 @@ class MainWindow(QMainWindow):
             self._update_worker = None
             self._update_thread = None
 
-    @pyqtSlot(str, str, str, str)
-    def _on_update_available(self, tag: str, exe_url: str, sha256: str, notes: str):
-        if self._update_thread is not None:
-            self._update_thread.quit()
-            self._update_thread.wait()
-            self._update_worker.deleteLater()
-            self._update_thread = None
-            self._update_worker = None
-        UpdateDialog(tag, exe_url, sha256, notes, parent=self).exec()
+    @pyqtSlot(object, str)
+    def _on_update_check_result(self, update, error):
+        if error:
+            self.check_updates_btn.setToolTip(f"Update check failed: {error}")
+        else:
+            self._update_notice.release = update
+            if update is None:
+                if self._update_restart_status == "installed":
+                    self.check_updates_btn.setToolTip("The update was installed and Game Installer restarted successfully.")
+                elif self._update_restart_status == "failed":
+                    self.check_updates_btn.setToolTip("The update could not be applied; the previous app was reopened. Click to retry or open the release page.")
+                else:
+                    self.check_updates_btn.setToolTip("No compatible update is available.")
+            else:
+                self._update_notice.offer(update)
+                self.check_updates_btn.setToolTip(f"Open details for Game Installer {update.tag}")
+            self._refresh_update_button()
+        if self._manual_update_check and not error and update is None:
+            self.check_updates_btn.setToolTip("You're up to date for this Windows x64 build.")
+        self._manual_update_check = False
+
+    def _update_button_clicked(self):
+        update = self._update_notice.open_details()
+        if update is None:
+            self._manual_update_check = True
+            self.check_updates_btn.setToolTip("Checking GitHub releases…")
+            self._start_update_check()
+            return
+        try:
+            install_safe = not any(card.state in ("queued", "running")
+                                   for card in self.download_manager.cards)
+            UpdateDialog(update, parent=self, install_safe=install_safe).exec()
+        finally:
+            # Dismissing details does not discard the release or its indicator.
+            self._update_notice.later()
+
+    def _refresh_update_button(self):
+        update = self._update_notice.release
+        if update is None:
+            self.check_updates_btn.setText("Check for updates")
+            self.check_updates_btn.setObjectName("NavButton")
+        else:
+            self.check_updates_btn.setText(f"Update available · {update.tag}")
+            self.check_updates_btn.setObjectName("UpdateAvailable")
+        self.check_updates_btn.style().unpolish(self.check_updates_btn)
+        self.check_updates_btn.style().polish(self.check_updates_btn)
+        self.check_updates_btn.update()
 
     def _update_downloads_badge(self, active):
         self.downloads_btn.setText("Downloads" if active == 0 else f"Downloads ({active})")
@@ -4471,6 +4491,11 @@ class MainWindow(QMainWindow):
         self.settings_btn.clicked.connect(
             lambda: self.stack.setCurrentWidget(self.settings_page))
         lay.addWidget(self.settings_btn)
+
+        self.check_updates_btn = QPushButton("Check for updates")
+        self.check_updates_btn.setObjectName("NavButton")
+        self.check_updates_btn.clicked.connect(self._update_button_clicked)
+        lay.addWidget(self.check_updates_btn)
 
         self.spacewar_btn = QPushButton("Get Spacewar")
         self.spacewar_btn.setObjectName("SpacewarButton")
@@ -5023,6 +5048,11 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
     padding: 7px 14px; font-weight: 600;
 }
 #NavButton:hover { background-color: #1a2036; color: #ffffff; }
+#UpdateAvailable {
+    background-color: #78420f; color: #ffdf9a; border: 1px solid #f59e0b;
+    border-radius: 8px; padding: 7px 14px; font-weight: 700;
+}
+#UpdateAvailable:hover { background-color: #965313; }
 
 /* Downloads page */
 #DownloadsBar { background-color: #11152340; border-bottom: 1px solid #1c2336; }
