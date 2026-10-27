@@ -23,6 +23,8 @@ final class AppModel: ObservableObject {
     @Published var updateMessage: String?
     @Published var updateAlertMessage: String?
     @Published var isInstallingUpdate = false
+    @Published var updateProgress: Double?
+    @Published var shouldQuitForUpdate = false
     @Published var isCheckingForAppUpdate = false
     @Published var selectedBottle = UserDefaults.standard.string(forKey: "selectedBottle") ?? "" {
         didSet { UserDefaults.standard.set(selectedBottle, forKey: "selectedBottle") }
@@ -96,12 +98,17 @@ final class AppModel: ObservableObject {
         isInstallingUpdate = true
         Task {
             do {
-                try await AppUpdater.install(update) { [weak self] message in
+                try await AppUpdater.install(update) { [weak self] message, progress in
                     self?.updateMessage = message
+                    self?.updateProgress = progress
+                }
+                await MainActor.run {
+                    self.shouldQuitForUpdate = true
                 }
             }
             catch {
                 isInstallingUpdate = false
+                updateProgress = nil
                 updateMessage = "Update could not be installed: \(error.localizedDescription)"
                 updateAlertMessage = updateMessage
             }
@@ -406,9 +413,8 @@ struct ContentView: View {
     private let columns = [GridItem(.adaptive(minimum: 285, maximum: 360), spacing: 22)]
 
     private var filteredGames: [Game] {
-        let matches = search.isEmpty ? model.games : model.games.filter {
-            $0.name.localizedCaseInsensitiveContains(search)
-                || ($0.description?.localizedCaseInsensitiveContains(search) ?? false)
+        let matches = model.games.filter {
+            LibrarySearch.matches(query: search, name: $0.name, description: $0.description)
         }
         let order = LibrarySortOrder(rawValue: librarySortOrder) ?? .oldestFirst
         switch order {
@@ -517,6 +523,14 @@ struct ContentView: View {
                 try? await Task.sleep(for: .seconds(120))
                 guard !Task.isCancelled else { return }
                 await model.checkForAppUpdate()
+            }
+        }
+        .onChange(of: model.shouldQuitForUpdate) { _, shouldQuit in
+            guard shouldQuit else { return }
+            showingUpdateDetails = false
+            // Let SwiftUI dismiss the sheet before sending the normal quit request.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                NSApp.terminate(nil)
             }
         }
         .alert("Update status", isPresented: Binding(
@@ -1431,7 +1445,22 @@ private struct UpdateDetailsView: View {
                 Text(reason).font(.caption).foregroundStyle(.orange)
             }
             if model.isInstallingUpdate, let message = model.updateMessage {
-                HStack(spacing: 8) { ProgressView().controlSize(.small); Text(message).font(.caption) }
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack(spacing: 8) {
+                        if model.updateProgress == nil { ProgressView().controlSize(.small) }
+                        Text(message).font(.caption)
+                        Spacer(minLength: 0)
+                        if let progress = model.updateProgress {
+                            Text("\(Int(progress * 100))%")
+                                .font(.caption.monospacedDigit().weight(.semibold))
+                        }
+                    }
+                    if let progress = model.updateProgress {
+                        ProgressView(value: progress).tint(.teal)
+                    }
+                }
+                Text("If Game Installer stays open, press Command-Q to finish installing. It will reopen when the update is ready.")
+                    .font(.caption).foregroundStyle(.secondary)
             } else if let message = model.updateMessage {
                 Text(message).font(.caption).foregroundStyle(.red)
             }

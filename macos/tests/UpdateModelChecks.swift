@@ -49,6 +49,12 @@ enum UpdateModelChecks {
         precondition(script.contains("echo installed > \"$STATUS\""))
         precondition(script.contains("echo failed > \"$STATUS\""))
         precondition(script.contains("open \"$APP\""))
+        precondition(script.contains("kill -TERM \"$PID\""))
+
+        precondition(LibrarySearch.matches(query: "  cafe  ", name: "Café Racer", description: nil))
+        precondition(LibrarySearch.matches(query: "co-op arcade", name: "Example", description: "Arcade co-op"))
+        precondition(!LibrarySearch.matches(query: "co-op missing", name: "Example", description: "Arcade co-op"))
+        precondition(LibrarySearch.matches(query: "   ", name: "Example", description: nil))
 
         let missingChecksum = AppUpdater.Release(
             tag_name: "v1.5-20261027-85", html_url: release.html_url,

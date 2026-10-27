@@ -51,6 +51,7 @@ from host_resolver_client import provider_for, helper_command
 from update_support import (UpdateNoticeState, UpdateRelease, compatible_release,
                             download_verified_file, schedule_background_check,
                             windows_update_script)
+from search_support import matches_game_search
 try:
     from PyQt6.QtCore import (
         Qt, QObject, QThread, QThreadPool, QRunnable, QSize, QRect, QPoint,
@@ -4843,9 +4844,10 @@ class MainWindow(QMainWindow):
         self._do_launch_spacewar()
 
     def _on_search_changed(self, text: str):
-        q = text.strip().lower()
+        q = text.strip()
         filtered = (
-            [g for g in self._current_games if q in g.name.lower()]
+            [g for g in self._current_games
+             if matches_game_search(g.name, g.description, q)]
             if q else self._current_games
         )
         self._populate_cards(filtered)

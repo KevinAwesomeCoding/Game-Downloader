@@ -10,6 +10,7 @@ from update_support import (
     schedule_background_check,
     windows_update_script,
 )
+from search_support import matches_game_search
 
 
 class Response:
@@ -127,6 +128,17 @@ class UpdateFlowTests(unittest.TestCase):
         self.assertIn('start "" "C:\\Apps\\GameInstaller.exe"', script)
         self.assertIn('echo installed>"C:\\Users\\User\\AppData\\Roaming\\GameInstaller\\update-status.txt"', script)
         self.assertIn('echo failed>"C:\\Users\\User\\AppData\\Roaming\\GameInstaller\\update-status.txt"', script)
+
+
+class LibrarySearchTests(unittest.TestCase):
+    def test_search_matches_name_and_description_case_insensitively(self):
+        self.assertTrue(matches_game_search("Café Racer", "Arcade racing", "CAFE"))
+        self.assertTrue(matches_game_search("Example", "Online co-op adventure", "co-op online"))
+        self.assertFalse(matches_game_search("Example", "Online co-op adventure", "co-op missing"))
+
+    def test_search_trims_whitespace_and_empty_query_shows_everything(self):
+        self.assertTrue(matches_game_search("Example", "Description", "  "))
+        self.assertTrue(matches_game_search("Café", "Racing", "  cafe  "))
 
 
 if __name__ == "__main__":

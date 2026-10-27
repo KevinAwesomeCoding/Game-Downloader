@@ -108,7 +108,7 @@ enum AppUpdater {
         return 0
     }
 
-    static func install(_ update: AppUpdate, report: @MainActor (String) -> Void) async throws {
+    static func install(_ update: AppUpdate, report: @escaping @MainActor (String, Double?) -> Void) async throws {
         guard update.canSelfUpdate, let url = update.downloadURL, let expectedHash = update.sha256 else {
             throw UpdateError.manualInstallRequired(update.manualReason ?? "This release must be installed manually.")
         }
@@ -125,14 +125,19 @@ enum AppUpdater {
         }
 
         let request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 120)
-        await report("Downloading update…")
-        let (temporary, response) = try await URLSession.shared.download(for: request)
+        await report("Downloading update…", 0)
+        let (temporary, response) = try await download(request) { fraction in
+            Task { @MainActor in
+                report("Downloading update…", fraction)
+            }
+        }
+        defer { try? fm.removeItem(at: temporary) }
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw UpdateError.httpStatus((response as? HTTPURLResponse)?.statusCode ?? -1)
         }
-        await report("Verifying SHA-256 checksum…")
+        await report("Verifying SHA-256 checksum…", nil)
         guard try sha256(of: temporary) == expectedHash else { throw UpdateError.invalidChecksum }
-        await report("Checking app archive…")
+        await report("Checking app archive…", nil)
         try validateZip(temporary)
 
         let support = try fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
@@ -152,12 +157,22 @@ enum AppUpdater {
                                  statusPath: statusFile.path, processID: pid, bundleID: bundleID)
         try body.write(to: scriptURL, atomically: true, encoding: .utf8)
         try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: scriptURL.path)
-        await report("Verified. Closing the app to install and restart…")
+        await report("Verified. Closing the app to install and restart…", nil)
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
         process.arguments = [scriptURL.path]
         try process.run()
-        await MainActor.run { NSApp.terminate(nil) }
+    }
+
+    private static func download(_ request: URLRequest,
+                                 progress: @escaping (Double) -> Void) async throws -> (URL, URLResponse) {
+        let delegate = UpdateDownloadDelegate(progress: progress)
+        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        delegate.session = session
+        return try await withCheckedThrowingContinuation { continuation in
+            delegate.continuation = continuation
+            session.downloadTask(with: request).resume()
+        }
     }
 
     static func installScript(appPath: String, archivePath: String, stagePath: String,
@@ -184,7 +199,15 @@ enum AppUpdater {
         ditto -x -k "$ZIP" "$STAGE" || fail_update
         NEW="$STAGE/Game Installer.app"
         if [ ! -d "$NEW" ] || [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$NEW/Contents/Info.plist" 2>/dev/null)" != "$BUNDLE_ID" ]; then fail_update; fi
-        for i in {1..120}; do
+        for i in {1..30}; do
+          if [ "$i" -eq 12 ] && kill -0 "$PID" 2>/dev/null; then
+            # Ask Launch Services to deliver the standard app quit event too.
+            osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1 || true
+          fi
+          if [ "$i" -eq 22 ] && kill -0 "$PID" 2>/dev/null; then
+            # SwiftUI can occasionally keep the process alive after normal quit requests.
+            kill -TERM "$PID" 2>/dev/null || true
+          fi
           if ! kill -0 "$PID" 2>/dev/null; then break; fi
           sleep 1
         done
@@ -221,6 +244,45 @@ enum AppUpdater {
 
     private static func shellQuote(_ value: String) -> String {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+}
+
+private final class UpdateDownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    var continuation: CheckedContinuation<(URL, URLResponse), Error>?
+    var session: URLSession?
+    private let progress: (Double) -> Void
+
+    init(progress: @escaping (Double) -> Void) { self.progress = progress }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
+                    totalBytesExpectedToWrite: Int64) {
+        guard totalBytesExpectedToWrite > 0 else { return }
+        progress(min(1, max(0, Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))))
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didFinishDownloadingTo location: URL) {
+        do {
+            let destination = FileManager.default.temporaryDirectory
+                .appending(path: "game-installer-update-\(UUID().uuidString).zip")
+            try FileManager.default.moveItem(at: location, to: destination)
+            guard let response = downloadTask.response else { throw UpdateError.invalidArchive }
+            continuation?.resume(returning: (destination, response))
+        } catch {
+            continuation?.resume(throwing: error)
+        }
+        continuation = nil
+        self.session?.finishTasksAndInvalidate()
+        self.session = nil
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        guard let error, let continuation else { return }
+        continuation.resume(throwing: error)
+        self.continuation = nil
+        self.session?.invalidateAndCancel()
+        self.session = nil
     }
 }
 
