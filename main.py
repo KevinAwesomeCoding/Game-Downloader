@@ -577,6 +577,15 @@ def launch_spacewar_install() -> bool:
         return False
 
 
+def launch_steam_client() -> bool:
+    """Open the Steam client through its registered Windows protocol handler."""
+    try:
+        os.startfile("steam://open/main")
+        return True
+    except OSError:
+        return False
+
+
 # ---------------------------------------------------------------------------
 # Microsoft Defender exclusion helpers
 # ---------------------------------------------------------------------------
@@ -4572,6 +4581,12 @@ class MainWindow(QMainWindow):
         self.spacewar_btn.clicked.connect(self._launch_spacewar_manual)
         lay.addWidget(self.spacewar_btn)
 
+        self.launch_steam_btn = QPushButton("Launch Steam")
+        self.launch_steam_btn.setObjectName("NavButton")
+        self.launch_steam_btn.setToolTip("Open the Steam client")
+        self.launch_steam_btn.clicked.connect(self._launch_steam)
+        lay.addWidget(self.launch_steam_btn)
+
         self.refresh_btn = QPushButton("↻  Refresh")
         self.refresh_btn.setObjectName("PrimaryButton")
         self.refresh_btn.clicked.connect(self.load_manifest)
@@ -4842,6 +4857,15 @@ class MainWindow(QMainWindow):
     def _launch_spacewar_manual(self):
         """Manual button handler — always launches, ignores the one-time flag."""
         self._do_launch_spacewar()
+
+    def _launch_steam(self):
+        if not launch_steam_client():
+            QMessageBox.warning(
+                self,
+                "Steam not found",
+                "Could not open Steam. Make sure Steam is installed, then try again.\n\n"
+                "You can download Steam at store.steampowered.com",
+            )
 
     def _on_search_changed(self, text: str):
         q = text.strip()
