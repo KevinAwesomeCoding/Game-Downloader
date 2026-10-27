@@ -335,11 +335,15 @@ class Highball:
         return self.dispatch(["run", bottle, pin])
 
     def steam_install(self, bottle, uri, announce=lambda message: None):
-        if not re.fullmatch(r"steam://install/\d+", uri):
+        launch_client = uri == "steam://open/main"
+        if not launch_client and not re.fullmatch(r"steam://install/\d+", uri):
             raise ValueError("Only Steam installation URIs are accepted.")
         self.ready(bottle)
         pins = parse_pins(self.command(["pin", "list", bottle]))
         if "steam" not in pins or not pins["steam"]["path"].replace("\\", "/").lower().endswith("/steam.exe"):
             raise ValueError("Install Windows Steam and sign in inside the selected Highball bottle first.")
+        if launch_client:
+            announce("Opening Windows Steam in Highball.")
+            return {**self.dispatch(["run", bottle, pins["steam"]["name"]]), "steamOpened": True}
         announce("Handing installation to Windows Steam in Highball. Steam handles the download; sign in there if asked.")
         return self.dispatch(["run", bottle, pins["steam"]["name"], "--", uri])

@@ -474,10 +474,13 @@ extension AppModel {
 
     func requestSteam(_ uri: String) {
         guard operationSession == nil else { actionMessage = "A Highball action is still running."; return }
+        let isLaunch = uri == "steam://open/main"
         let alert = NSAlert()
-        alert.messageText = "Open Windows Steam in Highball?"
-        alert.informativeText = "This sends \(uri) to Steam in the selected bottle (\(selectedBottle)). Windows Steam must be installed and signed in there. Steam handles its own download."
-        alert.addButton(withTitle: "Open Windows Steam")
+        alert.messageText = isLaunch ? "Launch Windows Steam in Highball?" : "Open Windows Steam in Highball?"
+        alert.informativeText = isLaunch
+            ? "This opens Windows Steam in the selected bottle (\(selectedBottle)). Steam must be installed there."
+            : "This sends \(uri) to Steam in the selected bottle (\(selectedBottle)). Windows Steam must be installed and signed in there. Steam handles its own download."
+        alert.addButton(withTitle: isLaunch ? "Launch Windows Steam" : "Open Windows Steam")
         alert.addButton(withTitle: "Cancel")
         if alert.runModal() == .alertFirstButtonReturn {
             beginOperation(["steam", "--bottle", selectedBottle, "--uri", uri], jobID: nil, bottle: selectedBottle)

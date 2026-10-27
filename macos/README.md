@@ -112,9 +112,12 @@ fake Steam installation records.
   folder and creates a pin using bottle defaults, without inferred DLL fixes.
   A prior recorded-settings pin is not silently converted to default settings.
   Registration errors keep installed files, cache, and receipts for retry.
+- **Launch Steam:** opens the pinned Windows Steam app in the selected Highball
+  bottle after confirmation. It does not send an installation link.
 - **Get Spacewar and catalog Steam entries:** after an explicit confirmation,
   hand `steam://install/<id>` to the Windows `Steam` pin in the selected Highball
-  bottle with `highball run <bottle> Steam -- <uri>`. macOS Steam is never opened.
+  bottle with `highball run <bottle> Steam -- <uri>`. These actions use Windows
+  Steam in Highball; macOS Steam is not involved.
   Windows Steam must be installed/signed in; it owns the resulting installation.
   The app reports a handoff, not a completed Steam installation.
 

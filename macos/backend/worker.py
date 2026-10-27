@@ -287,7 +287,12 @@ def main():
             return 0
         if args.action == "steam":
             result = Highball().steam_install(args.bottle, args.uri, lambda message: emit("running", message))
-            emit("handedOff", "Request sent to Windows Steam. Check its window for download progress. Launch log: " + result["logPath"], **result)
+            message = (
+                "Windows Steam opened in this bottle. Launch log: "
+                if result.get("steamOpened") else
+                "Request sent to Windows Steam. Check its window for download progress. Launch log: "
+            )
+            emit("handedOff", message + result["logPath"], **result)
             return 0
         if args.action == "prepare":
             if not args.recipe:

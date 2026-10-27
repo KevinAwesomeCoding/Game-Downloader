@@ -551,6 +551,11 @@ class HighballTests(TemporaryTest):
         with self.assertRaises(ValueError):
             self.client.steam_install("Disposable", "steam://run/480")
 
+    def test_open_main_launches_pinned_windows_steam_without_an_install_uri(self):
+        result = self.client.steam_install("Disposable", "steam://open/main")
+        self.assertEqual(self.commands[-1], ["run", "Disposable", "Steam"])
+        self.assertTrue(result["steamOpened"])
+
     def test_missing_steam_bottle_or_cli_error_stops_cleanly(self):
         with self.assertRaises(ValueError):
             self.client.steam_install("Missing", "steam://install/480")
