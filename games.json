@@ -145,9 +145,9 @@
     "macCompatibility": {
       "tier": "Runs with a recipe",
       "riskLevel": "Standard",
-      "reasoning": "The game launched after a per-game DLL-loading adjustment in Highball. Online play and invitations were not tested.",
+      "reasoning": "Kevin confirmed the game launches and works in Highball after the recorded native-first DLL overrides were applied. Full online play and invitations were not tested.",
       "confidence": "High",
-      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+      "classifiedAt": "2026-10-26T20:05:45-05:00"
     },
     "requirementsPlatform": "Windows"
   },
@@ -1213,11 +1213,11 @@
       "storage": "2 GB"
     },
     "macCompatibility": {
-      "tier": "Unverified",
+      "tier": "Runs with a recipe",
       "riskLevel": "Standard",
-      "reasoning": "The title was marked as recorded, but no actual launch result is preserved in the available notes.",
-      "confidence": "Low",
-      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+      "reasoning": "Kevin confirmed the hosting flow works after native-first overrides for winmm.dll, OnlineFix64.dll, and SteamOverlay64.dll were applied with Steam running in the same Highball bottle. Joining, invitations, voice, and extended gameplay were not tested.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T20:05:45-05:00"
     },
     "requirementsPlatform": "Windows"
   },
@@ -1270,11 +1270,11 @@
       "storage": "4 GB available space"
     },
     "macCompatibility": {
-      "tier": "Unverified",
+      "tier": "Runs with a recipe",
       "riskLevel": "Standard",
-      "reasoning": "No reliable macOS launch result is recorded for this game in the project's compatibility evidence.",
-      "confidence": "Low",
-      "classifiedAt": "2026-10-26T08:24:04.000000-05:00"
+      "reasoning": "For the tested v1.2.7 build, a local build-specific workaround cleared the campaign-storage initialization error; a clean launch reached the Lobby with Steam ready, and the game save store passed an isolated save/update/backup/reload check. This workaround is not yet automated by the installer. Real campaign gameplay and multiplayer remain unverified.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-26T20:05:45-05:00"
     },
     "requirementsPlatform": "Windows"
   },
@@ -1297,11 +1297,11 @@
       "storage": "5 GB"
     },
     "macCompatibility": {
-      "tier": "Unverified",
+      "tier": "Runs with a recipe",
       "riskLevel": "Standard",
-      "reasoning": "No reliable macOS launch result is recorded for this game in the project's compatibility evidence.",
-      "confidence": "Low",
-      "classifiedAt": "2026-10-26T08:51:40.000000-05:00"
+      "reasoning": "Kevin confirmed the game works in the recorded Highball use. The exact setup and gameplay scope were not preserved; multiplayer, invitations, and voice were not specified.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T20:05:45-05:00"
     },
     "requirementsPlatform": "Windows"
   },
@@ -1325,11 +1325,11 @@
       "storage": "2 GB"
     },
     "macCompatibility": {
-      "tier": "Unverified",
+      "tier": "Runs with a recipe",
       "riskLevel": "Standard",
-      "reasoning": "No reliable macOS launch result is recorded for this game in the project's compatibility evidence.",
-      "confidence": "Low",
-      "classifiedAt": "2026-10-26T08:51:40.000000-05:00"
+      "reasoning": "Kevin confirmed the game works in the recorded Highball use. The exact setup and gameplay scope were not preserved; multiplayer, invitations, and voice were not specified.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-26T20:05:45-05:00"
     },
     "requirementsPlatform": "Windows"
   }
