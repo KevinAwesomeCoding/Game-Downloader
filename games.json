@@ -1161,9 +1161,9 @@
       "storage": "5 GB"
     },
     "macCompatibility": {
-      "tier": "Not yet",
+      "tier": "Runs with a recipe",
       "riskLevel": "Standard",
-      "reasoning": "The recorded build failed to reach a menu with both D3DMetal and DXVK. The result applies to this tested build; the exact cause was not preserved.",
+      "reasoning": "Kevin confirmed the game works on an Apple M5 in the Games bottle after native-first overrides were applied for the five Wine-collision DLLs in the installed folder. The installer now detects and applies these pin overrides when adding the game to Highball. Multiplayer and online authentication were not verified.",
       "confidence": "High",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },

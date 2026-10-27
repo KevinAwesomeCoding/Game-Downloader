@@ -69,6 +69,11 @@ def _collisions(root):
     return sorted(found, key=str.casefold)
 
 
+def native_first_dll_names(root):
+    """Return allowlisted Wine-collision DLL names present in an installed game."""
+    return sorted({Path(item).stem.casefold() for item in _collisions(root)})
+
+
 def _report(step, status, detail):
     return {"step": step, "status": status, "detail": detail}
 

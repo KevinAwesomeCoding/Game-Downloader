@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from archives import safe_path
+from universal_setup import native_first_dll_names
 
 
 def parse_pins(output):
@@ -228,6 +229,22 @@ class Highball:
         target = (root / safe_path(executable)).resolve(strict=True)
         if not target.is_relative_to(root) or not target.is_file() or target.suffix.lower() != ".exe":
             raise ValueError("Choose an .exe inside this game's installed folder.")
+        # Apply this narrowly-scoped compatibility setting even for a manually
+        # selected executable when no archive recipe exists. Only known Wine
+        # builtin collisions that are actually present in this game are included.
+        detected_dlls = native_first_dll_names(root)
+        environment = dict(environment) if recipe else {}
+        current_overrides = environment.get("WINEDLLOVERRIDES", "")
+        override_names = set(detected_dlls)
+        for entry in current_overrides.split(";"):
+            name, separator, _value = entry.partition("=")
+            if separator and name.casefold() in detected_dlls:
+                override_names.add(name.casefold())
+        native_first = ";".join(f"{name}=native,builtin" for name in sorted(override_names))
+        if native_first:
+            environment["WINEDLLOVERRIDES"] = native_first
+        else:
+            environment.pop("WINEDLLOVERRIDES", None)
         # New pins use only the game title. Preserve a pin already recorded by an
         # older receipt so retries keep targeting that exact existing entry.
         pins = parse_pins(self.command(["pin", "list", bottle]))
@@ -248,34 +265,35 @@ class Highball:
             self.command(["pin", "add", bottle, name, str(target)])
         # Record ownership immediately so retry can recover after a failed setting.
         receipt["registration"] = {"bottle": bottle, "pin": name, "executable": executable, "complete": False,
-                                   "settingsMode": "recorded" if recipe else "default"}
+                                   "settingsMode": "recorded" if recipe else ("detected-dlls" if native_first else "default")}
         if recipe and renderer_fallback:
             receipt["registration"]["rendererFallback"] = renderer_fallback
-        if recipe and environment.get("WINEDLLOVERRIDES"):
+        if native_first:
             receipt["registration"]["nativeFirstDlls"] = [
                 entry.split("=", 1)[0]
-                for entry in environment["WINEDLLOVERRIDES"].split(";") if "=" in entry
+                for entry in native_first.split(";") if "=" in entry
             ]
         if recipe:
             if renderer:
                 self.command(["pin", "set", bottle, name, "renderer", renderer])
             if arguments:
                 self.command(["pin", "set", bottle, name, "args", "--", *arguments])
-            for key, value in environment.items():
-                if key != "WINEDLLOVERRIDES":
-                    raise ValueError("Unreviewed recipe environment field.")
-                self.command(["pin", "set", bottle, name, "env", f"{key}={value}"])
+        for key, value in environment.items():
+            if key != "WINEDLLOVERRIDES":
+                raise ValueError("Unreviewed recipe environment field.")
+            self.command(["pin", "set", bottle, name, "env", f"{key}={value}"])
         saved = parse_pins(self.command(["pin", "list", bottle])).get(name.casefold())
         if not saved or not same_external_path(saved["path"], target):
             raise ValueError("Highball did not confirm the saved executable path. Retry registration.")
+        expected = []
         if recipe:
-            expected = []
             if renderer:
                 expected.append(f"renderer={renderer}")
             if arguments:
                 expected.append("args=" + " ".join(arguments))
-            if environment:
-                expected.append("env=" + ";".join(f"{key}={value}" for key, value in sorted(environment.items())))
+        if environment:
+            expected.append("env=" + ";".join(f"{key}={value}" for key, value in sorted(environment.items())))
+        if expected:
             if not all(value in saved["extras"] for value in expected):
                 raise ValueError("Highball did not confirm every recorded pin setting. Retry registration.")
         try:
