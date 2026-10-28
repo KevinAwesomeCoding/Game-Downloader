@@ -1571,5 +1571,35 @@
       "classifiedAt": "2026-10-27T21:57:05-05:00"
     },
     "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "long-drive-north",
+    "steamAppId": "3179350",
+    "name": "Long Drive North: Co-Op RV Simulator",
+    "source": "https://online-fix.me/games/officialservers/17949-long-drive-north-po-seti.html",
+    "description": "A co-op survival driving game where you repair and upgrade a battered RV, scavenge the wilderness, and keep your crew alive on a harsh northern road trip.",
+    "version": "v0.072.23",
+    "size": "2.0 GB",
+    "players": "Up to 4 players (online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3179350/header.jpg?t=1782747959",
+    "zipUrl": "https://gofile.io/d/5ro7DY",
+    "zipBackupUrl": "https://pixeldrain.com/u/LLn2c1Rn",
+    "fixZipUrl": "https://gofile.io/d/j6B1IN",
+    "fixBackupUrl": "https://pixeldrain.com/u/JcExxe1G",
+    "requirements": {
+      "os": "Windows 10/11 64-bit OS",
+      "cpu": "Intel Core i5-3570K or AMD FX-8310",
+      "ram": "8 GB",
+      "gpu": "GTX 970 4GB / AMD RX 580 4GB",
+      "storage": "10 GB available space"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "Steam only lists a Windows build, and no recorded Highball recipe or local macOS test was found for this archive. The Windows-only store metadata is the best available evidence, but macOS support remains unverified.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-27T22:37:49-05:00"
+    },
+    "requirementsPlatform": "Windows"
   }
 ]
