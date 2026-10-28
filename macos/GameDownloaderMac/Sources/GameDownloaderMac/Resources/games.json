@@ -1601,5 +1601,74 @@
       "classifiedAt": "2026-10-27T22:37:49-05:00"
     },
     "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "stardew-valley",
+    "steamAppId": "413150",
+    "name": "Stardew Valley",
+    "source": "https://store.steampowered.com/app/413150/Stardew_Valley/",
+    "description": "Build a life on your grandfather's old farm by growing crops, raising animals, crafting, and exploring the valley.",
+    "version": "",
+    "size": "",
+    "players": "Solo or up to 8 players (online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/413150/header.jpg",
+    "zipUrl": "",
+    "zipBackupUrl": "",
+    "fixZipUrl": "",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows Vista or greater",
+      "cpu": "2 GHz",
+      "ram": "2 GB",
+      "gpu": "256 MB video memory, Shader Model 3.0+",
+      "directx": "Version 10",
+      "storage": "500 MB available space"
+    },
+    "macCompatibility": {
+      "tier": "Native",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists an official macOS version and publishes Mac minimum requirements. No separate Highball test is recorded.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-27T22:42:40-05:00"
+    },
+    "requirementsPlatform": "Windows",
+    "macRequirements": {
+      "os": "Mac OS X 10.10+",
+      "cpu": "2 GHz",
+      "ram": "2 GB",
+      "gpu": "256 MB video memory, OpenGL 2",
+      "storage": "500 MB available space"
+    }
+  },
+  {
+    "id": "schedule-i",
+    "steamAppId": "3164500",
+    "name": "Schedule I",
+    "source": "https://store.steampowered.com/app/3164500/Schedule_I/",
+    "description": "Build an underworld business in Hyland Point by producing and distributing products, expanding your operation, and working with friends in co-op.",
+    "version": "",
+    "size": "",
+    "players": "Solo or online co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3164500/header.jpg",
+    "zipUrl": "",
+    "zipBackupUrl": "",
+    "fixZipUrl": "",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 10 (64-bit)",
+      "cpu": "3 GHz 4-Core or similar",
+      "ram": "8 GB",
+      "gpu": "GeForce GTX 1060 6GB or Radeon RX 580",
+      "directx": "Version 11",
+      "storage": "8 GB available space"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists Windows support only. No native macOS build or recorded Highball test for this game was found.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-27T22:42:40-05:00"
+    },
+    "requirementsPlatform": "Windows"
   }
 ]
