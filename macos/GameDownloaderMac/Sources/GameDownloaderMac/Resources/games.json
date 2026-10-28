@@ -1475,6 +1475,47 @@
     "requirementsPlatform": "Windows"
   },
   {
+    "id": "stick-it-to-the-stickman",
+    "steamAppId": "2085540",
+    "name": "Stick It to the Stickman",
+    "source": "https://ts.bzzhr.to/d/2nobb2f2b022?v=YFhKYFnL3y5zbrgNM0Q2j39oo5O1jFdlP7_DsMuhA7RL0mlNIZDyoVUs5zljhgOWs8uF8dgV0vY4wA57bpxvTZItwToU9yCy5NTRmUASzUAZEH9QHY_sMyV-6mEyzEL1GzLs-_yqFhwHi1dlJJudRJ_CxwDXgXr7sjwyLuLj9N0Layb_Xv8Bpwu_Dq53Y7f5lC0ULZq_lO8hiHcwp0xOHK1QCZqxvA",
+    "description": "A roguelite physics brawler where you climb the corporate ladder by beating, weaponizing, and outmaneuvering your coworkers and superiors.",
+    "version": "",
+    "size": "1.05 GB",
+    "players": "Single-player or local co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2085540/bdd8ea4758441c2b3c00475e7c3647d0dc52baec/header.jpg?t=1791165357",
+    "zipUrl": "https://ts.bzzhr.to/d/2nobb2f2b022?v=YFhKYFnL3y5zbrgNM0Q2j39oo5O1jFdlP7_DsMuhA7RL0mlNIZDyoVUs5zljhgOWs8uF8dgV0vY4wA57bpxvTZItwToU9yCy5NTRmUASzUAZEH9QHY_sMyV-6mEyzEL1GzLs-_yqFhwHi1dlJJudRJ_CxwDXgXr7sjwyLuLj9N0Layb_Xv8Bpwu_Dq53Y7f5lC0ULZq_lO8hiHcwp0xOHK1QCZqxvA",
+    "zipBackupUrl": "",
+    "fixZipUrl": "",
+    "fixBackupUrl": "",
+    "comment": "User-supplied token-protected download URL; its expiration is unverified and it may need replacing. Archive size is 1,133,765,975 bytes and the extracted size has not been verified.",
+    "requirements": {
+      "os": "Windows 10 x64 Bit",
+      "cpu": "Intel Core i7-6700 / AMD Ryzen 5 1500X",
+      "ram": "8 GB",
+      "gpu": "GeForce GTX 1050 Ti / Radeon RX 570 / Arc A380",
+      "directx": "Version 12",
+      "storage": "6 GB available space",
+      "additionalNotes": "Low Quality setting, in 1080p, producing 30 FPS"
+    },
+    "macCompatibility": {
+      "tier": "Native",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists an official macOS build with minimum Mac requirements, so the store supports native macOS play. No recorded Highball recipe or local macOS test was found for this archive.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-27T22:11:35-05:00"
+    },
+    "requirementsPlatform": "Windows",
+    "macRequirements": {
+      "os": "macOS 13.3.1 (Ventura)",
+      "cpu": "Apple M1 Max",
+      "ram": "32 GB",
+      "gpu": "Apple M1 Max",
+      "storage": "6 GB available space",
+      "additionalNotes": "Low Quality setting, in 1080p, producing 30 FPS"
+    }
+  },
+  {
     "id": "trailmakers",
     "steamAppId": "585420",
     "name": "Trailmakers",
