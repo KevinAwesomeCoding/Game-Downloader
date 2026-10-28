@@ -968,11 +968,11 @@
       "storage": "1 GB"
     },
     "macCompatibility": {
-      "tier": "Unverified",
+      "tier": "Runs with a recipe",
       "riskLevel": "Standard",
-      "reasoning": "A launch failure was recorded without a retained error or diagnosis. This does not establish a general compatibility result.",
-      "confidence": "Low",
-      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+      "reasoning": "Kevin confirmed the game works, and the tested Windows build reached its co-op lobby on an Apple M5 through Highball 0.10.22 in the Games bottle using DXMT, Steam signed in, and native-first DLL overrides. The Steam Friends list was populated, but all friends were offline; the in-game invite picker was empty. Sending an invite, joining, and co-op play remain unverified. The tested archive build was not fingerprinted, so this result applies to the installed build and setup only.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-27T15:39:11-05:00"
     },
     "requirementsPlatform": "Windows"
   },
@@ -1156,11 +1156,11 @@
       "storage": "1 GB"
     },
     "macCompatibility": {
-      "tier": "Unverified",
+      "tier": "Runs with a recipe",
       "riskLevel": "Standard",
-      "reasoning": "The title was marked as recorded, but no actual launch result is preserved in the available notes.",
-      "confidence": "Low",
-      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+      "reasoning": "Kevin confirms the game works on his Mac through Highball and reports that its friend feature works. A full multiplayer session, renderer, and exact setup details were not specified; this result applies to the tested installed build.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-27T16:43:24-05:00"
     },
     "requirementsPlatform": "Windows"
   },
@@ -1187,11 +1187,11 @@
       "graphicsApi": "Vulkan support required"
     },
     "macCompatibility": {
-      "tier": "Unverified",
+      "tier": "Partial",
       "riskLevel": "Standard",
-      "reasoning": "Not tested in Highball. Steam lists a Vulkan requirement; that requirement alone is not enough to predict whether this build works.",
-      "confidence": "Low",
-      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+      "reasoning": "The game reaches its hosting/lobby screen, but Kevin reports Invite Friends does not open Steam and Shift+Tab does not bring up the Steam overlay. In this run Steam registered the process as AppID 480 and the game loaded achievements and stats, while Steam logged no gameoverlayui64 launch for this process. The game log also reports “The multiplayer instance is already active” from SteamMultiplayerPeer::create_client; its relation to the invite/overlay failure is not confirmed.",
+      "confidence": "Medium",
+      "classifiedAt": "2026-10-27T16:01:27-05:00"
     },
     "requirementsPlatform": "Windows"
   },
@@ -1215,11 +1215,11 @@
       "additionalNotes": "A microphone is required; online multiplayer only."
     },
     "macCompatibility": {
-      "tier": "Unverified",
+      "tier": "Runs with a recipe",
       "riskLevel": "Standard",
-      "reasoning": "The title was marked as recorded, but no actual launch result is preserved in the available notes.",
-      "confidence": "Low",
-      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+      "reasoning": "Kevin confirms the game works and friend invitations/multiplayer work. Preset packs are available, but Browse Packs appears empty or limited, so the game is playable but not currently recommended for its full party content.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-27T15:59:27-05:00"
     },
     "requirementsPlatform": "Windows"
   },
@@ -1247,9 +1247,9 @@
     "macCompatibility": {
       "tier": "Native",
       "riskLevel": "Standard",
-      "reasoning": "Steam lists an official macOS version. No Highball test result is preserved for this title.",
+      "reasoning": "Steam lists an official macOS version, and Kevin reports the installed Windows build also works perfectly in Highball. Multiplayer was not specified.",
       "confidence": "High",
-      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+      "classifiedAt": "2026-10-27T15:59:27-05:00"
     },
     "requirementsPlatform": "Windows",
     "macRequirements": {
@@ -1311,11 +1311,11 @@
       "storage": "400 MB"
     },
     "macCompatibility": {
-      "tier": "Unverified",
+      "tier": "Runs with a recipe",
       "riskLevel": "Standard",
-      "reasoning": "The title was marked as recorded, but no actual launch outcome is preserved in the available notes.",
-      "confidence": "Low",
-      "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
+      "reasoning": "Kevin confirms this game works on his Mac through Highball. The exact tested screen, renderer, and setup were not preserved, and multiplayer, invitations, and voice were not specified. This result applies to his tested installed build only.",
+      "confidence": "High",
+      "classifiedAt": "2026-10-27T15:40:14-05:00"
     },
     "requirementsPlatform": "Windows"
   },
@@ -1504,6 +1504,30 @@
       "reasoning": "Steam lists a Windows version without native macOS support. No recorded Highball test exists for this archive; launch, gameplay, and multiplayer on macOS are unverified.",
       "confidence": "Low",
       "classifiedAt": "2026-10-27T17:18:43-05:00"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "over-the-hill",
+    "steamAppId": null,
+    "name": "Over the Hill",
+    "source": "https://online-fix.me/games/officialservers/18273-over-the-hill-po-seti.html",
+    "description": "A 4-player online multiplayer game where players either join a lobby by code or host their own private server.",
+    "version": "Build 14102026",
+    "size": "3 GB",
+    "players": "Up to 4 players (online multiplayer)",
+    "thumbnail": "",
+    "zipUrl": "https://gofile.io/d/Lz0jzn1U",
+    "zipBackupUrl": "https://filekeeper.net/ggn4t01gvlh5",
+    "fixZipUrl": "https://gofile.io/d/BHQJzMBM",
+    "fixBackupUrl": "https://filekeeper.net/zu3qi0dj8x8i",
+    "requirements": {},
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "The Online-Fix page documents a Windows multiplayer build and code-based lobby joining/hosting, but no verified native macOS build, Highball recipe, or recorded macOS test was found. macOS support remains unverified.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-27T21:57:05-05:00"
     },
     "requirementsPlatform": "Windows"
   }
