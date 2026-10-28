@@ -404,7 +404,7 @@ extension AppModel {
             actionMessage = "Could not prepare the Highball game entry: \(error.localizedDescription)"
             return
         }
-        if job.registered {
+        if job.registered || !(job.game.steamAppId ?? "").isEmpty {
             runHighball(job, launch: true)
         } else {
             runHighball(job)

@@ -186,7 +186,8 @@ Wine's version executable. No Highball configuration or game files are changed.
 
 ## Packaging and licensing work before distribution
 
-Build the CLI product from the exact reviewed commit, using its pinned
+Build the CLI product from the exact reviewed commit plus the local
+`macos/highball-steam.patch` integration patch, using its pinned
 `Package.resolved` dependencies (`swift build -c release --product highball`).
 Keep a build record including source/dependency commits, toolchain, target,
 deployment minimum, final binary digest and signing identity. Inspect actual
@@ -226,3 +227,17 @@ after explicit authorization; preserve the existing `Games` bottle.
 - [GUI URL handling](https://github.com/gauthierpiarrette/highball/blob/daa2095b9fd4abad0b9db7c57cacbd4d49a9e06e/Sources/HighballApp/AppState.swift)
 - [Home resolution](https://github.com/gauthierpiarrette/highball/blob/daa2095b9fd4abad0b9db7c57cacbd4d49a9e06e/Sources/HighballKit/Paths.swift)
 - [GPL-3.0](https://github.com/gauthierpiarrette/highball/blob/daa2095b9fd4abad0b9db7c57cacbd4d49a9e06e/LICENSE)
+
+## Steam path integration
+
+The old 0.10.22 CLI could launch a correctly configured Steam pin, then ignore its
+path when showing or forwarding to an already running Steam client. Those runner
+functions hardcoded Program Files (x86). Game Installer now requires the
+`steam-path-v1` helper build and probes `steam launch` and `steam game`. The helper
+ships corresponding patched source and an explicit patch, rather than claiming
+to be unmodified upstream. Its base remains the reviewed 0.10.22 commit.
+
+The shared resolver and new CLI operation are maintained in the nested Highball
+repository. Its GUI provides the per-environment Steam executable picker. The
+installer has no competing path preference and does not read Highball's play-link
+authentication token. See `macos/STEAM-PATH-FIX.md` for verification and limits.

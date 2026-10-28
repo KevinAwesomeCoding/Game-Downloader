@@ -992,6 +992,8 @@ struct ContentView: View {
                                 Text(bottle.name).tag(bottle.name)
                             }
                         }
+                        Text("Steam's executable is detected and configured in Highball > Settings > Environments > Environment settings > Advanced > Steam executable.")
+                            .font(.caption).foregroundStyle(.secondary)
                         Text("Registration adds a separate Game Installer pin. Close Highball before adding programs to avoid stale settings. Existing pins are never replaced.")
                             .font(.caption).foregroundStyle(.secondary)
                         Button("Open Highball") {

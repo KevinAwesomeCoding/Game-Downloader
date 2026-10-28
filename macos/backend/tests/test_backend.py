@@ -475,6 +475,8 @@ class HighballTests(TemporaryTest):
             self.commands.append(command[1:])
             self.assertFalse(kwargs["shell"])
             self.assertEqual(kwargs["env"]["HIGHBALL_HOME"], str(self.root / "Highball"))
+            if command[1:4] == ["steam", "launch", "Disposable"] and command[-1] == "--check":
+                return subprocess.CompletedProcess(command, 0, json.dumps({"bottle": "Disposable", "executable": "/fixture/Program Files/Steam/Steam.exe", "arguments": [command[command.index("--uri") + 1]]}), "")
             if command[1:3] == ["pin", "add"]:
                 self.pinned = True
             if command[1:3] == ["pin", "list"]:
@@ -546,25 +548,62 @@ class HighballTests(TemporaryTest):
 
     def test_steam_uri_is_routed_to_windows_steam_in_selected_bottle(self):
         self.client.steam_install("Disposable", "steam://install/480")
-        self.assertEqual(self.commands[-1], ["run", "Disposable", "Steam", "--", "steam://install/480"])
+        self.assertEqual(self.commands[-1], ["steam", "launch", "Disposable", "--uri", "steam://install/480"])
         self.assertFalse(any(command[0] in ["open", "bottle"] for command in self.commands))
         with self.assertRaises(ValueError):
             self.client.steam_install("Disposable", "steam://run/480")
 
-    def test_open_main_launches_pinned_windows_steam_without_an_install_uri(self):
+    def test_open_main_uses_highball_operation_with_selected_bottle_and_uri(self):
         result = self.client.steam_install("Disposable", "steam://open/main")
-        self.assertEqual(self.commands[-1], ["run", "Disposable", "Steam"])
+        self.assertEqual(self.commands[-1], ["steam", "launch", "Disposable", "--uri", "steam://open/main"])
         self.assertTrue(result["steamOpened"])
 
     def test_missing_steam_bottle_or_cli_error_stops_cleanly(self):
         with self.assertRaises(ValueError):
             self.client.steam_install("Missing", "steam://install/480")
-        self.runner.side_effect = lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, "no pins in Disposable\n", "")
-        with self.assertRaisesRegex(ValueError, "Windows Steam"):
+        self.runner.side_effect = lambda cmd, **kw: subprocess.CompletedProcess(cmd, 1, "", "Windows Steam missing at /fixture/Steam.exe; Highball > Advanced > Steam executable")
+        with self.assertRaisesRegex(ValueError, "/fixture/Steam.exe; Highball > Advanced > Steam executable"):
             self.client.steam_install("Disposable", "steam://install/480")
+        self.assertFalse(any(command[:2] == ["steam", "launch"] and command[-1] != "--check" for command in self.commands))
         self.runner.side_effect = lambda cmd, **kw: subprocess.CompletedProcess(cmd, 1, "", "fixture error")
         with self.assertRaisesRegex(ValueError, "fixture error"):
             self.client.steam_install("Disposable", "steam://install/480")
+
+    def test_steam_path_is_reported_without_editing_pins(self):
+        messages = []
+        result = self.client.steam_install("Disposable", "steam://open/main", messages.append)
+        self.assertEqual(result["steamExecutable"], "/fixture/Program Files/Steam/Steam.exe")
+        self.assertIn(result["steamExecutable"], messages[-1])
+        self.assertIn("Highball > Settings", messages[-1])
+        self.assertEqual(self.commands[0], ["steam", "launch", "Disposable", "--uri", "steam://open/main", "--check"])
+        self.assertFalse(any(cmd[0] == "pin" for cmd in self.commands))
+
+    def test_bad_steam_request_never_dispatches(self):
+        self.runner.side_effect = lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, json.dumps({"bottle": "Other", "executable": "/wrong/Steam.exe", "arguments": []}), "")
+        self.client.dispatch = Mock()
+        with self.assertRaisesRegex(ValueError, "confirm the Steam launch path"):
+            self.client.steam_install("Disposable", "steam://open/main")
+        self.client.dispatch.assert_not_called()
+
+    def test_official_steam_install_routes_by_appid_without_game_pin(self):
+        def response(cmd, **kw):
+            if cmd[1:3] == ["steam", "resolve"]:
+                return subprocess.CompletedProcess(cmd, 0, json.dumps({"path": "/fixture/Program Files/Steam/Steam.exe"}), "")
+            return subprocess.CompletedProcess(cmd, 0, json.dumps({"installed": True}), "")
+        self.runner.side_effect = response
+        result = self.client.launch_steam_game(self.receipt, "480", "Disposable")
+        self.assertTrue(result["steamGame"])
+        self.assertEqual(self.commands[-1], ["steam", "game", "Disposable", "480", "--install-path", str(self.game)])
+        self.assertNotIn("registration", self.receipt)
+
+    def test_local_copy_is_not_treated_as_authenticated_steam_install(self):
+        self.runner.side_effect = lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, json.dumps({"installed": False}), "")
+        self.client.dispatch = Mock()
+        messages = []
+        self.assertIsNone(self.client.launch_steam_game(self.receipt, "480", "Disposable", messages.append))
+        self.assertIn("cannot grant it official Steam authentication", messages[-1])
+        self.client.dispatch.assert_not_called()
+        self.assertIsNone(self.client.launch_steam_game(self.receipt, "not-an-app-id", "Disposable"))
 
     def test_launch_requires_receipt_and_uses_registered_pin(self):
         with self.assertRaises(ValueError):
@@ -580,7 +619,7 @@ class HighballTests(TemporaryTest):
         first = self.client.launch(self.receipt)
         self.assertTrue(first["steamStarted"])
         self.assertTrue(self.receipt["registration"]["steamReadyForNextLaunch"])
-        self.assertEqual(self.client.dispatch.call_args.args[0], ["run", "Disposable", "Steam"])
+        self.assertEqual(self.client.dispatch.call_args.args[0], ["steam", "launch", "Disposable", "--uri", "steam://open/main"])
         second = self.client.launch(self.receipt)
         self.assertNotIn("steamStarted", second)
         self.assertFalse(self.receipt["registration"]["steamReadyForNextLaunch"])

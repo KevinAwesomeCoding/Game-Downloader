@@ -28,6 +28,8 @@ HELP_CHECKS = {
         ("pin", "set", "--help"),
         ("pin set <bottle> <pin> <setting>", "args", "renderer", "env", "KEY=VALUE"),
     ),
+    "steam_launch": (("steam", "launch", "--help"), ("steam launch <bottle>", "--uri", "--check")),
+    "steam_game": (("steam", "game", "--help"), ("steam game <bottle>", "--install-path", "--check")),
     "run": (("run", "--help"), ("run <bottle> <program>", "--renderer", "--verbose")),
     "config": (("config", "--help"), ("highball config",)),
 }
@@ -113,7 +115,7 @@ def probe(apps: list[Path] | None = None, helper: Path | None = None,
             raise ValueError("manifest must be an object")
         expected = {
             "schema_version": 1, "highball_version": REVIEWED_VERSION,
-            "source_commit": REVIEWED_COMMIT,
+            "source_commit": REVIEWED_COMMIT, "steam_integration": "steam-path-v1",
         }
         if any(metadata.get(key) != value for key, value in expected.items()):
             return stop("unreviewed_build", "Build metadata does not match the reviewed upstream release.")

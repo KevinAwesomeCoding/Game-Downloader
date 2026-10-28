@@ -204,6 +204,13 @@ jobs:
       - name: Build the pinned Highball helper and include its source
         run: bash macos/package_highball_helper.sh
 
+      - name: Check Steam integration against the packaged Highball CLI
+        env:
+          HIGHBALL_STEAM_TEST_CLI: ${{ github.workspace }}/macos/GameDownloaderMac/Sources/GameDownloaderMac/Resources/HighballHelper/highball
+        run: |
+          python3 -B -m unittest discover -s macos/backend/tests -p 'test_steam_integration.py' -v
+          python3 -B -m unittest discover -s spikes/highball -p 'test_*.py' -v
+
       - name: Build native Mac app
         env:
           APP_DISPLAY_NAME: Game Installer

@@ -32,7 +32,7 @@ class ProbeTests(unittest.TestCase):
         self.helper.write_bytes(b"helper fixture must never execute")
         self.helper.chmod(0o700)
         self.metadata = {"schema_version": 1, "highball_version": REVIEWED_VERSION,
-                         "source_commit": REVIEWED_COMMIT,
+                         "source_commit": REVIEWED_COMMIT, "steam_integration": "steam-path-v1",
                          "binary_sha256": hashlib.sha256(self.helper.read_bytes()).hexdigest()}
         self.manifest = self.root / "helper-build.json"
         self.write_manifest()
@@ -117,6 +117,11 @@ class ProbeTests(unittest.TestCase):
 
     def test_unreviewed_commit(self):
         self.metadata["source_commit"] = "0" * 40
+        self.write_manifest()
+        self.assert_blocked("unreviewed_build")
+
+    def test_old_helper_without_steam_path_integration_is_rejected(self):
+        del self.metadata["steam_integration"]
         self.write_manifest()
         self.assert_blocked("unreviewed_build")
 

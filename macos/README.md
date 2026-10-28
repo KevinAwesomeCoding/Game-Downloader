@@ -117,14 +117,20 @@ fake Steam installation records.
   fixes are inferred.
   A prior recorded-settings pin is not silently converted to default settings.
   Registration errors keep installed files, cache, and receipts for retry.
-- **Launch Steam:** opens the pinned Windows Steam app in the selected Highball
-  bottle after confirmation. It does not send an installation link.
-- **Get Spacewar and catalog Steam entries:** after an explicit confirmation,
-  hand `steam://install/<id>` to the Windows `Steam` pin in the selected Highball
-  bottle with `highball run <bottle> Steam -- <uri>`. These actions use Windows
-  Steam in Highball; macOS Steam is not involved.
-  Windows Steam must be installed/signed in; it owns the resulting installation.
-  The app reports a handoff, not a completed Steam installation.
+- **Launch Steam:** asks Highball to resolve Windows Steam for the selected bottle,
+  then calls `highball steam launch <bottle> --uri steam://open/main`. The resolved
+  executable is shown in the action message. Highball owns discovery and the
+  persistent per-bottle override; Game Installer has no separate Steam-path setting.
+  To correct the path, use Highball > Settings > Environments > the environment's
+  settings > Advanced > Steam executable. Missing or invalid paths stop before dispatch.
+- **Get Spacewar and catalog Steam entries:** after confirmation, send
+  `steam://install/<id>` through the same Highball operation. Windows Steam handles
+  sign-in and downloads; the app reports a handoff, not a completed installation.
+- **Play in Highball:** when the catalog app ID and exact installed folder match
+  Windows Steam's own fully installed manifest, call `highball steam game` so Steam
+  handles ownership and authentication via `-applaunch`. Local copies keep the
+  ordinary pin flow and receive a clear explanation that opening Steam cannot grant
+  them official Steam authentication. No install records or ownership are fabricated.
 
 Launch requests detach with their output redirected to files in `MacPreview/LaunchLogs`,
 so a running Steam client does not hold the installer busy until it exits. An
@@ -152,7 +158,8 @@ bash macos/build_preview.sh
 open "$HOME/Applications/Game Installer Preview.app"
 ```
 
-The build copies the current catalog and readiness scripts into Swift package
+The build first refreshes the bundled Highball helper when its local Steam integration
+patch changes, then copies the current catalog and readiness scripts into Swift package
 resources, along with the Mac backend, compiles the SwiftUI app, and ad-hoc signs a local preview. It
 preserves the previous preview in `~/Applications` when rebuilding. The live
 readiness check currently calls `python3`; the packaged consumer app will need
@@ -163,7 +170,12 @@ The demo requires local Python 3 and the previously installed Highball 0.10.22
 development helper at
 `~/Library/Application Support/Game-Downloader/HighballHelper/0.10.22/`. Its
 `build-manifest.json` must match the app and helper bytes. The spike README
-documents its build and GPL requirements. The preview build compiles the pinned
+documents its build and GPL requirements. The helper is built from the reviewed
+upstream commit plus `macos/highball-steam.patch`; its manifest requires
+`steam_integration: steam-path-v1`. Existing unpatched helpers are rejected with
+an update direction. The complete patched source and patch accompany the helper.
+Rebuild Highball from the nested repository as well to expose its override picker;
+Game Installer's helper setup does not replace Highball.app. The preview build compiles the pinned
 RARLAB UnRAR source and bundles its license and acknowledgements; it uses UnRAR
 for complete split RAR volume sets. It also downloads and checksum-verifies the
 official universal 7-Zip release, bundles its license, and uses it for 7z and
@@ -228,3 +240,12 @@ bash macos/build_preview.sh
 - Bundle the Python runtime, add Developer ID signing/notarization, GPL corresponding
   source/notices for the helper, and clean-Mac end-to-end tests
   before presenting this as a consumer-ready installer.
+
+For the launch trace, changed files, tests, and verification limits, see
+[Steam launch-path fix](STEAM-PATH-FIX.md). The cross-repository tests can use the
+actual built helper without launching Wine:
+
+```sh
+HIGHBALL_STEAM_TEST_CLI="$PWD/Highball/.build/debug/highball" \
+  python3 -B -m unittest discover -s macos/backend/tests -p 'test_*.py' -v
+```

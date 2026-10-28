@@ -10,6 +10,10 @@ readonly APP_BUNDLE_IDENTIFIER="${APP_BUNDLE_IDENTIFIER:-com.kevinawesomecoding.
 readonly DESTINATION="${APP_DESTINATION:-$HOME/Applications/$APP_DISPLAY_NAME.app}"
 
 mkdir -p "$RESOURCES"
+if [[ ! -x "$RESOURCES/HighballHelper/highball" ]] ||
+   ! cmp -s "$ROOT/macos/highball-steam.patch" "$RESOURCES/HighballHelper/highball-steam.patch"; then
+  bash "$ROOT/macos/package_highball_helper.sh"
+fi
 cp "$ROOT/games.json" "$RESOURCES/games.json"
 cp "$ROOT/spikes/highball/readiness.py" "$RESOURCES/readiness.py"
 cp "$ROOT/spikes/highball/probe.py" "$RESOURCES/probe.py"
@@ -69,6 +73,8 @@ if [[ -d "$helper_resource" ]]; then
     echo "The bundled Highball helper is not executable." >&2
     exit 2
   fi
+  "$helper_binary" steam launch --help >/dev/null
+  "$helper_binary" steam game --help >/dev/null
   codesign --force --sign - "$helper_binary"
   codesign --verify --strict "$helper_binary"
   python3 - "$helper_binary" "$helper_resource/build-manifest.json" <<'PY'
@@ -82,8 +88,10 @@ manifest = {
     "schema_version": 1,
     "highball_version": "0.10.22",
     "source_commit": "daa2095b9fd4abad0b9db7c57cacbd4d49a9e06e",
+    "steam_integration": "steam-path-v1",
+    "source_patch_sha256": hashlib.sha256((binary.parent / "highball-steam.patch").read_bytes()).hexdigest(),
     "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
-    "build": "SwiftPM release build from pinned upstream source",
+    "build": "SwiftPM release build from pinned upstream source plus highball-steam.patch",
     "signature": "ad-hoc; no Developer ID",
 }
 Path(sys.argv[2]).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

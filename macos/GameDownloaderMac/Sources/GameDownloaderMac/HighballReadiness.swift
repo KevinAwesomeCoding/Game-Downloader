@@ -63,7 +63,7 @@ enum HighballReadinessError: LocalizedError {
         switch self {
         case .appMissing: return "Highball 0.10.22 was not found in /Applications."
         case .helperMissing: return "The local Highball helper is not installed."
-        case .helperVersionMismatch: return "The helper manifest does not match Highball 0.10.22."
+        case .helperVersionMismatch: return "The helper needs the Steam path integration. Install the helper bundled with this Game Installer build."
         case .helperHashMismatch: return "The helper does not match its local build manifest."
         case .pythonMissing: return "Python 3 was not found. It is required for the Highball readiness check."
         case .reportInvalid(let detail): return "The readiness report could not be read: \(detail)"
@@ -100,7 +100,8 @@ enum HighballReadiness {
         }
 
         guard manifest["highball_version"] as? String == version,
-              manifest["source_commit"] as? String == reviewedCommit else {
+              manifest["source_commit"] as? String == reviewedCommit,
+              manifest["steam_integration"] as? String == "steam-path-v1" else {
             throw HighballReadinessError.helperVersionMismatch
         }
         let binaryData = try Data(contentsOf: helper)

@@ -279,6 +279,7 @@ def main():
         stopped.set()
 
     threading.Thread(target=control, daemon=True).start()
+    lock = None
     try:
         if args.action == "tools":
             rar_available = bool(find_tool("7zz") and find_tool("unrar"))
@@ -292,7 +293,7 @@ def main():
                 if result.get("steamOpened") else
                 "Request sent to Windows Steam. Check its window for download progress. Launch log: "
             )
-            emit("handedOff", message + result["logPath"], **result)
+            emit("handedOff", message + result["logPath"] + " Steam executable: " + result["steamExecutable"], **result)
             return 0
         if args.action == "prepare":
             if not args.recipe:
@@ -321,6 +322,16 @@ def main():
             return 0
         receipt = json.loads(path.read_text())
         highball = Highball()
+        if args.action == "launch":
+            result = highball.launch_steam_game(
+                receipt, job["game"].get("steamAppId"),
+                (receipt.get("registration") or {}).get("bottle") or args.bottle,
+                lambda message: emit("running", message))
+            if result:
+                emit("launchRequested", "Request sent through Windows Steam; Steam checks ownership and sign-in. Steam executable: " + result["steamExecutable"] + ". Log: " + result["logPath"], **result)
+                return 0
+            if not (receipt.get("registration") or {}).get("complete"):
+                args.action = "register"  # Same first-click registration for ordinary local games.
         if args.action == "register":
             selected_recipe = None if args.manual else highball_recipe(receipt)
             try:
@@ -351,14 +362,19 @@ def main():
             dll_overrides = registration.get("nativeFirstDlls", [])
             if dll_overrides:
                 message += f" Native-first DLL overrides applied: {len(dll_overrides)} ({', '.join(dll_overrides)})."
+            if job["game"].get("steamAppId"):
+                message += " This local copy is not a verified Steam installation; opening Steam cannot grant it official Steam authentication."
             emit("registered", message)
         else:
             result = highball.launch(receipt, lambda message: emit("running", message))
             atomic_json(path, receipt)
             if result.get("steamStarted"):
-                emit("steamStarted", "Windows Steam opened in this bottle. Sign in, then click Play in the installer again.", **result)
+                emit("steamStarted", "Windows Steam opened at " + result["steamExecutable"] + ". Sign in, then click Play again. A local copy cannot obtain official Steam authentication just by opening Steam.", **result)
                 return 0
-            emit("launchRequested", "Launch requested through Highball; game startup is not yet verified. Log: " + result["logPath"], **result)
+            message = "Launch requested through Highball; game startup is not yet verified. Log: " + result["logPath"]
+            if job["game"].get("steamAppId"):
+                message += " This local copy is not a verified Steam installation; opening Steam cannot grant it official Steam authentication."
+            emit("launchRequested", message, **result)
         return 0
     except Stopped:
         emit("stopped", "Stopped. Partial downloads and completed archives are kept for resume.")
@@ -366,6 +382,9 @@ def main():
     except Exception as exc:
         emit("failed", str(exc))
         return 2
+    finally:
+        if lock is not None:
+            lock.close()
 
 
 if __name__ == "__main__":

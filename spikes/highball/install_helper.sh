@@ -45,13 +45,19 @@ PY
 }
 trap cleanup EXIT
 
-git clone --quiet --no-checkout "$REPOSITORY" "$temporary/source"
+source_repository="$REPOSITORY"
+if git -C "$ROOT/Highball" cat-file -e "$COMMIT^{commit}" 2>/dev/null; then
+  source_repository="$ROOT/Highball"
+fi
+git clone --quiet --no-checkout "$source_repository" "$temporary/source"
 git -C "$temporary/source" checkout --quiet "$COMMIT"
 actual_commit="$(git -C "$temporary/source" rev-parse HEAD)"
 if [[ "$actual_commit" != "$COMMIT" ]]; then
   echo "Source commit mismatch: expected $COMMIT, got $actual_commit." >&2
   exit 2
 fi
+
+git -C "$temporary/source" apply "$ROOT/macos/highball-steam.patch"
 
 swift build --package-path "$temporary/source" -c release --product highball
 binary="$temporary/source/.build/release/highball"
@@ -66,7 +72,7 @@ install -m 755 "$binary" "$stage/highball"
 codesign --force --sign - "$stage/highball"
 codesign --verify --strict "$stage/highball"
 
-python3 - "$stage/highball" "$stage/build-manifest.json" "$COMMIT" "$VERSION" <<'PY'
+python3 - "$stage/highball" "$stage/build-manifest.json" "$COMMIT" "$VERSION" "$ROOT/macos/highball-steam.patch" <<'PY'
 import hashlib
 import json
 import sys
@@ -77,6 +83,8 @@ metadata = {
     "schema_version": 1,
     "highball_version": sys.argv[4],
     "source_commit": sys.argv[3],
+    "steam_integration": "steam-path-v1",
+    "source_patch_sha256": hashlib.sha256(Path(sys.argv[5]).read_bytes()).hexdigest(),
     "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
     "build": "local SwiftPM release build",
     "signature": "ad-hoc; no Developer ID",

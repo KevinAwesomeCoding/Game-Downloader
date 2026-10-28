@@ -27,13 +27,19 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 2
 fi
 
-git clone --quiet --filter=blob:none --no-checkout "$REPOSITORY" "$TEMPORARY/source"
+source_repository="$REPOSITORY"
+if git -C "$ROOT/Highball" cat-file -e "$COMMIT^{commit}" 2>/dev/null; then
+  source_repository="$ROOT/Highball"
+fi
+git clone --quiet --no-checkout "$source_repository" "$TEMPORARY/source"
 git -C "$TEMPORARY/source" checkout --quiet "$COMMIT"
 actual_commit="$(git -C "$TEMPORARY/source" rev-parse HEAD)"
 if [[ "$actual_commit" != "$COMMIT" ]]; then
   echo "Highball source commit mismatch: expected $COMMIT, got $actual_commit." >&2
   exit 2
 fi
+
+git -C "$TEMPORARY/source" apply "$ROOT/macos/highball-steam.patch"
 
 swift build --package-path "$TEMPORARY/source" -c release --product highball
 binary="$TEMPORARY/source/.build/release/highball"
@@ -45,13 +51,18 @@ fi
 mkdir -p "$DESTINATION"
 install -m 755 "$binary" "$DESTINATION/highball"
 install -m 644 "$TEMPORARY/source/LICENSE" "$DESTINATION/LICENSE.txt"
-git -C "$TEMPORARY/source" archive --format=tar.gz --prefix="Highball-$VERSION/" "$COMMIT" > "$DESTINATION/Highball-$VERSION-source.tar.gz"
+mkdir -p "$TEMPORARY/archive/Highball-$VERSION"
+git -C "$TEMPORARY/source" archive "$COMMIT" | tar -xf - -C "$TEMPORARY/archive/Highball-$VERSION"
+git -C "$TEMPORARY/archive/Highball-$VERSION" apply "$ROOT/macos/highball-steam.patch"
+tar -czf "$DESTINATION/Highball-$VERSION-source.tar.gz" -C "$TEMPORARY/archive" "Highball-$VERSION"
+install -m 644 "$ROOT/macos/highball-steam.patch" "$DESTINATION/highball-steam.patch"
 cat > "$DESTINATION/SOURCE-README.txt" <<EOF
 Highball CLI helper, version $VERSION
 
-Unmodified upstream source commit:
+Upstream base source commit:
 $COMMIT
 
+Local integration patch: highball-steam.patch (Steam path resolution and CLI operation)
 Repository: $REPOSITORY
 Source archive: Highball-$VERSION-source.tar.gz
 License: GPL-3.0; see LICENSE.txt
@@ -59,5 +70,25 @@ License: GPL-3.0; see LICENSE.txt
 The executable is built from the source archive by this repository's
 macos/package_highball_helper.sh and ad-hoc signed when the Mac app is built.
 EOF
+
+python3 - "$DESTINATION" "$COMMIT" "$VERSION" <<'PY'
+from pathlib import Path
+import hashlib
+import json
+import sys
+
+directory = Path(sys.argv[1])
+metadata = {
+    "schema_version": 1,
+    "highball_version": sys.argv[3],
+    "source_commit": sys.argv[2],
+    "steam_integration": "steam-path-v1",
+    "source_patch_sha256": hashlib.sha256((directory / "highball-steam.patch").read_bytes()).hexdigest(),
+    "binary_sha256": hashlib.sha256((directory / "highball").read_bytes()).hexdigest(),
+    "build": "SwiftPM release build from pinned upstream source plus highball-steam.patch",
+    "signature": "SwiftPM ad-hoc; preview build re-signs the bundled binary",
+}
+(directory / "build-manifest.json").write_text(json.dumps(metadata, indent=2) + "\n")
+PY
 
 printf 'Packaged Highball CLI %s from %s for the Mac app resources.\n' "$VERSION" "$COMMIT"

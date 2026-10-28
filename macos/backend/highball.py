@@ -396,12 +396,8 @@ class Highball:
         setup = receipt.get("universalSetup") or {}
         if (setup.get("settings") or {}).get("requiresSteamFirst"):
             if not registration.get("steamReadyForNextLaunch"):
-                pins = parse_pins(self.command(["pin", "list", bottle]))
-                steam = pins.get("steam")
-                if not steam or not steam["path"].replace("\\", "/").lower().endswith("/steam.exe"):
-                    raise ValueError("Windows Steam is not pinned in this bottle. Open Highball and install/sign in to Steam first.")
-                announce("Opening Windows Steam. Sign in there, then click Play in the installer again.")
-                result = self.dispatch(["run", bottle, steam["name"]])
+                announce("Opening Steam does not give a local game copy official Steam authentication. For that, own and install the game through Windows Steam.")
+                result = self.steam_install(bottle, "steam://open/main", announce)
                 registration["steamReadyForNextLaunch"] = True
                 receipt["registration"] = registration
                 return {**result, "steamStarted": True}
@@ -416,11 +412,30 @@ class Highball:
         if not launch_client and not re.fullmatch(r"steam://install/\d+", uri):
             raise ValueError("Only Steam installation URIs are accepted.")
         self.ready(bottle)
-        pins = parse_pins(self.command(["pin", "list", bottle]))
-        if "steam" not in pins or not pins["steam"]["path"].replace("\\", "/").lower().endswith("/steam.exe"):
-            raise ValueError("Install Windows Steam and sign in inside the selected Highball bottle first.")
-        if launch_client:
-            announce("Opening Windows Steam in Highball.")
-            return {**self.dispatch(["run", bottle, pins["steam"]["name"]]), "steamOpened": True}
-        announce("Handing installation to Windows Steam in Highball. Steam handles the download; sign in there if asked.")
-        return self.dispatch(["run", bottle, pins["steam"]["name"], "--", uri])
+        request = json.loads(self.command(["steam", "launch", bottle, "--uri", uri, "--check"]))
+        path = request.get("executable")
+        if (request.get("bottle") != bottle or not isinstance(path, str) or not path.startswith("/")
+                or uri not in request.get("arguments", [])):
+            raise ValueError("Highball did not confirm the Steam launch path and URI. Update its helper and check Highball's Steam executable setting.")
+        announce(f"Windows Steam executable: {path}. Change it in Highball > Settings > Environments > {bottle} > Environment settings > Advanced > Steam executable. Sign in normally in Steam.")
+        result = self.dispatch(["steam", "launch", bottle, "--uri", uri])
+        return {**result, "steamExecutable": path, "steamOpened": launch_client}
+
+    def launch_steam_game(self, receipt, app_id, bottle, announce=lambda message: None):
+        """Only route an exact Steam-recorded installation through Steam. Never infer ownership."""
+        if not app_id or not re.fullmatch(r"[0-9]+", str(app_id)):
+            return None
+        self.ready(bottle)
+        arguments = ["steam", "game", bottle, str(app_id), "--install-path", receipt["installPath"]]
+        report = json.loads(self.command([*arguments, "--check"]))
+        if not isinstance(report.get("installed"), bool):
+            raise ValueError("Highball did not confirm this Steam installation; no game was launched.")
+        if not report["installed"]:
+            announce("This local copy is not recorded as an installation by Windows Steam in this bottle. Starting Steam cannot grant it official Steam authentication; use a game you own and install through Steam.")
+            return None
+        resolved = json.loads(self.command(["steam", "resolve", bottle]))
+        path = resolved.get("path")
+        if not isinstance(path, str) or not path.startswith("/"):
+            raise ValueError("Highball did not report its resolved Steam executable.")
+        announce(f"Launching app {app_id} through Windows Steam at {path}. Steam checks ownership and sign-in.")
+        return {**self.dispatch(arguments), "steamExecutable": path, "steamGame": True}

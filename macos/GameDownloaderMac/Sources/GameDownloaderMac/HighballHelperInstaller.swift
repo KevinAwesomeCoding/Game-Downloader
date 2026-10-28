@@ -5,11 +5,13 @@ enum HighballHelperInstaller {
     private struct Manifest: Decodable {
         let highballVersion: String
         let sourceCommit: String
+        let steamIntegration: String?
         let binarySHA256: String
 
         enum CodingKeys: String, CodingKey {
             case highballVersion = "highball_version"
             case sourceCommit = "source_commit"
+            case steamIntegration = "steam_integration"
             case binarySHA256 = "binary_sha256"
         }
     }
@@ -18,7 +20,7 @@ enum HighballHelperInstaller {
     private static let sourceCommit = "daa2095b9fd4abad0b9db7c57cacbd4d49a9e06e"
     private static let managedFiles = [
         "highball", "build-manifest.json", "LICENSE.txt",
-        "SOURCE-README.txt", "Highball-0.10.22-source.tar.gz",
+        "SOURCE-README.txt", "Highball-0.10.22-source.tar.gz", "highball-steam.patch",
     ]
 
     static func install() throws -> String {
@@ -42,7 +44,8 @@ enum HighballHelperInstaller {
             throw HelperInstallError.resourcesMissing
         }
         guard manifest.highballVersion == version,
-              manifest.sourceCommit == sourceCommit else {
+              manifest.sourceCommit == sourceCommit,
+              manifest.steamIntegration == "steam-path-v1" else {
             throw HelperInstallError.provenanceMismatch
         }
         let expectedHash = try sha256(of: bundledBinary)
@@ -63,6 +66,7 @@ enum HighballHelperInstaller {
                let installed = try? JSONDecoder().decode(Manifest.self, from: data),
                installed.highballVersion == version,
                installed.sourceCommit == sourceCommit,
+               installed.steamIntegration == "steam-path-v1",
                installed.binarySHA256 == expectedHash,
                managedFiles.allSatisfy({ FileManager.default.fileExists(atPath: destination.appending(path: $0).path) }),
                (try? sha256(of: existing)) == expectedHash {
