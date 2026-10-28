@@ -75,8 +75,9 @@ fake Steam installation records.
   browser are included in Mac releases; installing Playwright in system Python
   is not required. Build details are in `GOFILE-INTEGRATION-PLAN.md` at the repo root.
 - **Staged extraction and repairs:** ZIP, including traditional password-protected
-  ZIP using the catalog's existing password. RAR/7z uses optional local `unar` and
-  `lsar`. Paths, links, case/Unicode collisions and each extracted file's size are
+  ZIP using the catalog's existing password. The app bundles universal arm64/x86_64
+  7-Zip and UnRAR helpers, so RAR/7z extraction does not require Homebrew or local
+  tools. Paths, links, case/Unicode collisions and each extracted file's size are
   checked against the archive listing. Every catalog-listed game archive is
   extracted; separate archive parts are merged only when their paths do not collide.
   Repairs overlay only the newly staged game; no existing installed game is modified.
@@ -164,8 +165,10 @@ development helper at
 `build-manifest.json` must match the app and helper bytes. The spike README
 documents its build and GPL requirements. The preview build compiles the pinned
 RARLAB UnRAR source and bundles its license and acknowledgements; it uses UnRAR
-for complete split RAR volume sets. Local `unar` and `lsar` remain necessary for
-other RAR formats and 7z. Settings reports whether RAR extraction is available.
+for complete split RAR volume sets. It also downloads and checksum-verifies the
+official universal 7-Zip release, bundles its license, and uses it for 7z and
+other RAR formats. No Homebrew installation or local archive utilities are needed.
+Settings reports whether the bundled RAR/7z tools are present.
 The Highball helper remains an ad-hoc development build, not a
 consumer-distribution-ready helper.
 

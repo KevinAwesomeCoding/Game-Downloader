@@ -1,5 +1,4 @@
 """Extract into fresh staging only; validate paths before using native tools."""
-import json
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -37,13 +36,12 @@ def validate_entries(entries):
 
 
 def find_tool(name):
-    # The preview bundles the official UnRAR helper for split RAR sets. Other
-    # archive tools remain optional local development dependencies.
-    if name == "unrar":
-        bundled = Path(__file__).resolve().parent / "Tools" / "unrar"
+    # Archive helpers ship inside the app; no Homebrew setup is required.
+    if name in {"unrar", "7zz"}:
+        bundled = Path(__file__).resolve().parent / "Tools" / name
         if os.access(bundled, os.X_OK):
             return str(bundled)
-        configured = os.environ.get("GAME_DOWNLOADER_UNRAR", "")
+        configured = os.environ.get(f"GAME_DOWNLOADER_{name.upper()}", "")
         if configured and os.access(configured, os.X_OK):
             return configured
     for directory in ["/opt/homebrew/bin", "/usr/local/bin"]:
@@ -75,6 +73,70 @@ def run_tool(command, stop=lambda: False):
                     process.wait()
 
 
+def list_archive_entries(archive, stop=lambda: False):
+    """Return validated 7-Zip technical entries for RAR and 7z archives."""
+    seven_zip = find_tool("7zz")
+    if not seven_zip:
+        raise ValueError("The bundled archive helper is missing. Reinstall Game Installer.")
+    output = run_tool([seven_zip, "l", "-slt", "-ba", "-sccUTF-8",
+                       f"-p{PASSWORD.decode()}", str(archive)], stop)
+    entries = []
+    for block in re.split(r"\n\s*\n", output.strip()):
+        fields = {}
+        for line in block.splitlines():
+            key, separator, value = line.partition(" = ")
+            if separator:
+                if key in fields:
+                    raise ValueError("Archive listing contains ambiguous entry metadata.")
+                fields[key] = value
+        name = fields.get("Path")
+        if not name:
+            continue
+        attributes = fields.get("Attributes", "")
+        is_directory = fields.get("Folder") == "+" or attributes.strip().startswith("D")
+        is_link = bool(fields.get("Symbolic Link") or fields.get("Hard Link") or
+                        " lrwx" in attributes.lower())
+        try:
+            size = int(fields.get("Size", "0"))
+        except ValueError as exc:
+            raise ValueError(f"Archive returned an invalid size for: {name}") from exc
+        entries.append({"name": name, "size": size, "is_directory": is_directory,
+                        "is_link": is_link})
+    if not entries:
+        raise ValueError("Archive tool returned an unsupported or empty listing.")
+    validate_entries([(entry["name"], entry["is_link"]) for entry in entries])
+    return entries
+
+
+def verify_extracted_entries(entries, destination):
+    destination = Path(destination)
+    for entry in entries:
+        if entry["is_directory"]:
+            continue
+        target = destination / safe_path(entry["name"])
+        if (not target.is_file() or target.is_symlink() or
+                target.stat().st_size != entry["size"]):
+            raise ValueError(f"Archive entry did not extract completely: {entry['name']}")
+    for current, directories, files in os.walk(destination):
+        for name in directories + files:
+            if (Path(current) / name).is_symlink():
+                raise ValueError("Extracted symbolic links are not supported.")
+
+
+def extract_with_7zz(archive, destination, stop=lambda: False,
+                     progress=lambda done, total: None):
+    destination = Path(destination)
+    entries = list_archive_entries(archive, stop)
+    required = sum(entry["size"] for entry in entries)
+    if required > shutil.disk_usage(destination).free:
+        raise ValueError("Not enough free space to extract this archive.")
+    seven_zip = find_tool("7zz")
+    run_tool([seven_zip, "x", "-y", "-bso0", "-bsp0",
+              f"-p{PASSWORD.decode()}", f"-o{destination}", str(archive)], stop)
+    verify_extracted_entries(entries, destination)
+    progress(len(entries), len(entries))
+
+
 def is_rar_volume_set(archives, stop=lambda: False):
     """Detect a RAR5 volume set from UnRAR's parsed archive metadata."""
     archives = [Path(item) for item in archives]
@@ -93,44 +155,20 @@ def extract_rar_volume_set(archives, destination, stop=lambda: False,
                            progress=lambda done, total: None):
     """Extract a complete RAR volume set once, starting at its first volume."""
     archives, destination = [Path(item) for item in archives], Path(destination)
-    unrar, lsar = find_tool("unrar"), find_tool("lsar")
+    unrar = find_tool("unrar")
     if not unrar:
         raise ValueError("This split RAR build needs the bundled UnRAR helper. Rebuild or reinstall the Game Installer app.")
-    if not lsar:
-        raise ValueError("Split RAR safety checks need local lsar in /opt/homebrew/bin or /usr/local/bin.")
     if not archives or not is_rar_volume_set(archives, stop):
         raise ValueError("The supplied files are not a complete RAR volume set.")
 
-    entries = []
-    for archive in archives:
-        listing = json.loads(run_tool(
-            [lsar, "-j", "-nr", "-p", PASSWORD.decode(), str(archive)], stop))
-        listed = listing.get("lsarContents")
-        if not isinstance(listed, list) or not listed:
-            raise ValueError("Archive tool returned an unsupported or empty RAR volume listing.")
-        entries.extend(listed)
-    validate_entries([
-        (entry["XADFileName"], bool(entry.get("XADIsLink") or entry.get("XADLinkDestination") or
-                                     entry.get("XADIsHardLink")))
-        for entry in entries
-    ])
-    required = sum(entry.get("XADFileSize", 0) for entry in entries)
+    entries = list_archive_entries(archives[0], stop)
+    required = sum(entry["size"] for entry in entries)
     destination.mkdir()
     if required > shutil.disk_usage(destination).free:
         raise ValueError("Not enough free space to extract this archive.")
     run_tool([unrar, "x", "-idq", "-o-", f"-p{PASSWORD.decode()}",
               str(archives[0]), str(destination) + os.sep], stop)
-    for entry in entries:
-        checkpoint(stop)
-        if entry.get("XADIsDirectory"):
-            continue
-        target = destination / safe_path(entry["XADFileName"])
-        if not target.is_file() or target.is_symlink() or target.stat().st_size != entry.get("XADFileSize"):
-            raise ValueError(f"Archive entry did not extract completely: {entry['XADFileName']}")
-    for current, directories, files in os.walk(destination):
-        for name in directories + files:
-            if (Path(current) / name).is_symlink():
-                raise ValueError("Extracted symbolic links are not supported.")
+    verify_extracted_entries(entries, destination)
     progress(len(entries), len(entries))
 
 
@@ -168,31 +206,7 @@ def extract(archive, destination, stop=lambda: False, progress=lambda done, tota
             signature = stream.read(8)
         if not signature.startswith((b"Rar!\x1a\x07", b"7z\xbc\xaf\x27\x1c")):
             raise ValueError("Downloaded file is not a supported ZIP, RAR, or 7z archive.")
-        lsar, unar = find_tool("lsar"), find_tool("unar")
-        if not lsar or not unar:
-            raise ValueError("RAR/7z needs local unar and lsar tools in /opt/homebrew/bin or /usr/local/bin. ZIP works without them.")
-        listing = json.loads(run_tool([lsar, "-j", "-nr", "-p", PASSWORD.decode(), str(archive)], stop))
-        entries = listing.get("lsarContents")
-        if not isinstance(entries, list) or not entries:
-            raise ValueError("Archive tool returned an unsupported or empty listing.")
-        validate_entries([(e["XADFileName"], bool(e.get("XADIsLink") or e.get("XADLinkDestination") or
-                                                  e.get("XADIsHardLink"))) for e in entries])
-        required = sum(e.get("XADFileSize", 0) for e in entries)
-        if required > shutil.disk_usage(destination).free:
-            raise ValueError("Not enough free space to extract this archive.")
-        run_tool([unar, "-D", "-nr", "-q", "-k", "skip", "-p", PASSWORD.decode(),
-                  "-o", str(destination), str(archive)], stop)
-        for entry in entries:
-            if entry.get("XADIsDirectory"):
-                continue
-            target = destination / safe_path(entry["XADFileName"])
-            if not target.is_file() or target.is_symlink() or target.stat().st_size != entry.get("XADFileSize"):
-                raise ValueError(f"Archive entry did not extract completely: {entry['XADFileName']}")
-        for current, directories, files in os.walk(destination):
-            for name in directories + files:
-                if (Path(current) / name).is_symlink():
-                    raise ValueError("Extracted symbolic links are not supported.")
-        progress(len(entries), len(entries))
+        extract_with_7zz(archive, destination, stop, progress)
 
 
 def content_root(directory):

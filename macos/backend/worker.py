@@ -281,8 +281,8 @@ def main():
     threading.Thread(target=control, daemon=True).start()
     try:
         if args.action == "tools":
-            rar_available = bool(find_tool("unrar") or (find_tool("unar") and find_tool("lsar")))
-            emit("tools", "ZIP is built in. Bundled UnRAR handles split RAR volumes; local unar/lsar handle other RAR and 7z archives.",
+            rar_available = bool(find_tool("7zz") and find_tool("unrar"))
+            emit("tools", "ZIP, RAR, and 7z extractors are bundled with Game Installer; no Homebrew tools are required.",
                  rarAvailable=rar_available)
             return 0
         if args.action == "steam":

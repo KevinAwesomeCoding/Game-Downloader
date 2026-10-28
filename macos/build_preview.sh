@@ -39,6 +39,20 @@ install -m 644 "$unrar_build/unrar/license.txt" "$RESOURCES/Backend/Tools/unrar-
 install -m 644 "$unrar_build/unrar/acknow.txt" "$RESOURCES/Backend/Tools/unrar-acknowledgements.txt"
 rm -rf "$unrar_build"
 
+# Bundle the official universal 7-Zip console tool for RAR and 7z archives.
+# The upstream macOS archive contains one arm64+x86_64 universal executable.
+readonly SEVENZIP_VERSION="26.05"
+readonly SEVENZIP_SHA256="12ef6830317743cfd3f0ab1724bde43fcc270d8b6d8564f8c12c2a2b7f993570"
+sevenzip_build="$(mktemp -d "${TMPDIR:-/tmp}/game-installer-7zip.XXXXXX")"
+curl -fL --retry 2 -o "$sevenzip_build/7zip-mac.tar.xz" \
+  "https://github.com/ip7z/7zip/releases/download/${SEVENZIP_VERSION}/7z${SEVENZIP_VERSION//./}-mac.tar.xz"
+printf '%s  %s\n' "$SEVENZIP_SHA256" "$sevenzip_build/7zip-mac.tar.xz" | shasum -a 256 -c -
+tar -xJf "$sevenzip_build/7zip-mac.tar.xz" -C "$sevenzip_build" 7zz License.txt
+lipo "$sevenzip_build/7zz" -verify_arch arm64 x86_64
+install -m 755 "$sevenzip_build/7zz" "$RESOURCES/Backend/Tools/7zz"
+install -m 644 "$sevenzip_build/License.txt" "$RESOURCES/Backend/Tools/7zip-license.txt"
+rm -rf "$sevenzip_build"
+
 swift build --package-path "$PROJECT" -c release --product "$PRODUCT"
 
 binary="$PROJECT/.build/release/$PRODUCT"
@@ -83,6 +97,13 @@ if [[ ! -x "$unrar_resource" ]]; then
 fi
 codesign --force --sign - "$unrar_resource"
 codesign --verify --strict "$unrar_resource"
+sevenzip_resource="$resource_bundle/Resources/Backend/Tools/7zz"
+if [[ ! -x "$sevenzip_resource" ]]; then
+  echo "The bundled 7-Zip extraction helper is missing." >&2
+  exit 2
+fi
+codesign --force --sign - "$sevenzip_resource"
+codesign --verify --strict "$sevenzip_resource"
 
 # Sign nested helper binaries before the outer app; Chromium's headless shell
 # and the frozen Python helper each include their own native libraries.

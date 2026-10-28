@@ -273,7 +273,7 @@ class ArchiveTests(TemporaryTest):
     def test_missing_rar_tool_and_unknown_format(self):
         rar = self.root / "rar"
         rar.write_bytes(b"Rar!\x1a\x07\x00dummy")
-        with patch("archives.find_tool", return_value=None), self.assertRaisesRegex(ValueError, "unar"):
+        with patch("archives.find_tool", return_value=None), self.assertRaisesRegex(ValueError, "bundled archive helper"):
             extract(rar, self.root / "rar-out")
         rar.write_bytes(b"HTML or garbage")
         with self.assertRaisesRegex(ValueError, "not a supported"):
@@ -388,23 +388,23 @@ class ArchiveTests(TemporaryTest):
     def test_mocked_rar_listing_is_validated_before_native_extraction(self):
         archive = self.root / "fixture.rar"
         archive.write_bytes(b"Rar!\x1a\x07\x00fixture")
-        listing = {"lsarContents": [{"XADFileName": "Game.exe", "XADFileSize": 3}]}
+        listing = "Path = Game.exe\nSize = 3\nAttributes = A -rw-r--r--\n"
         def tool(command, stop):
-            if "-j" in command:
-                return json.dumps(listing)
-            destination = Path(command[command.index("-o") + 1])
+            if command[1] == "l":
+                return listing
+            destination = Path(next(arg[2:] for arg in command if arg.startswith("-o")))
             (destination / "Game.exe").write_bytes(b"exe")
             return ""
         with patch("archives.find_tool", side_effect=lambda name: "/fixture/" + name), patch("archives.run_tool", side_effect=tool):
             extract(archive, self.root / "rar-out")
         self.assertEqual((self.root / "rar-out/Game.exe").read_bytes(), b"exe")
         def omit_extracted_file(command, stop):
-            return json.dumps(listing) if "-j" in command else ""
+            return listing if command[1] == "l" else ""
         with patch("archives.find_tool", side_effect=lambda name: "/fixture/" + name), patch("archives.run_tool", side_effect=omit_extracted_file):
             with self.assertRaisesRegex(ValueError, "did not extract completely"):
                 extract(archive, self.root / "missing-rar-out")
-        listing["lsarContents"][0]["XADFileName"] = "../outside"
-        with patch("archives.find_tool", return_value="/fixture/tool"), patch("archives.run_tool", return_value=json.dumps(listing)) as mocked:
+        bad_listing = "Path = ../outside\nSize = 3\nAttributes = A -rw-r--r--\n"
+        with patch("archives.find_tool", return_value="/fixture/tool"), patch("archives.run_tool", return_value=bad_listing) as mocked:
             with self.assertRaises(ValueError):
                 extract(archive, self.root / "bad-rar")
             self.assertEqual(mocked.call_count, 1)
@@ -449,10 +449,10 @@ class ArchiveTests(TemporaryTest):
         extract(self.root / "encrypted.zip", self.root / "encrypted-out")
         self.assertEqual((self.root / "encrypted-out/Game.exe").read_bytes(), b"tiny fixture")
 
-    @unittest.skipUnless(find_tool("unar") and find_tool("lsar") and Path("/opt/homebrew/bin/7zz").exists(), "requires local archive tools")
+    @unittest.skipUnless(find_tool("7zz"), "requires the bundled or local 7zz helper")
     def test_real_7z_fixture_uses_validated_native_extraction(self):
         (self.root / "Game.exe").write_bytes(b"tiny fixture")
-        subprocess.run(["/opt/homebrew/bin/7zz", "a", "fixture.7z", "Game.exe"], cwd=self.root, check=True, stdout=subprocess.DEVNULL)
+        subprocess.run([find_tool("7zz"), "a", "fixture.7z", "Game.exe"], cwd=self.root, check=True, stdout=subprocess.DEVNULL)
         extract(self.root / "fixture.7z", self.root / "7z-out")
         self.assertEqual((self.root / "7z-out/Game.exe").read_bytes(), b"tiny fixture")
 
