@@ -5,13 +5,14 @@ permissions:
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'codex/**']
     paths:
       - 'main.py'
       - 'requirements.txt'
       - 'download_support.py'
       - 'host_resolver*.py'
       - 'tools/build_host_helper.py'
+      - 'tools/windows_dll_safety*'
       - 'tools/requirements-gofile.txt'
       - 'tests/**'
       - 'version_info.txt'
@@ -29,6 +30,7 @@ on:
       - 'download_support.py'
       - 'host_resolver*.py'
       - 'tools/build_host_helper.py'
+      - 'tools/windows_dll_safety*'
       - 'tools/requirements-gofile.txt'
       - 'tests/**'
       - 'version_info.txt'
@@ -101,6 +103,20 @@ jobs:
           Copy-Item "C:\Program Files\7-Zip\7z.exe" bin\
           Copy-Item "C:\Program Files\7-Zip\7z.dll" bin\
 
+      - name: Build controlled DLL collision fixture
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $vs = & $vswhere -latest -products '*' -property installationPath
+          if (-not $vs) { throw 'Visual Studio C++ tools were not found.' }
+          $vcvars = Join-Path $vs 'Common7\Tools\VsDevCmd.bat'
+          New-Item -ItemType Directory -Force build\dll-collision-fixture | Out-Null
+          $source = (Resolve-Path tools\windows_dll_safety_fixture.c).Path
+          $fixture = Join-Path (Resolve-Path build\dll-collision-fixture).Path 'winmm.dll'
+          $command = 'call "{0}" -arch=amd64 >nul && cl /nologo /LD "{1}" /link /OUT:"{2}"' -f $vcvars, $source, $fixture
+          cmd /d /c $command
+          if ($LASTEXITCODE -ne 0) { throw 'Could not compile the controlled DLL fixture.' }
+
       - name: Inject release version into main.py
         shell: pwsh
         env:
@@ -120,6 +136,7 @@ jobs:
           --collect-all PyQt6
           --hidden-import PyQt6.sip
           --contents-directory .
+          --runtime-hook tools/windows_dll_safety_hook.py
           --add-data "build/host-resolver/HostResolver;HostResolver"
           --add-data "games.json;."
           --add-data "bin/7z.exe;bin"
@@ -129,7 +146,10 @@ jobs:
 
       - name: Zip onedir build
         shell: pwsh
-        run: Compress-Archive -Path dist\GameInstaller -DestinationPath dist\GameInstaller.zip
+        run: |
+          python tools/check_windows_dll_safety.py build\dll-collision-fixture\winmm.dll dist\GameInstaller\GameInstaller.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Onedir DLL collision smoke check failed.' }
+          Compress-Archive -Path dist\GameInstaller -DestinationPath dist\GameInstaller.zip
 
       - name: Build onefile (Windows)
         run: >
@@ -145,12 +165,19 @@ jobs:
           --add-data "games.json;."
           --add-data "bin/7z.exe;bin"
           --add-data "bin/7z.dll;bin"
+          --runtime-hook tools/windows_dll_safety_hook.py
           --name "GameInstaller"
           main.py
 
       - name: Label the single-file Windows x64 asset
         shell: pwsh
         run: Move-Item dist\GameInstaller.exe dist\GameInstaller-windows-x64.exe
+
+      - name: Check the single-file Windows DLL collision
+        shell: pwsh
+        run: |
+          python tools/check_windows_dll_safety.py build\dll-collision-fixture\winmm.dll dist\GameInstaller-windows-x64.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Single-file DLL collision smoke check failed.' }
 
       - name: Check the packaged Windows browsers
         shell: pwsh

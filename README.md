@@ -245,8 +245,12 @@ Install PyInstaller and build a single-file, windowed executable:
 
 ```powershell
 python -m pip install pyinstaller
-pyinstaller --onefile --windowed --name GameInstaller main.py
+pyinstaller --onefile --windowed --runtime-hook tools/windows_dll_safety_hook.py --name GameInstaller main.py
 ```
+
+The Windows runtime hook loads `System32\winmm.dll` before Qt initializes, so
+an unrelated `winmm.dll` beside the executable cannot be selected by the
+Windows DLL loader.
 
 The executable is created in the `dist\` folder as `dist\GameInstaller.exe`.
 
