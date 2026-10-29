@@ -1,7 +1,10 @@
 import tempfile
 import unittest
 import os
+import zipfile
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from game_library import scan_installed_games
 
@@ -64,6 +67,39 @@ class GameFolderScanTests(unittest.TestCase):
             self.assertEqual(target.read_bytes(), payload)
             self.assertGreater(len(progress), 1)
             self.assertEqual(progress[-1], len(payload))
+
+    @unittest.skipUnless(os.name == "nt", "Windows installer extraction code")
+    def test_zip_extraction_fails_if_an_extracted_file_is_quarantined(self):
+        from main import InstallWorker
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive = root / "game.zip"
+            destination = root / "staging"
+            destination.mkdir()
+            with zipfile.ZipFile(archive, "w") as zipped:
+                zipped.writestr("How to Fish/winmm.dll", b"fixture")
+
+            worker = InstallWorker(SimpleNamespace(has_fix=False), str(root / "game"))
+            errors = []
+            worker.error.connect(errors.append)
+            original_extract = zipfile.ZipFile.extract
+
+            def extract_then_remove(zipped, member, path=None, pwd=None):
+                extracted = original_extract(zipped, member, path, pwd)
+                os.remove(extracted)
+                return extracted
+
+            with patch.object(zipfile.ZipFile, "extract", extract_then_remove):
+                extracted = worker._extract_zip(
+                    str(archive), str(destination), worker.extract_progress,
+                )
+
+            self.assertFalse(extracted)
+            self.assertEqual(len(errors), 1)
+            self.assertIn("Extraction did not complete", errors[0])
+            self.assertIn("winmm.dll", errors[0])
+            self.assertIn("quarantined", errors[0])
 
 
 if __name__ == "__main__":
