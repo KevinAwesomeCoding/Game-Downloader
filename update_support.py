@@ -112,12 +112,7 @@ def windows_update_script(new_exe: str, current_exe: str, pid: int, status_file:
     return (
         "@echo off\n"
         "chcp 65001 >nul\n"
-        ":wait\n"
-        f'tasklist /FI "PID eq {pid}" 2>NUL | find "{pid}" >NUL\n'
-        "if not errorlevel 1 (\n"
-        "    timeout /t 1 /nobreak >nul\n"
-        "    goto wait\n"
-        ")\n"
+        f'powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -Command "Wait-Process -Id {pid} -ErrorAction SilentlyContinue" >NUL 2>&1\n'
         f'if not exist "{new_exe}" (echo failed>"{status_file}" & start "" "{current_exe}" & del "%~f0" & exit /b 1)\n'
         f'move /y "{new_exe}" "{current_exe}"\n'
         f'if errorlevel 1 (echo failed>"{status_file}" & start "" "{current_exe}" & del "%~f0" & exit /b 1)\n'

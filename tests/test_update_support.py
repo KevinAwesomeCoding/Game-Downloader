@@ -123,7 +123,8 @@ class UpdateFlowTests(unittest.TestCase):
             r"C:\Temp\new.exe", r"C:\Apps\GameInstaller.exe", 4242,
             r"C:\Users\User\AppData\Roaming\GameInstaller\update-status.txt",
         )
-        self.assertIn('tasklist /FI "PID eq 4242"', script)
+        self.assertIn('Wait-Process -Id 4242 -ErrorAction SilentlyContinue', script)
+        self.assertNotIn('find "4242"', script)
         self.assertIn('move /y "C:\\Temp\\new.exe" "C:\\Apps\\GameInstaller.exe"', script)
         self.assertIn('start "" "C:\\Apps\\GameInstaller.exe"', script)
         self.assertIn('echo installed>"C:\\Users\\User\\AppData\\Roaming\\GameInstaller\\update-status.txt"', script)

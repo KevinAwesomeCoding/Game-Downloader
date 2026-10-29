@@ -163,7 +163,6 @@ def app_dir() -> str:
 
 # Hide the console window when launching 7-Zip from a windowed app. bruh
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-_DETACHED_PROCESS = 0x00000008  # Windows: child survives after parent exits
 _SEVENZIP_PATH = None  # cached result of find_7zip()
 _SEVENZIP_SEARCHED = False
 
@@ -232,8 +231,8 @@ def _launch_update_bat(new_exe: str, current_exe: str) -> None:
     with open(bat_path, "w", encoding="utf-8") as fh:
         fh.write(script)
     subprocess.Popen(
-        ["cmd.exe", "/c", bat_path],
-        creationflags=_DETACHED_PROCESS | _NO_WINDOW,
+        ["cmd.exe", "/d", "/c", bat_path],
+        creationflags=_NO_WINDOW,
         close_fds=True,
     )
 
