@@ -418,6 +418,51 @@ def find_main_executable(root: str, game_name: str = ""):
     return max(candidates, key=score)[0]
 
 
+def scan_installed_games(games, games_folder):
+    """Report each catalog game as found or missing in the selected folder.
+    Hidden folders, symlinks, empty folders, and repair-only catalog entries
+    are ignored, matching the macOS Games Owned scan behavior."""
+    folder_by_name = {}
+    if games_folder and os.path.isdir(games_folder):
+        try:
+            with os.scandir(games_folder) as entries:
+                for entry in entries:
+                    try:
+                        if entry.name.startswith(".") or not entry.is_dir(follow_symlinks=False):
+                            continue
+                        with os.scandir(entry.path) as contents:
+                            if not next(contents, None):
+                                continue
+                    except OSError:
+                        continue
+                    folder_by_name.setdefault(entry.name.casefold(), entry.path)
+        except OSError:
+            pass
+
+    prefs = load_prefs()
+    chosen_exes = prefs.get("game_executables", {})
+    if not isinstance(chosen_exes, dict):
+        chosen_exes = {}
+    installed = []
+    for game in games:
+        if game.is_patch:
+            continue
+        folder = folder_by_name.get(game.safe_folder_name.casefold())
+        exe = None
+        if folder:
+            exe = chosen_exes.get(game.id)
+            try:
+                if exe and (os.path.commonpath([os.path.abspath(folder), os.path.abspath(exe)]) != os.path.abspath(folder)
+                            or not os.path.isfile(exe) or not exe.lower().endswith(".exe")):
+                    exe = None
+            except (OSError, ValueError):
+                exe = None
+            if not exe:
+                exe = find_main_executable(folder, game.name)
+        installed.append({"game": game, "folder": folder, "exe": exe, "root": games_folder})
+    return installed
+
+
 def _ps_single_quote(value: str) -> str:
     """Quote a value as a PowerShell single-quoted string literal."""
     return "'" + str(value).replace("'", "''") + "'"
@@ -3189,6 +3234,133 @@ class GameCard(QFrame):
         super().mouseReleaseEvent(event)
 
 
+class InstalledGameCard(QFrame):
+    """A catalog game and whether it was found in the configured Games folder."""
+
+    def __init__(self, record, play, choose_exe, open_folder, install):
+        super().__init__()
+        game, folder, exe = record["game"], record["folder"], record["exe"]
+        self.setObjectName("DownloadCard")
+        root = QVBoxLayout(self)
+        root.setContentsMargins(16, 14, 16, 14)
+        root.setSpacing(8)
+        title_row = QHBoxLayout()
+        title = QLabel(game.name)
+        title.setObjectName("DownloadName")
+        title_row.addWidget(title)
+        title_row.addStretch(1)
+        found = folder is not None
+        status_text = "Ready to play" if exe else ("Game folder found · choose an .exe" if found else "Not found")
+        status = QLabel(status_text)
+        status.setObjectName("ChipDone" if exe else ("SmallLabel" if found else "ChipCanceled"))
+        title_row.addWidget(status)
+        root.addLayout(title_row)
+        path_text = folder if found else f"No matching non-empty folder in: {record['root']}"
+        path = QLabel(path_text)
+        path.setObjectName("StatusLabel")
+        path.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        path.setWordWrap(True)
+        root.addWidget(path)
+        if exe:
+            exe_label = QLabel(f"Executable: {os.path.relpath(exe, folder)}")
+            exe_label.setObjectName("SmallLabel")
+            exe_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            root.addWidget(exe_label)
+        buttons = QHBoxLayout()
+        if exe:
+            play_btn = QPushButton("Play")
+            play_btn.setObjectName("PrimaryButton")
+            play_btn.clicked.connect(lambda _checked=False: play(record))
+            buttons.addWidget(play_btn)
+        if found:
+            choose_btn = QPushButton("Choose .exe")
+            choose_btn.clicked.connect(lambda _checked=False: choose_exe(record))
+            buttons.addWidget(choose_btn)
+            folder_btn = QPushButton("Open folder")
+            folder_btn.clicked.connect(lambda _checked=False: open_folder(record))
+            buttons.addWidget(folder_btn)
+        else:
+            install_btn = QPushButton("Install" if game.is_available else "Coming Soon")
+            install_btn.setObjectName("PrimaryButton" if game.is_available else "SpacewarButton")
+            install_btn.setEnabled(game.is_available)
+            install_btn.clicked.connect(lambda _checked=False: install(game))
+            buttons.addWidget(install_btn)
+        buttons.addStretch(1)
+        root.addLayout(buttons)
+
+
+class GamesPage(QWidget):
+    """Catalog-aware view of installed games under one selected root folder."""
+
+    choose_folder = pyqtSignal()
+    scan_requested = pyqtSignal()
+    play_requested = pyqtSignal(object)
+    choose_exe_requested = pyqtSignal(object)
+    open_folder_requested = pyqtSignal(object)
+    install_requested = pyqtSignal(object)
+
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(12)
+        header = QHBoxLayout()
+        intro = QVBoxLayout()
+        title = QLabel("Games")
+        title.setObjectName("AppTitle")
+        intro.addWidget(title)
+        self.folder_label = QLabel("")
+        self.folder_label.setObjectName("SubInfo")
+        self.folder_label.setWordWrap(True)
+        intro.addWidget(self.folder_label)
+        header.addLayout(intro, 1)
+        self.choose_button = QPushButton("Choose Games folder…")
+        self.choose_button.clicked.connect(lambda _checked=False: self.choose_folder.emit())
+        header.addWidget(self.choose_button)
+        self.scan_button = QPushButton("Scan folder")
+        self.scan_button.setObjectName("PrimaryButton")
+        self.scan_button.clicked.connect(lambda _checked=False: self.scan_requested.emit())
+        header.addWidget(self.scan_button)
+        layout.addLayout(header)
+
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setObjectName("Scroll")
+        self.container = QWidget()
+        self.cards_layout = QVBoxLayout(self.container)
+        self.cards_layout.setContentsMargins(0, 6, 0, 12)
+        self.cards_layout.setSpacing(12)
+        self.scroll.setWidget(self.container)
+        layout.addWidget(self.scroll, 1)
+        self.folder = ""
+        self.records = []
+
+    def set_folder(self, folder):
+        self.folder = folder
+        self.folder_label.setText(f"Scanning catalog games in: {folder}")
+
+    def set_games(self, records):
+        self.records = records
+        while self.cards_layout.count():
+            item = self.cards_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        if not records:
+            label = QLabel("No catalog games are available to scan.")
+            label.setObjectName("SubInfo")
+            label.setWordWrap(True)
+            self.cards_layout.addWidget(label)
+        else:
+            for record in records:
+                card = InstalledGameCard(
+                    record, self.play_requested.emit, self.choose_exe_requested.emit,
+                    self.open_folder_requested.emit, self.install_requested.emit,
+                )
+                self.cards_layout.addWidget(card)
+        self.cards_layout.addStretch(1)
+
+
 # ---------------------------------------------------------------------------
 # Install dialog — owns the worker thread for one install.
 # ---------------------------------------------------------------------------
@@ -4406,6 +4578,8 @@ class MainWindow(QMainWindow):
         self._sweep_thread = None
         self._sweep_worker = None
         self._current_games: list = []
+        prefs = load_prefs()
+        self._games_folder = prefs.get("games_folder") or prefs.get("install_path") or os.path.join(os.path.expanduser("~"), "Games")
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -4428,11 +4602,19 @@ class MainWindow(QMainWindow):
         self.settings_page = self._build_settings_page()
         self.downloads_page = DownloadsPage()
         self.download_manager = DownloadManager(self.downloads_page, max_concurrent=3)
-        self.download_manager.count_changed.connect(self._update_downloads_badge)
+        self.download_manager.count_changed.connect(self._on_download_count_changed)
         self.downloads_page.set_empty(True)
+        self.games_page = GamesPage()
+        self.games_page.choose_folder.connect(self._choose_games_folder)
+        self.games_page.scan_requested.connect(self._scan_games_folder)
+        self.games_page.play_requested.connect(self._play_installed_game)
+        self.games_page.choose_exe_requested.connect(self._choose_game_executable)
+        self.games_page.open_folder_requested.connect(self._open_installed_folder)
+        self.games_page.install_requested.connect(self._open_install)
         self.stack.addWidget(self.loading_page)
         self.stack.addWidget(self.error_page)
         self.stack.addWidget(self.content_page)
+        self.stack.addWidget(self.games_page)
         self.stack.addWidget(self.settings_page)
         self.stack.addWidget(self.downloads_page)
 
@@ -4554,6 +4736,11 @@ class MainWindow(QMainWindow):
         self.library_btn.clicked.connect(
             lambda: self.stack.setCurrentWidget(self.content_page))
         lay.addWidget(self.library_btn)
+
+        self.games_btn = QPushButton("Games")
+        self.games_btn.setObjectName("NavButton")
+        self.games_btn.clicked.connect(self._show_games_page)
+        lay.addWidget(self.games_btn)
 
         self.downloads_btn = QPushButton("Downloads")
         self.downloads_btn.setObjectName("NavButton")
@@ -4799,8 +4986,78 @@ class MainWindow(QMainWindow):
         stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
         self.updated_label.setText(f"Last updated {stamp}  ·  {source}")
         self.stack.setCurrentWidget(self.content_page)
+        self._scan_games_folder()
         # Defer the Spacewar check until after the cards are painted.
         QTimer.singleShot(400, self._maybe_prompt_spacewar)
+
+    def _on_download_count_changed(self, active):
+        self._update_downloads_badge(active)
+        # A completed install can add a game to the selected folder.
+        self._scan_games_folder()
+
+    def _show_games_page(self):
+        self._scan_games_folder()
+        self.stack.setCurrentWidget(self.games_page)
+
+    def _scan_games_folder(self):
+        prefs = load_prefs()
+        if not prefs.get("games_folder"):
+            self._games_folder = prefs.get("install_path") or os.path.join(os.path.expanduser("~"), "Games")
+        self.games_page.set_folder(self._games_folder)
+        self.games_page.set_games(scan_installed_games(self._current_games, self._games_folder))
+
+    def _choose_games_folder(self):
+        folder = QFileDialog.getExistingDirectory(
+            self, "Choose your Games folder", self._games_folder,
+        )
+        if not folder:
+            return
+        self._games_folder = folder
+        prefs = load_prefs()
+        prefs["games_folder"] = folder
+        save_prefs(prefs)
+        self._scan_games_folder()
+
+    def _play_installed_game(self, record):
+        exe = record.get("exe")
+        if not exe or not os.path.isfile(exe):
+            QMessageBox.warning(self, "Executable not found", "Choose the game's .exe file before launching it.")
+            self._scan_games_folder()
+            return
+        try:
+            os.startfile(exe)
+        except OSError as exc:
+            QMessageBox.warning(self, "Could not launch game", f"Windows could not open this executable:\n{exe}\n\n{exc}")
+
+    def _choose_game_executable(self, record):
+        folder = record["folder"]
+        path, _ = QFileDialog.getOpenFileName(
+            self, f"Choose {record['game'].name} executable", folder,
+            "Windows executable (*.exe)",
+        )
+        if not path:
+            return
+        try:
+            inside_game = os.path.commonpath([os.path.abspath(folder), os.path.abspath(path)]) == os.path.abspath(folder)
+        except (OSError, ValueError):
+            inside_game = False
+        if not inside_game or not path.lower().endswith(".exe"):
+            QMessageBox.warning(self, "Choose an executable inside the game folder", "Select an .exe located inside this game's folder.")
+            return
+        prefs = load_prefs()
+        executables = prefs.get("game_executables", {})
+        if not isinstance(executables, dict):
+            executables = {}
+        executables[record["game"].id] = path
+        prefs["game_executables"] = executables
+        save_prefs(prefs)
+        self._scan_games_folder()
+
+    def _open_installed_folder(self, record):
+        try:
+            os.startfile(record["folder"])
+        except OSError as exc:
+            QMessageBox.warning(self, "Could not open folder", f"Windows could not open this folder:\n{record['folder']}\n\n{exc}")
 
     @pyqtSlot(str)
     def _on_manifest_failed(self, message):
