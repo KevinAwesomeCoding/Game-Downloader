@@ -588,6 +588,12 @@ def launch_steam_client() -> bool:
 
 # ---------------------------------------------------------------------------
 # Microsoft Defender exclusion helpers
+#
+# Policy: exclusions are OPT-IN. The installer never touches Defender unless
+# the user ticked the box, and when it does it only ever removes paths that it
+# created itself in the same run — a folder that was already excluded before we
+# started belongs to the user and is left alone. That is why every add helper
+# returns the list of paths it actually added instead of a bare bool.
 # ---------------------------------------------------------------------------
 
 def is_admin() -> bool:
@@ -694,65 +700,53 @@ def defender_exclusion_exists(folder: str) -> bool:
     return False
 
 
-def add_defender_exclusion(folder: str) -> tuple:
-    """Add *folder* to Windows Defender's ExclusionPath.
+def _defender_access_denied(stderr: str) -> bool:
+    """True when a PowerShell failure looks like 'needs admin' rather than a
+    real error. Used to decide whether an elevated retry is worth a UAC prompt."""
+    keywords = (
+        "0x80070005", "Access", "privilege", "administrator",
+        "Unauthorized", "UnauthorizedAccess",
+    )
+    return any(kw in stderr for kw in keywords)
 
-    Strategy
-    --------
-    1. Skip silently if the path is already excluded.
-    2. Attempt a non-elevated PowerShell Add-MpPreference (succeeds when the
-       app is already running as administrator).
-    3. On access-denied, retry with an elevated PowerShell script launched
-       via ShellExecuteExW + runas.  A temp result file lets the elevated
-       process pass its outcome back to this process.
 
-    Returns (success: bool, message: str).
+def _run_mp_script(command: str, timeout: int = 15) -> tuple:
+    """Run one Add-/Remove-MpPreference *command*, elevating only if needed.
+
+    Returns (ok, message). *command* must already be fully built with escaped
+    paths. Elevation happens at most once and only after a permission error.
     """
-    if defender_exclusion_exists(folder):
-        return (True, "This folder is already excluded — no changes needed.")
-
-    ps_path = _ps_escape(folder)
-    command = f"Add-MpPreference -ExclusionPath '{ps_path}'"
-
-    # Non-elevated attempt — works when the app is already running as admin.
     try:
         result = subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", command],
-            capture_output=True, text=True, timeout=15,
+            capture_output=True, text=True, timeout=timeout,
             creationflags=_NO_WINDOW,
         )
         if result.returncode == 0:
-            return (True, "Defender exclusion added successfully.")
+            return (True, "")
         stderr = (result.stderr or result.stdout or "").strip()
-        access_keywords = (
-            "0x80070005", "Access", "privilege", "administrator",
-            "Unauthorized", "UnauthorizedAccess",
-        )
-        if not any(kw in stderr for kw in access_keywords):
-            # A non-permission error — no point retrying elevated.
+        if not _defender_access_denied(stderr):
             return (False, stderr or "PowerShell returned a non-zero exit code.")
     except subprocess.TimeoutExpired:
-        return (False, "PowerShell timed out while adding the exclusion.")
+        return (False, "PowerShell timed out.")
     except FileNotFoundError:
         return (False, "PowerShell was not found on this system.")
 
-    # Elevated attempt — UAC prompt will appear.
+    # Elevated retry — the user sees exactly one UAC prompt.
     result_path = os.path.join(
         tempfile.gettempdir(), f"defex_result_{os.getpid()}.txt"
     )
     rp_esc = _ps_escape(result_path)
     script = (
         f"try {{\n"
-        f"    Add-MpPreference -ExclusionPath '{ps_path}'\n"
+        f"    {command}\n"
         f"    Set-Content -LiteralPath '{rp_esc}' -Value 'OK'\n"
         f"}} catch {{\n"
         f"    Set-Content -LiteralPath '{rp_esc}' -Value \"FAIL: $_\"\n"
         f"}}\n"
     )
 
-    exit_code = _run_elevated_ps(script)
-
-    if exit_code == -1:
+    if _run_elevated_ps(script) == -1:
         return (False, "Administrator access was denied or the UAC prompt was cancelled.")
 
     try:
@@ -765,114 +759,66 @@ def add_defender_exclusion(folder: str) -> tuple:
         return (False, f"Could not read the result file: {exc}")
 
     if text == "OK":
-        return (True, "Defender exclusion added successfully.")
+        return (True, "")
     prefix = "FAIL: "
-    detail = text[len(prefix):].strip() if text.startswith(prefix) else text
-    return (False, detail or "Unknown error from the elevated process.")
+    return (False, text[len(prefix):].strip() if text.startswith(prefix) else text)
 
 
 def add_defender_exclusions(folders: list) -> tuple:
-    """Add multiple folders to Defender exclusions in a single PowerShell call.
+    """Add multiple folders to Defender exclusions in a single operation.
 
-    Filters out already-excluded paths first so it only touches what's needed.
-    Falls back to a single UAC-elevated script if the non-elevated attempt is
-    denied — the user sees at most one UAC prompt regardless of how many folders
-    are being added.
+    Returns (success: bool, message: str, added: list[str]).
 
-    Returns (success: bool, message: str).
+    ``added`` lists ONLY the paths this call created. Callers must use that
+    list — never their input list — to decide what may later be removed: a
+    path that was already excluded before we ran belongs to the user and must
+    survive us.
+
+    Folders that are already excluded are filtered out first, so one UAC prompt
+    at most covers everything genuinely new.
     """
     to_add = [f for f in folders if not defender_exclusion_exists(f)]
     if not to_add:
-        return (True, "All folders are already excluded — no changes needed.")
+        return (True, "Already excluded — nothing was added.", [])
 
     # PowerShell accepts a comma-separated array: -ExclusionPath 'a','b'
     paths_ps = ",".join(f"'{_ps_escape(f)}'" for f in to_add)
-    command = f"Add-MpPreference -ExclusionPath {paths_ps}"
+    ok, detail = _run_mp_script(f"Add-MpPreference -ExclusionPath {paths_ps}")
 
-    try:
-        result = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", command],
-            capture_output=True, text=True, timeout=15,
-            creationflags=_NO_WINDOW,
-        )
-        if result.returncode == 0:
-            return (True, "Defender exclusions added successfully.")
-        stderr = (result.stderr or result.stdout or "").strip()
-        access_keywords = (
-            "0x80070005", "Access", "privilege", "administrator",
-            "Unauthorized", "UnauthorizedAccess",
-        )
-        if not any(kw in stderr for kw in access_keywords):
-            return (False, stderr or "PowerShell returned a non-zero exit code.")
-    except subprocess.TimeoutExpired:
-        return (False, "PowerShell timed out while adding exclusions.")
-    except FileNotFoundError:
-        return (False, "PowerShell was not found on this system.")
+    if ok:
+        _log.debug("add_defender_exclusions  added=%r", to_add)
+        return (True, "Defender exclusions added.", to_add)
+    _log.debug("add_defender_exclusions  FAIL  %r  detail=%r", to_add, detail)
+    return (False, detail or "Unknown error while adding exclusions.", [])
 
-    # Elevated attempt — one UAC prompt covers all folders.
-    result_path = os.path.join(
-        tempfile.gettempdir(), f"defex_result_{os.getpid()}.txt"
-    )
-    rp_esc = _ps_escape(result_path)
-    script = (
-        f"try {{\n"
-        f"    Add-MpPreference -ExclusionPath {paths_ps}\n"
-        f"    Set-Content -LiteralPath '{rp_esc}' -Value 'OK'\n"
-        f"}} catch {{\n"
-        f"    Set-Content -LiteralPath '{rp_esc}' -Value \"FAIL: $_\"\n"
-        f"}}\n"
-    )
 
-    exit_code = _run_elevated_ps(script)
-    if exit_code == -1:
-        return (False, "Administrator access was denied or the UAC prompt was cancelled.")
+def add_defender_exclusion(folder: str) -> tuple:
+    """Add a single folder to Defender exclusions.
 
-    try:
-        with open(result_path, "r", encoding="utf-8") as fh:
-            text = fh.read().strip()
-        os.unlink(result_path)
-    except FileNotFoundError:
-        return (False, "The elevated process produced no result (it may have been blocked by policy).")
-    except OSError as exc:
-        return (False, f"Could not read the result file: {exc}")
-
-    if text == "OK":
-        return (True, "Defender exclusions added successfully.")
-    prefix = "FAIL: "
-    detail = text[len(prefix):].strip() if text.startswith(prefix) else text
-    return (False, detail or "Unknown error from the elevated process.")
+    Thin wrapper over add_defender_exclusions() kept for single-path callers.
+    Returns (success: bool, message: str, added: list[str]).
+    """
+    return add_defender_exclusions([folder])
 
 
 def remove_defender_exclusion(folder: str) -> tuple:
     """Remove *folder* from Defender's ExclusionPath.
 
-    No UAC fallback — the app already runs elevated via --uac-admin so the
-    PowerShell subprocess inherits that and can call Remove-MpPreference
-    directly.  Failure is non-fatal; the exclusion simply stays in place.
+    Call this only for paths the installer itself added — see
+    add_defender_exclusions(). Failure is non-fatal; the exclusion simply
+    stays in place.
 
     Returns (success: bool, message: str).
     """
     if not defender_exclusion_exists(folder):
         return (True, "Folder was not in the exclusion list.")
 
-    ps_path = _ps_escape(folder)
-    command = f"Remove-MpPreference -ExclusionPath '{ps_path}'"
-    try:
-        result = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", command],
-            capture_output=True, text=True, timeout=15,
-            creationflags=_NO_WINDOW,
-        )
-        if result.returncode == 0:
-            _log.debug("remove_defender_exclusion  OK  folder=%r", folder)
-            return (True, "Defender exclusion removed successfully.")
-        stderr = (result.stderr or result.stdout or "").strip()
-        _log.debug("remove_defender_exclusion  FAIL  folder=%r  stderr=%r", folder, stderr)
-        return (False, stderr or "PowerShell returned a non-zero exit code.")
-    except subprocess.TimeoutExpired:
-        return (False, "PowerShell timed out while removing the exclusion.")
-    except FileNotFoundError:
-        return (False, "PowerShell was not found on this system.")
+    ok, detail = _run_mp_script(f"Remove-MpPreference -ExclusionPath '{_ps_escape(folder)}'")
+    if ok:
+        _log.debug("remove_defender_exclusion  OK  folder=%r", folder)
+        return (True, "Defender exclusion removed.")
+    _log.debug("remove_defender_exclusion  FAIL  folder=%r  detail=%r", folder, detail)
+    return (False, detail or "Unknown error while removing the exclusion.")
 
 
 # ---------------------------------------------------------------------------
@@ -1387,11 +1333,11 @@ class ManifestLoader(QObject):
 
 
 # ---------------------------------------------------------------------------
-# Defender exclusion worker — runs add_defender_exclusion off the GUI thread
+# Defender exclusion worker — runs add_defender_exclusions off the GUI thread
 # so UAC + PowerShell never freeze the window.
 # ---------------------------------------------------------------------------
 class DefenderWorker(QObject):
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, list)  # success, message, paths actually added
 
     def __init__(self, folders):
         super().__init__()
@@ -1400,8 +1346,8 @@ class DefenderWorker(QObject):
 
     @pyqtSlot()
     def run(self):
-        success, message = add_defender_exclusions(self.folders)
-        self.finished.emit(success, message)
+        success, message, added = add_defender_exclusions(self.folders)
+        self.finished.emit(success, message, added)
 
 
 # ---------------------------------------------------------------------------
@@ -1767,6 +1713,8 @@ class InstallWorker(QObject):
         self.game = game
         self.dest_path = dest_path
         self._fix_only = fix_only
+        # True only when THIS install is the one that added the %TEMP%
+        # Defender exclusion, so it is also the one allowed to remove it again.
         self._remove_temp_exclusion = remove_temp_exclusion
         self._cancel = threading.Event()
         self._temp_files = []
@@ -1850,9 +1798,10 @@ class InstallWorker(QObject):
         self._temp_dirs = []
 
     def _finish_cleanup(self):
-        """Clean temp files then, if the %TEMP% Defender exclusion was added
-        for this install, remove it now that extraction is fully done.
-        Clears the flag so a subsequent call (e.g. from the finally guard in
+        """Clean temp files then, if this install is the one that added the
+        %TEMP% Defender exclusion, remove it again now that extraction is
+        fully done. A %TEMP% exclusion that pre-existed is left untouched.
+        Clears the flag so a later call (e.g. from the finally guard in
         run()) is a no-op."""
         self._cleanup_temp()
         if self._remove_temp_exclusion:
@@ -2537,6 +2486,90 @@ class InstallWorker(QObject):
         )
         return kind
 
+    # -- extraction completeness -------------------------------------------
+    @staticmethod
+    def _missing_files_message(missing, dest_dir):
+        """Build the explicit incomplete-extraction error text."""
+        preview = "\n".join(f"  •  {m}" for m in missing[:8])
+        if len(missing) > 8:
+            preview += f"\n  …  and {len(missing) - 8} more"
+        return (
+            f"Extraction finished, but {len(missing)} file(s) never landed in "
+            f"the install folder.\n\n"
+            f"Microsoft Defender most likely quarantined them the moment they "
+            f"were written — crack/fix DLLs such as winmm.dll and "
+            f"OnlineFix64.dll are routinely flagged as Trojan:Win32/Malgent "
+            f"or similar even though they are harmless.\n\n"
+            f"Missing:\n{preview}\n\n"
+            f"To fix it, either:\n"
+            f"  •  tick \"Add install folder to Microsoft Defender exclusions\" "
+            f"in the install dialog and run it again, or\n"
+            f"  •  open Windows Security → Protection history, restore the "
+            f"quarantined files, then re-run the install.\n\n"
+            f"Install folder:\n{dest_dir}"
+        )
+
+    def _check_extracted(self, expected, dest_dir) -> bool:
+        """Emit an explicit incomplete-extraction error if any expected file is
+        absent from dest_dir.
+
+        Returns True when everything is present (or when the caller had no
+        member list to compare against). This is what turns a Defender
+        quarantine during extraction into a visible failure instead of a
+        green 'installed successfully' over a broken game.
+        """
+        if not expected:
+            return True
+        missing = []
+        for rel in expected:
+            target = os.path.join(
+                dest_dir, rel.replace("\\", "/").replace("/", os.sep)
+            )
+            if not os.path.isfile(target):
+                missing.append(rel)
+        if not missing:
+            return True
+        _log.debug("_check_extracted  MISSING %d/%d  first=%r",
+                   len(missing), len(expected), missing[:5])
+        self._cleanup_temp()
+        self.error.emit(self._missing_files_message(missing, dest_dir))
+        return False
+
+    @staticmethod
+    def _list_7zip_files(seven, archive_path):
+        """Relative member paths inside an archive, or None if unreadable.
+
+        Uses 7-Zip's technical listing, whose blocks are separated by
+        '----------' (the first block being the archive header). Directory
+        entries are skipped so only real files are returned.
+        """
+        try:
+            proc = subprocess.run(
+                [seven, "l", "-slt",
+                 f"-p{ZIP_PASSWORD.decode('utf-8', 'ignore')}", archive_path],
+                capture_output=True, text=True, timeout=120,
+                creationflags=_NO_WINDOW, stdin=subprocess.DEVNULL,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        if proc.returncode not in (0, 1):
+            return None
+
+        paths = []
+        for block in proc.stdout.split("----------")[1:]:
+            rel, is_dir = "", False
+            for line in block.splitlines():
+                if line.startswith("Path = "):
+                    rel = line[len("Path = "):].strip()
+                elif line.startswith("Folder = "):
+                    is_dir = line[len("Folder = "):].strip() == "+"
+                elif line.startswith("Attributes = "):
+                    if "D" in line[len("Attributes = "):].split():
+                        is_dir = True
+            if rel and not is_dir:
+                paths.append(rel)
+        return paths or None
+
     def _extract_archive(self, archive_path, dest_dir, url, progress_signal, stage_idx=1) -> bool:
         """Dispatch extraction by archive type. Caller emits the status text."""
         progress_signal.emit(0)
@@ -2610,6 +2643,8 @@ class InstallWorker(QObject):
                             _pwd = None
                         break
 
+                # Every regular member we expect to find on disk afterwards.
+                expected = []
                 _dest_real = os.path.realpath(dest_dir)
                 for index, member in enumerate(members, start=1):
                     if self._cancel.is_set():
@@ -2654,6 +2689,8 @@ class InstallWorker(QObject):
                             member.filename, _target, _mexc,
                         )
                         raise
+                    if not member.is_dir():
+                        expected.append(member.filename)
 
                     pct = int(index * 100 / count)
                     progress_signal.emit(pct)
@@ -2661,6 +2698,11 @@ class InstallWorker(QObject):
                     if index % max(1, count // 20) == 0:  # Update 20 times
                         self._emit_status("Extracting", pct, f"{index} / {count} files")
                         self._update_overall_progress()
+
+            # A quarantining AV deletes files right after they are written, so
+            # zipfile reports success while the folder is short of content.
+            if not self._check_extracted(expected, dest_dir):
+                return False
 
             progress_signal.emit(100)
             self._stage_progress[stage_idx] = 100
@@ -2696,6 +2738,10 @@ class InstallWorker(QObject):
                 "7-Zip from https://www.7-zip.org and try again."
             )
             return False
+
+        # Read the member list up front so the post-extraction completeness
+        # check knows what should have landed (None = list unreadable, skip).
+        expected = self._list_7zip_files(seven, rar_path)
 
         try:
             os.makedirs(dest_dir, exist_ok=True)
@@ -2797,6 +2843,11 @@ class InstallWorker(QObject):
                     f"Extraction failed — 7-Zip could not read the archive.\n\n"
                     f"Exit code: {proc.returncode}"
                 )
+            return False
+
+        # Same completeness guard as the zip path: 7-Zip can exit 0 while an AV
+        # quietly deletes freshly-written crack DLLs.
+        if not self._check_extracted(expected, dest_dir):
             return False
 
         progress_signal.emit(100)
@@ -3286,17 +3337,24 @@ class InstallDialog(QDialog):
         self.dest_edit.textChanged.connect(self._update_hint)
         self._update_hint()
 
-        # Optional Defender exclusion.
+        # Optional Defender exclusion — OFF by default so the installer leaves
+        # Defender exactly as it found it unless the user opts in.
         self.defender_check = QCheckBox(
-            "Add this install folder to Microsoft Defender exclusions  "
-            "(Admin required)"
+            "Add this install folder to Microsoft Defender exclusions "
+            "(recommended for cracked games)"
         )
-        self.defender_check.setChecked(True)
+        self.defender_check.setChecked(
+            bool(load_prefs().get("defender_exclusion_default", False))
+        )
         root.addWidget(self.defender_check)
         self.defender_warn = QLabel(
-            "⚠  This reduces antivirus scanning for this folder."
+            "⚠  Off by default. When ticked, this folder and %TEMP% are excluded "
+            "from scanning so crack DLLs are not quarantined mid-install. The "
+            "%TEMP% entry is only removed again afterwards if this installer is "
+            "the one that added it."
         )
         self.defender_warn.setObjectName("DefenderWarning")
+        self.defender_warn.setWordWrap(True)
         root.addWidget(self.defender_warn)
 
         if patch_target:
@@ -3485,8 +3543,9 @@ class InstallDialog(QDialog):
         # Hand the job to the download manager and close — it runs in the
         # background on the Downloads page (and applies the Defender exclusion
         # there if requested, just like the old inline pre-step did).
+        wants_exclusion = self.defender_check.isChecked()
         defender_folders = None
-        if self.defender_check.isChecked():
+        if wants_exclusion:
             try:
                 os.makedirs(target, exist_ok=True)
             except OSError as exc:
@@ -3497,10 +3556,15 @@ class InstallDialog(QDialog):
                 return
             defender_folders = [target, tempfile.gettempdir()]
 
+        # Remember both choices for next time. The exclusion default stays off
+        # until the user asks for it at least once.
+        prefs = load_prefs()
+        prefs["defender_exclusion_default"] = bool(wants_exclusion)
         if not self._patch_target:
-            prefs = load_prefs()
             prefs["install_path"] = self.dest_edit.text().strip()
-            save_prefs(prefs)
+        save_prefs(prefs)
+
+        self._install_target = target
 
         # When applying into an existing (already-owned) game folder, the base
         # game is already installed — only the fix needs to be downloaded and
@@ -3644,12 +3708,22 @@ class InstallDialog(QDialog):
             self.defender_worker = None
             self.defender_thread = None
 
-    @pyqtSlot(bool, str)
-    def _on_pre_install_defender_done(self, success: bool, message: str):
+    @staticmethod
+    def _temp_was_added(added: list) -> bool:
+        """True when %TEMP% is among the exclusions this run created, i.e. when
+        this install may remove it again on the way out."""
+        temp = os.path.normcase(tempfile.gettempdir())
+        return any(os.path.normcase(p) == temp for p in added)
+
+    @pyqtSlot(bool, str, list)
+    def _on_pre_install_defender_done(self, success: bool, message: str, added: list):
         self._teardown_defender_thread()
         if success:
             self.status_label.setText("Exclusion added. Starting download…")
-            self._launch_install_worker(self._install_target, remove_temp_exclusion=True)
+            self._launch_install_worker(
+                self._install_target,
+                remove_temp_exclusion=self._temp_was_added(added),
+            )
         else:
             self._installing = False
             self._reset_controls()
@@ -3911,15 +3985,21 @@ class DownloadCard(QFrame):
         self.defender_worker.finished.connect(self._on_defender_done)
         self.defender_thread.start()
 
-    @pyqtSlot(bool, str)
-    def _on_defender_done(self, ok, message):
+    @pyqtSlot(bool, str, list)
+    def _on_defender_done(self, ok, message, added):
         self._teardown_defender()
         self.action_btn.setEnabled(True)
-        if ok:
-            self.status_label.setText("Exclusion added. Starting download…")
-            self._start_worker(remove_temp_exclusion=True)
-        else:
+        if not ok:
             self._fail(f"Defender exclusion failed: {message}")
+            return
+        self.status_label.setText("Exclusion added. Starting download…")
+        # Only remove %TEMP% afterwards if this run is what added it — a
+        # pre-existing entry (possibly created by another concurrent card or
+        # by the user) must survive.
+        temp = os.path.normcase(tempfile.gettempdir())
+        self._start_worker(
+            remove_temp_exclusion=any(os.path.normcase(p) == temp for p in added)
+        )
 
     def _start_worker(self, remove_temp_exclusion):
         # If a previous attempt already installed the main game, retry the fix
@@ -5182,6 +5262,6 @@ def main():
 if __name__ == "__main__":
     if sys.argv[1:] == ["--check-download-browser"]:
         sys.exit(subprocess.call(helper_command() + ["--self-check"],
-                                 env={**os.environ, "PYINSTALLER_RESET_ENVIRONMENT": "1"}))
+                                 env={**os.environ, "PYINSTALLER_RESET_INVIRONMENT": "1"}))
     else:
         main()
