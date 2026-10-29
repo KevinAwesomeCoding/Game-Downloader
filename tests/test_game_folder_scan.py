@@ -1,9 +1,17 @@
 import tempfile
 import unittest
+import os
 from pathlib import Path
-from unittest.mock import patch
 
-from main import Game, scan_installed_games
+from game_library import scan_installed_games
+
+
+class CatalogGame:
+    def __init__(self, game_id, name, *, is_patch=False):
+        self.id = game_id
+        self.name = name
+        self.is_patch = is_patch
+        self.safe_folder_name = name
 
 
 class GameFolderScanTests(unittest.TestCase):
@@ -22,14 +30,12 @@ class GameFolderScanTests(unittest.TestCase):
             (hidden / "Hidden Game.exe").write_bytes(b"game")
 
             games = [
-                Game({"id": "installed", "name": "Installed Game", "zipUrl": "https://example.invalid/game.zip"}),
-                Game({"id": "missing", "name": "Missing Game", "zipUrl": "https://example.invalid/game.zip"}),
-                Game({"id": "empty", "name": "Empty Game", "zipUrl": "https://example.invalid/game.zip"}),
-                Game({"id": "patch", "name": "Patch Entry", "type": "fix", "zipUrl": "https://example.invalid/patch.zip"}),
+                CatalogGame("installed", "Installed Game"),
+                CatalogGame("missing", "Missing Game"),
+                CatalogGame("empty", "Empty Game"),
+                CatalogGame("patch", "Patch Entry", is_patch=True),
             ]
-
-            with patch("main.load_prefs", return_value={}):
-                results = scan_installed_games(games, str(root))
+            results = scan_installed_games(games, str(root))
 
         by_id = {record["game"].id: record for record in results}
         self.assertEqual(set(by_id), {"installed", "missing", "empty"})
@@ -37,6 +43,27 @@ class GameFolderScanTests(unittest.TestCase):
         self.assertEqual(by_id["installed"]["exe"], str(installed / "Installed Game.exe"))
         self.assertIsNone(by_id["missing"]["folder"])
         self.assertIsNone(by_id["empty"]["folder"])
+
+    @unittest.skipUnless(os.name == "nt", "Windows installer extraction code")
+    def test_chunked_copy_reports_progress_without_partial_target(self):
+        from main import InstallWorker
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source.bin"
+            target = root / "target.bin"
+            payload = b"x" * (10 * 1024 * 1024)
+            source.write_bytes(payload)
+            progress = []
+
+            copied = InstallWorker._copy_file_tolerant(
+                str(source), str(target), progress_callback=progress.append,
+            )
+
+            self.assertTrue(copied)
+            self.assertEqual(target.read_bytes(), payload)
+            self.assertGreater(len(progress), 1)
+            self.assertEqual(progress[-1], len(payload))
 
 
 if __name__ == "__main__":

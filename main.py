@@ -48,6 +48,7 @@ import requests
 from download_support import (Downloader as HostedDownloader, Stopped as DownloadStopped,
                               canonical_source, download_host_name)
 from host_resolver_client import provider_for, helper_command
+from game_library import find_main_executable, scan_installed_games as _scan_installed_games
 from update_support import (UpdateNoticeState, UpdateRelease, compatible_release,
                             download_verified_file, schedule_background_check,
                             windows_update_script)
@@ -368,99 +369,10 @@ def sweep_cache(max_age_days: int = CACHE_MAX_AGE_DAYS):
 # install folder (launchers usually sit at the root), with file size only as a
 # tiebreaker. Obvious non-game exes are pushed to the bottom.
 # ---------------------------------------------------------------------------
-_NON_GAME_EXE_RE = re.compile(
-    r"unins|uninstall|setup|install|vc_?redist|vcredist|dxsetup|dxwebsetup|"
-    r"directx|dotnet|ndp\d|netfx|redist|prereq|oalinst|openal|"
-    r"crashhandler|crashreport|crashpad|unitycrashhandler|"
-    r"unrealcefsubprocess|cefsubprocess|epicwebhelper|eossdk|"
-    r"activation|touchup|notification|helper|python|node",
-    re.IGNORECASE,
-)
-
-
-def _normalize_title(s: str) -> str:
-    return re.sub(r"[^a-z0-9]", "", str(s).lower())
-
-
-def find_main_executable(root: str, game_name: str = ""):
-    """Best guess at a game folder's main launchable .exe, or None if it has
-    no executables. See the scoring rationale in the section comment above."""
-    candidates = []
-    for dirpath, _dirs, files in os.walk(root):
-        for fn in files:
-            if not fn.lower().endswith(".exe"):
-                continue
-            full = os.path.join(dirpath, fn)
-            try:
-                size = os.path.getsize(full)
-            except OSError:
-                size = 0
-            rel = os.path.relpath(dirpath, root)
-            depth = 0 if rel == "." else rel.count(os.sep) + 1
-            candidates.append((full, fn, size, depth))
-    if not candidates:
-        return None
-
-    game_key = _normalize_title(game_name)
-
-    def score(entry):
-        full, fn, size, depth = entry
-        stem = _normalize_title(os.path.splitext(fn)[0])
-        pts = 0.0
-        if _NON_GAME_EXE_RE.search(fn):
-            pts -= 1_000_000
-        if game_key and stem and (game_key in stem or stem in game_key):
-            pts += 1_000_000
-        pts -= depth * 1000                          # shallower is better
-        pts += min(size, 4_000_000_000) / 1_000_000  # size in MB, mild nudge
-        return pts
-
-    return max(candidates, key=score)[0]
-
-
 def scan_installed_games(games, games_folder):
-    """Report each catalog game as found or missing in the selected folder.
-    Hidden folders, symlinks, empty folders, and repair-only catalog entries
-    are ignored, matching the macOS Games Owned scan behavior."""
-    folder_by_name = {}
-    if games_folder and os.path.isdir(games_folder):
-        try:
-            with os.scandir(games_folder) as entries:
-                for entry in entries:
-                    try:
-                        if entry.name.startswith(".") or not entry.is_dir(follow_symlinks=False):
-                            continue
-                        with os.scandir(entry.path) as contents:
-                            if not next(contents, None):
-                                continue
-                    except OSError:
-                        continue
-                    folder_by_name.setdefault(entry.name.casefold(), entry.path)
-        except OSError:
-            pass
-
+    """Scan catalog titles using saved executable choices from user settings."""
     prefs = load_prefs()
-    chosen_exes = prefs.get("game_executables", {})
-    if not isinstance(chosen_exes, dict):
-        chosen_exes = {}
-    installed = []
-    for game in games:
-        if game.is_patch:
-            continue
-        folder = folder_by_name.get(game.safe_folder_name.casefold())
-        exe = None
-        if folder:
-            exe = chosen_exes.get(game.id)
-            try:
-                if exe and (os.path.commonpath([os.path.abspath(folder), os.path.abspath(exe)]) != os.path.abspath(folder)
-                            or not os.path.isfile(exe) or not exe.lower().endswith(".exe")):
-                    exe = None
-            except (OSError, ValueError):
-                exe = None
-            if not exe:
-                exe = find_main_executable(folder, game.name)
-        installed.append({"game": game, "folder": folder, "exe": exe, "root": games_folder})
-    return installed
+    return _scan_installed_games(games, games_folder, prefs.get("game_executables"))
 
 
 def _ps_single_quote(value: str) -> str:
@@ -2967,21 +2879,45 @@ class InstallWorker(QObject):
         return staging
 
     @staticmethod
-    def _copy_file_tolerant(src, target):
-        """Copy src -> target (overwriting), preserving timestamps when the OS
-        allows but never failing over them.
+    def _copy_file_tolerant(src, target, progress_callback=None, cancel_check=None):
+        """Copy through a sibling temp file and report byte-level progress.
 
-        shutil.copy2 copies the modification time too, and Windows rejects the
-        bogus/zeroed timestamps that OnlineFix crack files (e.g. OnlineFix64.dll)
-        often carry with '[Errno 22] Invalid argument', which used to abort the
-        whole fix. Copying data + mode first (shutil.copy never calls utime) and
-        then attempting the timestamp separately keeps the merge robust: a junk
-        timestamp is silently skipped instead of killing the install."""
-        shutil.copy(src, target)
+        Chunked writes keep the UI responsive during very large game assets.
+        Replacing only after a complete copy preserves any existing target if
+        the operation is canceled or fails. Invalid source timestamps remain
+        best-effort, as some repair archives contain unusable timestamps.
+        """
+        target_dir = os.path.dirname(target) or "."
+        fd, temporary = tempfile.mkstemp(
+            prefix=".gameinstaller-", suffix=".part", dir=target_dir,
+        )
+        done = 0
         try:
-            shutil.copystat(src, target)
-        except OSError:
-            pass
+            with os.fdopen(fd, "wb") as output, open(src, "rb") as source:
+                while True:
+                    if cancel_check and cancel_check():
+                        return False
+                    chunk = source.read(4 * 1024 * 1024)
+                    if not chunk:
+                        break
+                    output.write(chunk)
+                    done += len(chunk)
+                    if progress_callback:
+                        progress_callback(done)
+            try:
+                shutil.copystat(src, temporary)
+            except OSError:
+                pass
+            os.replace(temporary, target)
+            if progress_callback:
+                progress_callback(done)
+            return True
+        finally:
+            try:
+                if os.path.exists(temporary):
+                    os.remove(temporary)
+            except OSError:
+                pass
 
     def _merge_tree(self, source_root, dest_dir,
                     progress_signal=None, stage_idx=3,
@@ -3000,27 +2936,66 @@ class InstallWorker(QObject):
             for name in files:
                 file_list.append(os.path.join(root, name))
 
-        total = len(file_list)
-        if total == 0:
+        total_files = len(file_list)
+        if total_files == 0:
             _sig.emit(100)
             self._stage_progress[stage_idx] = 100
             self._update_overall_progress()
             return True
 
-        for index, src in enumerate(file_list, start=1):
+        sizes = []
+        for src in file_list:
+            try:
+                sizes.append(os.path.getsize(src))
+            except OSError:
+                sizes.append(0)
+        total_bytes = sum(sizes)
+        completed_bytes = 0
+        last_status_at = 0.0
+        last_pct = -1
+
+        if total_bytes:
+            self._emit_status(status_text, 0, f"0 B / {self._fmt_bytes(total_bytes)}")
+
+        for index, (src, file_size) in enumerate(zip(file_list, sizes), start=1):
             if self._cancel.is_set():
                 self._abort()
                 return False
             rel = os.path.relpath(src, source_root)
             target = os.path.join(dest_dir, rel)
             os.makedirs(os.path.dirname(target), exist_ok=True)
-            self._copy_file_tolerant(src, target)  # overwrites if it exists
-            pct = int(index * 100 / total)
-            _sig.emit(pct)
-            self._stage_progress[stage_idx] = pct
-            if index % max(1, total // 20) == 0:  # Update 20 times
-                self._emit_status(status_text, pct, f"{index} / {total} files")
-                self._update_overall_progress()
+            if total_bytes:
+                def report_file_progress(copied, base=completed_bytes):
+                    nonlocal last_status_at, last_pct
+                    pct = min(100, int((base + copied) * 100 / total_bytes))
+                    now = time.monotonic()
+                    if pct != last_pct or now - last_status_at >= 0.25:
+                        _sig.emit(pct)
+                        self._stage_progress[stage_idx] = pct
+                        self._emit_status(
+                            status_text, pct,
+                            f"{self._fmt_bytes(base + copied)} / {self._fmt_bytes(total_bytes)}",
+                        )
+                        self._update_overall_progress()
+                        last_pct = pct
+                        last_status_at = now
+                copied = self._copy_file_tolerant(
+                    src, target, progress_callback=report_file_progress,
+                    cancel_check=self._cancel.is_set,
+                )
+            else:
+                copied = self._copy_file_tolerant(src, target, cancel_check=self._cancel.is_set)
+            if not copied:
+                self._abort()
+                return False
+            completed_bytes += file_size
+            if not total_bytes:
+                pct = int(index * 100 / total_files)
+                _sig.emit(pct)
+                self._stage_progress[stage_idx] = pct
+                if index % max(1, total_files // 20) == 0:
+                    self._emit_status(status_text, pct, f"{index} / {total_files} files")
+                    self._update_overall_progress()
 
         _sig.emit(100)
         self._stage_progress[stage_idx] = 100
