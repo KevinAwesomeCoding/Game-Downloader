@@ -1670,5 +1670,36 @@
       "classifiedAt": "2026-10-27T22:42:40-05:00"
     },
     "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "moon-sweepers",
+    "steamAppId": "5335510",
+    "name": "Moon Sweepers",
+    "source": "https://online-fix.me/games/simulator/18290-moon-sweepers-po-seti.html",
+    "description": "Clean lunar dust with a toothbrush, sell it to upgrade your tools and carrying capacity, and expand the operation with cleaning vehicles in co-op.",
+    "version": "1.0.4",
+    "size": "",
+    "players": "Up to 16 players (online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/41e1e802dfc069cc245b91043e451a2f9ffa80e3/header.jpg?t=1792950881",
+    "zipUrl": "https://gofile.io/d/Irj63wSJ",
+    "zipBackupUrl": "https://filekeeper.net/43j7ibfunlp8/Moon.Sweepers.v1.0.4-OFME.rar",
+    "fixZipUrl": "https://gofile.io/d/FXgkfPvB",
+    "fixBackupUrl": "https://filekeeper.net/k1883exum8yt/MoonSweepers_Fix_Repair_Steam_Generic.rar",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i5-8400 / AMD Ryzen 5 2600",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GeForce GTX 1650 / AMD Radeon RX 570",
+      "directx": "Version 11",
+      "storage": "2 GB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists Windows support only, and no recorded Highball recipe or local macOS test was found for this archive.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-30T00:00:00-05:00"
+    },
+    "requirementsPlatform": "Windows"
   }
 ]

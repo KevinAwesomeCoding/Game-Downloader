@@ -1,0 +1,392 @@
+{
+  "5335510": {
+    "success": true,
+    "data": {
+      "type": "game",
+      "name": "Moon Sweepers",
+      "steam_appid": 5335510,
+      "required_age": 0,
+      "is_free": false,
+      "controller_support": "full",
+      "detailed_description": "<p class=\"bb_paragraph\" ><span class=\"bb_img_ctn\"><img class=\"bb_img\" src=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/d3cd22d55948ee071dca537cf58ec473.avif?t=1792950881\" width=1296 height=128 /></span></p><p class=\"bb_paragraph\" >The Moon is covered in dust. The Lunar Surface Department (LSD) has sent you and your crew to clean it up. Unfortunately, the budget only covered a toothbrush.</p><p class=\"bb_paragraph\" > </p><p class=\"bb_paragraph\" >  Collect lunar dust, sell and use the earnings to buy better tools and upgrade your equipment. Turn an underfunded cleanup mission into a growing operation, one painfully small brushstroke at a time.</p><p class=\"bb_paragraph\" ></p><p class=\"bb_paragraph\" ><span class=\"bb_img_ctn\"><video class=\"bb_img\" autoplay muted loop playsinline poster=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/8d5c938f5dcd64d591f1c9d590907200.poster.avif?t=1792950881\" width=616 height=346 ><source src=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/8d5c938f5dcd64d591f1c9d590907200.webm?t=1792950881\" type=\"video/webm; codecs=vp9\"><source src=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/8d5c938f5dcd64d591f1c9d590907200.mp4?t=1792950881\" type=\"video/mp4\"></video></span></p><p class=\"bb_paragraph\" ></p><p class=\"bb_paragraph\" >                 </p><p class=\"bb_paragraph\" ><span class=\"bb_img_ctn\"><img class=\"bb_img\" src=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/3c43c479c355c24960451456883de145.avif?t=1792950881\" width=1296 height=128 /></span></p><p class=\"bb_paragraph\" >  Team up in online co-op lobbies of up to 16 players. Spread out to cover more ground or tackle the same area together. There\u2019s enough dust to keep everyone busy. Whether everyone actually works is another matter.</p><p class=\"bb_paragraph\" >                                                                                                                                                                                                                                    </p><p class=\"bb_paragraph\" >  Fill your storage with lunar dust, deliver it to a depot and launch shipments to get paid. Spend your earnings on new cleaning tools and increased carrying capacity so you can take on bigger jobs between deliveries.</p><p class=\"bb_paragraph\" ></p><p class=\"bb_paragraph\" ></p><p class=\"bb_paragraph\" ></p><p class=\"bb_paragraph\" >          </p><p class=\"bb_paragraph\" ><span class=\"bb_img_ctn\"><img class=\"bb_img\" src=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/671f5e076548d042b6f0a580c45483d9.avif?t=1792950881\" width=1296 height=128 /></span> </p><p class=\"bb_paragraph\" >                                                                                                                                                                                                        </p><p class=\"bb_paragraph\" >  Watch dusty terrain turn clean with every pass. Track your progress across the lunar surface, place depots near your work and put cleaning vehicles to use as your operation grows.</p><p class=\"bb_paragraph\" ></p><p class=\"bb_paragraph\" >Stop being lazy, you\u2019ve got whole Moon to clean. Better get started.</p><p class=\"bb_paragraph\" ></p><p class=\"bb_paragraph\" ><span class=\"bb_img_ctn\"><video class=\"bb_img\" autoplay muted loop playsinline poster=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/881779fc2f73464cdd23aee8f4d02b82.poster.avif?t=1792950881\" width=616 height=346 ><source src=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/881779fc2f73464cdd23aee8f4d02b82.webm?t=1792950881\" type=\"video/webm; codecs=vp9\"><source src=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/881779fc2f73464cdd23aee8f4d02b82.mp4?t=1792950881\" type=\"video/mp4\"></video></span></p><p class=\"bb_paragraph\" ></p>",
+      "about_the_game": "<p class=\"bb_paragraph\" ><span class=\"bb_img_ctn\"><img class=\"bb_img\" src=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/d3cd22d55948ee071dca537cf58ec473.avif?t=1792950881\" width=1296 height=128 /></span></p><p class=\"bb_paragraph\" >The Moon is covered in dust. The Lunar Surface Department (LSD) has sent you and your crew to clean it up. Unfortunately, the budget only covered a toothbrush.</p><p class=\"bb_paragraph\" > </p><p class=\"bb_paragraph\" >  Collect lunar dust, sell and use the earnings to buy better tools and upgrade your equipment. Turn an underfunded cleanup mission into a growing operation, one painfully small brushstroke at a time.</p><p class=\"bb_paragraph\" ></p><p class=\"bb_paragraph\" ><span class=\"bb_img_ctn\"><video class=\"bb_img\" autoplay muted loop playsinline poster=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/8d5c938f5dcd64d591f1c9d590907200.poster.avif?t=1792950881\" width=616 height=346 ><source src=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/8d5c938f5dcd64d591f1c9d590907200.webm?t=1792950881\" type=\"video/webm; codecs=vp9\"><source src=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/8d5c938f5dcd64d591f1c9d590907200.mp4?t=1792950881\" type=\"video/mp4\"></video></span></p><p class=\"bb_paragraph\" ></p><p class=\"bb_paragraph\" >                 </p><p class=\"bb_paragraph\" ><span class=\"bb_img_ctn\"><img class=\"bb_img\" src=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/3c43c479c355c24960451456883de145.avif?t=1792950881\" width=1296 height=128 /></span></p><p class=\"bb_paragraph\" >  Team up in online co-op lobbies of up to 16 players. Spread out to cover more ground or tackle the same area together. There\u2019s enough dust to keep everyone busy. Whether everyone actually works is another matter.</p><p class=\"bb_paragraph\" >                                                                                                                                                                                                                                    </p><p class=\"bb_paragraph\" >  Fill your storage with lunar dust, deliver it to a depot and launch shipments to get paid. Spend your earnings on new cleaning tools and increased carrying capacity so you can take on bigger jobs between deliveries.</p><p class=\"bb_paragraph\" ></p><p class=\"bb_paragraph\" ></p><p class=\"bb_paragraph\" ></p><p class=\"bb_paragraph\" >          </p><p class=\"bb_paragraph\" ><span class=\"bb_img_ctn\"><img class=\"bb_img\" src=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/671f5e076548d042b6f0a580c45483d9.avif?t=1792950881\" width=1296 height=128 /></span> </p><p class=\"bb_paragraph\" >                                                                                                                                                                                                        </p><p class=\"bb_paragraph\" >  Watch dusty terrain turn clean with every pass. Track your progress across the lunar surface, place depots near your work and put cleaning vehicles to use as your operation grows.</p><p class=\"bb_paragraph\" ></p><p class=\"bb_paragraph\" >Stop being lazy, you\u2019ve got whole Moon to clean. Better get started.</p><p class=\"bb_paragraph\" ></p><p class=\"bb_paragraph\" ><span class=\"bb_img_ctn\"><video class=\"bb_img\" autoplay muted loop playsinline poster=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/881779fc2f73464cdd23aee8f4d02b82.poster.avif?t=1792950881\" width=616 height=346 ><source src=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/881779fc2f73464cdd23aee8f4d02b82.webm?t=1792950881\" type=\"video/webm; codecs=vp9\"><source src=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/extras/881779fc2f73464cdd23aee8f4d02b82.mp4?t=1792950881\" type=\"video/mp4\"></video></span></p><p class=\"bb_paragraph\" ></p>",
+      "short_description": "An entire Moon to clean. One toothbrush to start. Team up with up to 16 players, collect and sell lunar dust, upgrade your tools, and unlock cleaning vehicles. Turn a ridiculous job into a thriving operation, if your friends actually help.",
+      "supported_languages": "English<strong>*</strong>, French, Italian, German, Spanish - Spain, Japanese, Korean, Polish, Portuguese - Brazil, Portuguese - Portugal, Russian, Simplified Chinese, Traditional Chinese, Spanish - Latin America, Danish, Finnish, Norwegian, Swedish, Turkish<br><strong>*</strong>languages with full audio support",
+      "header_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/41e1e802dfc069cc245b91043e451a2f9ffa80e3/header.jpg?t=1792950881",
+      "capsule_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/86fae70046ddca14dc1d44312c5eeb310081eb81/capsule_231x87.jpg?t=1792950881",
+      "capsule_imagev5": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/86fae70046ddca14dc1d44312c5eeb310081eb81/capsule_184x69.jpg?t=1792950881",
+      "website": "https://discord.gg/5ATRkXkAAe",
+      "pc_requirements": {
+        "minimum": "<strong>Minimum:</strong><br><ul class=\"bb_ul\"><li>Requires a 64-bit processor and operating system<br></li><li><strong>OS:</strong> Windows 10<br></li><li><strong>Processor:</strong> Intel Core i5-8400 / AMD Ryzen 5 2600<br></li><li><strong>Memory:</strong> 8 GB RAM<br></li><li><strong>Graphics:</strong> NVIDIA GeForce GTX 1650 / AMD Radeon RX 570<br></li><li><strong>DirectX:</strong> Version 11<br></li><li><strong>Network:</strong> Broadband Internet connection<br></li><li><strong>Storage:</strong> 2 GB available space</li></ul>",
+        "recommended": "<strong>Recommended:</strong><br><ul class=\"bb_ul\"><li>Requires a 64-bit processor and operating system<br></li><li><strong>OS:</strong> Windows 11<br></li><li><strong>Processor:</strong> Intel Core i5-10400 / AMD Ryzen 5 3600<br></li><li><strong>Memory:</strong> 16 GB RAM<br></li><li><strong>Graphics:</strong> NVIDIA GeForce GTX 1660 Super / AMD Radeon RX 5600 XT<br></li><li><strong>DirectX:</strong> Version 12<br></li><li><strong>Network:</strong> Broadband Internet connection<br></li><li><strong>Storage:</strong> 4 GB available space</li></ul>"
+      },
+      "mac_requirements": {
+        "minimum": "<strong>Minimum:</strong><br><ul class=\"bb_ul\"><li><strong>OS:</strong> macOS 12 Monterey or newer</li></ul>",
+        "recommended": "<strong>Recommended:</strong><br><ul class=\"bb_ul\"></ul>"
+      },
+      "linux_requirements": {
+        "minimum": "<strong>Minimum:</strong><br><ul class=\"bb_ul\"></ul>",
+        "recommended": "<strong>Recommended:</strong><br><ul class=\"bb_ul\"></ul>"
+      },
+      "legal_notice": "DISCLAIMER<br />\r\n<br />\r\nThe Lunar Surface Department (LSD) is a fictional organization. All employment contracts and agreements presented in Moon Sweepers are fictional and intended solely for entertainment purposes. They do not create any legally binding obligations or employment relationships.<br />\r\n<br />\r\n\u00a9 2026 DragDrop Games. All rights reserved. Moon Sweepers is developed and published by DragDrop Games.",
+      "developers": [
+        "DragDrop Games"
+      ],
+      "publishers": [
+        "DragDrop Games"
+      ],
+      "price_overview": {
+        "currency": "USD",
+        "initial": 899,
+        "final": 764,
+        "discount_percent": 15,
+        "initial_formatted": "$8.99",
+        "final_formatted": "$7.64"
+      },
+      "packages": [
+        1843666
+      ],
+      "package_groups": [
+        {
+          "name": "default",
+          "title": "Buy Moon Sweepers",
+          "description": "",
+          "selection_text": "Select a purchase option",
+          "save_text": "",
+          "display_type": 0,
+          "is_recurring_subscription": "false",
+          "subs": [
+            {
+              "packageid": 1843666,
+              "percent_savings_text": "-15% ",
+              "percent_savings": 0,
+              "option_text": "Moon Sweepers - <span class=\"discount_original_price\">$8.99</span> $7.64",
+              "option_description": "",
+              "can_get_free_license": "0",
+              "is_free_license": false,
+              "price_in_cents_with_discount": 764
+            }
+          ]
+        }
+      ],
+      "platforms": {
+        "windows": true,
+        "mac": false,
+        "linux": false
+      },
+      "categories": [
+        {
+          "id": 2,
+          "description": "Single-player"
+        },
+        {
+          "id": 1,
+          "description": "Multi-player"
+        },
+        {
+          "id": 9,
+          "description": "Co-op"
+        },
+        {
+          "id": 38,
+          "description": "Online Co-op"
+        },
+        {
+          "id": 22,
+          "description": "Steam Achievements"
+        },
+        {
+          "id": 28,
+          "description": "Full controller support"
+        },
+        {
+          "id": 68,
+          "description": "Custom Volume Controls"
+        },
+        {
+          "id": 80,
+          "description": "#category_playable_at_your_own_pace"
+        },
+        {
+          "id": 74,
+          "description": "Playable without Timed Input"
+        },
+        {
+          "id": 55,
+          "description": "DualShock Controller Support"
+        },
+        {
+          "id": 56,
+          "description": "DualShock Controller Support"
+        },
+        {
+          "id": 57,
+          "description": "DualSense Controller Support"
+        },
+        {
+          "id": 58,
+          "description": "DualSense Controller Support"
+        },
+        {
+          "id": 59,
+          "description": "Steam Input API Support"
+        },
+        {
+          "id": 69,
+          "description": "Stereo Sound"
+        },
+        {
+          "id": 23,
+          "description": "Steam Cloud"
+        },
+        {
+          "id": 62,
+          "description": "Family Sharing"
+        }
+      ],
+      "genres": [
+        {
+          "id": "1",
+          "description": "Action"
+        },
+        {
+          "id": "25",
+          "description": "Adventure"
+        },
+        {
+          "id": "4",
+          "description": "Casual"
+        },
+        {
+          "id": "23",
+          "description": "Indie"
+        },
+        {
+          "id": "28",
+          "description": "Simulation"
+        },
+        {
+          "id": "2",
+          "description": "Strategy"
+        }
+      ],
+      "screenshots": [
+        {
+          "id": 0,
+          "path_thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/6985c316ef6f0988ea33b17954c097268134e3d1/ss_6985c316ef6f0988ea33b17954c097268134e3d1.600x338.jpg?t=1792950881",
+          "path_full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/6985c316ef6f0988ea33b17954c097268134e3d1/ss_6985c316ef6f0988ea33b17954c097268134e3d1.1920x1080.jpg?t=1792950881"
+        },
+        {
+          "id": 1,
+          "path_thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/76c76f72cc035c7e0fc49ea971e0bf1c6e1ba6fa/ss_76c76f72cc035c7e0fc49ea971e0bf1c6e1ba6fa.600x338.jpg?t=1792950881",
+          "path_full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/76c76f72cc035c7e0fc49ea971e0bf1c6e1ba6fa/ss_76c76f72cc035c7e0fc49ea971e0bf1c6e1ba6fa.1920x1080.jpg?t=1792950881"
+        },
+        {
+          "id": 2,
+          "path_thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/20a903f07aa2753cc99f11e26f08784f52ce5560/ss_20a903f07aa2753cc99f11e26f08784f52ce5560.600x338.jpg?t=1792950881",
+          "path_full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/20a903f07aa2753cc99f11e26f08784f52ce5560/ss_20a903f07aa2753cc99f11e26f08784f52ce5560.1920x1080.jpg?t=1792950881"
+        },
+        {
+          "id": 3,
+          "path_thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/63b9ea049e9f963379a0c671043965a8241818f9/ss_63b9ea049e9f963379a0c671043965a8241818f9.600x338.jpg?t=1792950881",
+          "path_full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/63b9ea049e9f963379a0c671043965a8241818f9/ss_63b9ea049e9f963379a0c671043965a8241818f9.1920x1080.jpg?t=1792950881"
+        },
+        {
+          "id": 4,
+          "path_thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/86c13ff24fc6eea6b8199b88a0fe3a6a6009febb/ss_86c13ff24fc6eea6b8199b88a0fe3a6a6009febb.600x338.jpg?t=1792950881",
+          "path_full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/86c13ff24fc6eea6b8199b88a0fe3a6a6009febb/ss_86c13ff24fc6eea6b8199b88a0fe3a6a6009febb.1920x1080.jpg?t=1792950881"
+        },
+        {
+          "id": 5,
+          "path_thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/e9fe23641e5bf08387202dcfabf5450a6a0c5de2/ss_e9fe23641e5bf08387202dcfabf5450a6a0c5de2.600x338.jpg?t=1792950881",
+          "path_full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/e9fe23641e5bf08387202dcfabf5450a6a0c5de2/ss_e9fe23641e5bf08387202dcfabf5450a6a0c5de2.1920x1080.jpg?t=1792950881"
+        },
+        {
+          "id": 6,
+          "path_thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/dfa019b7d256412ddd4db7349da5c41d6e4407c6/ss_dfa019b7d256412ddd4db7349da5c41d6e4407c6.600x338.jpg?t=1792950881",
+          "path_full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/dfa019b7d256412ddd4db7349da5c41d6e4407c6/ss_dfa019b7d256412ddd4db7349da5c41d6e4407c6.1920x1080.jpg?t=1792950881"
+        },
+        {
+          "id": 7,
+          "path_thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/e6a6a9f0cbc3e69d7e29091bc7dae19ba4727076/ss_e6a6a9f0cbc3e69d7e29091bc7dae19ba4727076.600x338.jpg?t=1792950881",
+          "path_full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/e6a6a9f0cbc3e69d7e29091bc7dae19ba4727076/ss_e6a6a9f0cbc3e69d7e29091bc7dae19ba4727076.1920x1080.jpg?t=1792950881"
+        },
+        {
+          "id": 8,
+          "path_thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/cdc8a6a06cf8d682b5e9b5cd2d740feb913bba2b/ss_cdc8a6a06cf8d682b5e9b5cd2d740feb913bba2b.600x338.jpg?t=1792950881",
+          "path_full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/cdc8a6a06cf8d682b5e9b5cd2d740feb913bba2b/ss_cdc8a6a06cf8d682b5e9b5cd2d740feb913bba2b.1920x1080.jpg?t=1792950881"
+        },
+        {
+          "id": 9,
+          "path_thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/bbba14e5a9ccae08e2bededc277afba9e3962095/ss_bbba14e5a9ccae08e2bededc277afba9e3962095.600x338.jpg?t=1792950881",
+          "path_full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/bbba14e5a9ccae08e2bededc277afba9e3962095/ss_bbba14e5a9ccae08e2bededc277afba9e3962095.1920x1080.jpg?t=1792950881"
+        },
+        {
+          "id": 10,
+          "path_thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/97f7ee1528784482fe81959261e1763fccede379/ss_97f7ee1528784482fe81959261e1763fccede379.600x338.jpg?t=1792950881",
+          "path_full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/97f7ee1528784482fe81959261e1763fccede379/ss_97f7ee1528784482fe81959261e1763fccede379.1920x1080.jpg?t=1792950881"
+        },
+        {
+          "id": 11,
+          "path_thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/991b71b20ad8ef79568f368fc1e345a1145bc484/ss_991b71b20ad8ef79568f368fc1e345a1145bc484.600x338.jpg?t=1792950881",
+          "path_full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/991b71b20ad8ef79568f368fc1e345a1145bc484/ss_991b71b20ad8ef79568f368fc1e345a1145bc484.1920x1080.jpg?t=1792950881"
+        },
+        {
+          "id": 12,
+          "path_thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/612ddb269880245e448d346a7cb25ae2bf6237c6/ss_612ddb269880245e448d346a7cb25ae2bf6237c6.600x338.jpg?t=1792950881",
+          "path_full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/612ddb269880245e448d346a7cb25ae2bf6237c6/ss_612ddb269880245e448d346a7cb25ae2bf6237c6.1920x1080.jpg?t=1792950881"
+        },
+        {
+          "id": 13,
+          "path_thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/6f2a63a4eff7c0623e98b8e2729584c00e0b7a63/ss_6f2a63a4eff7c0623e98b8e2729584c00e0b7a63.600x338.jpg?t=1792950881",
+          "path_full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/6f2a63a4eff7c0623e98b8e2729584c00e0b7a63/ss_6f2a63a4eff7c0623e98b8e2729584c00e0b7a63.1920x1080.jpg?t=1792950881"
+        },
+        {
+          "id": 14,
+          "path_thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/ca461417b7dd6a6a4953a1723e29c1daf59ae2f1/ss_ca461417b7dd6a6a4953a1723e29c1daf59ae2f1.600x338.jpg?t=1792950881",
+          "path_full": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/ca461417b7dd6a6a4953a1723e29c1daf59ae2f1/ss_ca461417b7dd6a6a4953a1723e29c1daf59ae2f1.1920x1080.jpg?t=1792950881"
+        }
+      ],
+      "movies": [
+        {
+          "id": 257464240,
+          "name": "Teaser trailer",
+          "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257464240/50720742e4987d483b858ab6e919e0ea9fe0b937/movie_600x337.jpg?t=1792140969",
+          "dash_av1": "https://video.akamai.steamstatic.com/store_trailers/5335510/784761556/7f2635011f003ecf63a4665d7277f9f6d33d67ef/1792140508/dash_av1.mpd?t=1792140969",
+          "dash_h264": "https://video.akamai.steamstatic.com/store_trailers/5335510/784761556/7f2635011f003ecf63a4665d7277f9f6d33d67ef/1792140508/dash_h264.mpd?t=1792140969",
+          "hls_h264": "https://video.akamai.steamstatic.com/store_trailers/5335510/784761556/7f2635011f003ecf63a4665d7277f9f6d33d67ef/1792140508/hls_264_master.m3u8?t=1792140969",
+          "highlight": true
+        },
+        {
+          "id": 257452057,
+          "name": "Trailer",
+          "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/257452057/0fca157fb5056dc897a72203924a27e5c2cb9ab1/movie_600x337.jpg?t=1792140970",
+          "dash_av1": "https://video.akamai.steamstatic.com/store_trailers/5335510/342788504/9486723f18c0b96095e59ab99919138b85a4cf77/1791452192/dash_av1.mpd?t=1792140970",
+          "dash_h264": "https://video.akamai.steamstatic.com/store_trailers/5335510/342788504/9486723f18c0b96095e59ab99919138b85a4cf77/1791452192/dash_h264.mpd?t=1792140970",
+          "hls_h264": "https://video.akamai.steamstatic.com/store_trailers/5335510/342788504/9486723f18c0b96095e59ab99919138b85a4cf77/1791452192/hls_264_master.m3u8?t=1792140970",
+          "highlight": true
+        }
+      ],
+      "recommendations": {
+        "total": 3003
+      },
+      "achievements": {
+        "total": 33,
+        "highlighted": [
+          {
+            "icon": "2cc52cf1d9d19186e554bfc69713d30f951221d6.jpg",
+            "localized_name": "One Small Sweep",
+            "archived": 0,
+            "hidden": 0,
+            "name": "One Small Sweep",
+            "path": "https://shared.akamai.steamstatic.com/community_assets/images/apps/5335510/2cc52cf1d9d19186e554bfc69713d30f951221d6.jpg"
+          },
+          {
+            "icon": "425e86ea63ec104d46fba87a966fded8f4b48638.jpg",
+            "localized_name": "That\u2019s Going to Take a While",
+            "archived": 0,
+            "hidden": 0,
+            "name": "That\u2019s Going to Take a While",
+            "path": "https://shared.akamai.steamstatic.com/community_assets/images/apps/5335510/425e86ea63ec104d46fba87a966fded8f4b48638.jpg"
+          },
+          {
+            "icon": "26e97687bcfa02ee02c56e0e649fb27377865b41.jpg",
+            "localized_name": "Dust Delivery",
+            "archived": 0,
+            "hidden": 0,
+            "name": "Dust Delivery",
+            "path": "https://shared.akamai.steamstatic.com/community_assets/images/apps/5335510/26e97687bcfa02ee02c56e0e649fb27377865b41.jpg"
+          },
+          {
+            "icon": "d3387bbb16b97e3dd4f0b93e2686614c8d5acad5.jpg",
+            "localized_name": "Return to Sender",
+            "archived": 0,
+            "hidden": 0,
+            "name": "Return to Sender",
+            "path": "https://shared.akamai.steamstatic.com/community_assets/images/apps/5335510/d3387bbb16b97e3dd4f0b93e2686614c8d5acad5.jpg"
+          },
+          {
+            "icon": "ef100480401f17baa3c1b2917d3a50900e2360e0.jpg",
+            "localized_name": "Finally, Wheels",
+            "archived": 0,
+            "hidden": 0,
+            "name": "Finally, Wheels",
+            "path": "https://shared.akamai.steamstatic.com/community_assets/images/apps/5335510/ef100480401f17baa3c1b2917d3a50900e2360e0.jpg"
+          },
+          {
+            "icon": "e5789a05d10afd4fa6e909f562f0e31bf9154222.jpg",
+            "localized_name": "Making a Dent",
+            "archived": 0,
+            "hidden": 0,
+            "name": "Making a Dent",
+            "path": "https://shared.akamai.steamstatic.com/community_assets/images/apps/5335510/e5789a05d10afd4fa6e909f562f0e31bf9154222.jpg"
+          },
+          {
+            "icon": "8b52f4d76b549f7ac09b70d6a8b0f7a2e5c005d0.jpg",
+            "localized_name": "Frequent Flyer Dust",
+            "archived": 0,
+            "hidden": 0,
+            "name": "Frequent Flyer Dust",
+            "path": "https://shared.akamai.steamstatic.com/community_assets/images/apps/5335510/8b52f4d76b549f7ac09b70d6a8b0f7a2e5c005d0.jpg"
+          },
+          {
+            "icon": "e64c2986793a0345f3855916c24d503948970e1e.jpg",
+            "localized_name": "Dust Bunny",
+            "archived": 0,
+            "hidden": 0,
+            "name": "Dust Bunny",
+            "path": "https://shared.akamai.steamstatic.com/community_assets/images/apps/5335510/e64c2986793a0345f3855916c24d503948970e1e.jpg"
+          },
+          {
+            "icon": "31b1545ec4c1d481ff39dbbb46c70efd721b646e.jpg",
+            "localized_name": "Pocket Full of Moon",
+            "archived": 0,
+            "hidden": 0,
+            "name": "Pocket Full of Moon",
+            "path": "https://shared.akamai.steamstatic.com/community_assets/images/apps/5335510/31b1545ec4c1d481ff39dbbb46c70efd721b646e.jpg"
+          },
+          {
+            "icon": "35ed23a572f036ecdf65cb4781ea465933e34daf.jpg",
+            "localized_name": "A Literal Ton of Dust",
+            "archived": 0,
+            "hidden": 0,
+            "name": "A Literal Ton of Dust",
+            "path": "https://shared.akamai.steamstatic.com/community_assets/images/apps/5335510/35ed23a572f036ecdf65cb4781ea465933e34daf.jpg"
+          }
+        ]
+      },
+      "release_date": {
+        "coming_soon": false,
+        "date": "Oct 23, 2026"
+      },
+      "support_info": {
+        "url": "",
+        "email": "info@dragdrop.fi"
+      },
+      "background": "https://store.akamai.steamstatic.com/images/storepagebackground/app/5335510?t=1792950881",
+      "background_raw": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/6d77f6933fa6e920f33798c6ba3d030716ce19c0/page_bg_raw.jpg?t=1792950881",
+      "content_descriptors": {
+        "ids": [],
+        "notes": null
+      },
+      "ratings": {
+        "dejus": {
+          "rating_generated": "1",
+          "rating": "14",
+          "required_age": "14",
+          "banned": "0",
+          "use_age_gate": "0",
+          "descriptors": ""
+        },
+        "steam_germany": {
+          "rating_generated": "1",
+          "rating": "12",
+          "required_age": "12",
+          "banned": "0",
+          "use_age_gate": "0",
+          "descriptors": ""
+        }
+      }
+    }
+  }
+}

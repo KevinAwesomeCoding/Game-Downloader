@@ -46,7 +46,7 @@ from datetime import datetime
 
 import requests
 from download_support import (Downloader as HostedDownloader, Stopped as DownloadStopped,
-                              canonical_source, download_host_name)
+                              canonical_source, choose_faster_source, download_host_name)
 from host_resolver_client import provider_for, helper_command
 from update_support import (UpdateNoticeState, UpdateRelease, compatible_release,
                             download_verified_file, schedule_background_check,
@@ -1290,6 +1290,7 @@ class ManifestLoader(QObject):
     @pyqtSlot()
     def run(self):
         local_path = os.path.join(app_dir(), LOCAL_MANIFEST)
+        bundled_path = os.path.join(getattr(sys, "_MEIPASS", app_dir()), LOCAL_MANIFEST)
 
         # 1) Try the remote manifest URL.
         if self.manifest_url:
@@ -1298,7 +1299,7 @@ class ManifestLoader(QObject):
                     self.manifest_url,
                     headers={"User-Agent": "GameInstaller/1.0"},
                 )
-                with urllib.request.urlopen(req, timeout=10) as resp:
+                with urllib.request.urlopen(req, timeout=3) as resp:
                     raw = resp.read().decode("utf-8")
                 games = parse_manifest(raw)
                 # Persist to disk so the next offline launch uses the latest list.
@@ -1312,24 +1313,40 @@ class ManifestLoader(QObject):
             except Exception:
                 pass  # network or parse error — fall through to local copy
 
-        # 2) Local games.json fallback (bundled copy or last successful download).
-        try:
-            with open(local_path, "r", encoding="utf-8") as fh:
-                games = parse_manifest(fh.read())
-            label = "local games.json"
-            if self.manifest_url:
-                label = "local games.json (remote unavailable)"
-            self.loaded.emit(games, label)
-        except FileNotFoundError:
-            self.failed.emit(
-                "Could not reach the game list server and no local copy was found.\n\n"
-                "Check your internet connection and try Refresh, or re-download "
-                "the installer to restore the bundled game list."
-            )
-        except json.JSONDecodeError as exc:
-            self.failed.emit(f"games.json is not valid JSON:\n{exc}")
-        except Exception as exc:
-            self.failed.emit(f"Failed to load games:\n{exc}")
+        # 2) Local games.json fallback (file in folder, or bundled copy).
+        # If games.json is missing next to the executable, regenerate it from the bundled copy.
+        if not os.path.isfile(local_path) and os.path.isfile(bundled_path):
+            try:
+                shutil.copyfile(bundled_path, local_path)
+            except OSError:
+                pass
+
+        # Try reading local_path first, then bundled_path if local_path is missing or corrupted.
+        candidates = []
+        if os.path.isfile(local_path):
+            candidates.append(local_path)
+        if os.path.isfile(bundled_path) and bundled_path not in candidates:
+            candidates.append(bundled_path)
+
+        for path in candidates:
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    raw = fh.read()
+                games = parse_manifest(raw)
+                label = "local games.json"
+                if self.manifest_url:
+                    label = "local games.json (remote unavailable)"
+                self.loaded.emit(games, label)
+                return
+            except json.JSONDecodeError:
+                continue
+            except Exception:
+                continue
+
+        self.failed.emit(
+            "Could not reach the online game list and no valid local games.json was found.\n\n"
+            "Place a valid games.json next to the application or check your network connection."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -2374,29 +2391,35 @@ class InstallWorker(QObject):
             except (OSError, ValueError):
                 pass
             if backup:
+                preferred_url, alternate_url = choose_faster_source(
+                    part["url"], backup["url"], stop=self._cancel.is_set,
+                    status=lambda message: self._emit_status(message, -1),
+                )
                 ok = self._download(
-                    part["url"], dest, status_text + suffix, progress_signal,
+                    preferred_url, dest, status_text + suffix, progress_signal,
                     stage_idx=stage_idx,
                     frac_base=index / count, frac_span=1 / count,
+                    part_suffix=".backup.part" if preferred_url == backup["url"] else ".part",
                     report_errors=False,
                 )
                 if not ok and not self._cancel.is_set():
                     _log.warning(
-                        "Primary download failed; trying backup  game=%s kind=%s part=%d",
+                        "Preferred download failed; trying alternate  game=%s kind=%s part=%d",
                         self.game.id, kind, index + 1,
                     )
                     self._emit_status(
-                        f"{status_text}{suffix} failed; trying backup via {download_host_name(backup['url'])}", -1
+                        f"{status_text}{suffix} failed; trying alternate via {download_host_name(alternate_url)}", -1
                     )
                     ok = self._download(
-                        backup["url"], dest, status_text + suffix + " (backup)",
+                        alternate_url, dest, status_text + suffix + " (alternate)",
                         progress_signal, stage_idx=stage_idx,
                         frac_base=index / count, frac_span=1 / count,
-                        part_suffix=".backup.part", report_errors=False,
+                        part_suffix=".backup.part" if alternate_url == backup["url"] else ".part",
+                        report_errors=False,
                     )
                 if not ok and not self._cancel.is_set():
                     self.error.emit(
-                        "The primary and backup download links both failed. "
+                        "The main and backup download links both failed. "
                         "Check the links and try again."
                     )
             else:
@@ -2973,21 +2996,89 @@ class InstallWorker(QObject):
         return staging
 
     @staticmethod
-    def _copy_file_tolerant(src, target):
-        """Copy src -> target (overwriting), preserving timestamps when the OS
-        allows but never failing over them.
+    def _copy_bytes(src, target, progress_callback=None):
+        """Raw byte copy — no shutil, no chmod, no timestamps, ever."""
+        copied = 0
+        with open(src, "rb") as fin, open(target, "wb") as fout:
+            while True:
+                buf = fin.read(1024 * 1024)
+                if not buf:
+                    break
+                fout.write(buf)
+                copied += len(buf)
+                if progress_callback:
+                    progress_callback(copied)
 
-        shutil.copy2 copies the modification time too, and Windows rejects the
-        bogus/zeroed timestamps that OnlineFix crack files (e.g. OnlineFix64.dll)
-        often carry with '[Errno 22] Invalid argument', which used to abort the
-        whole fix. Copying data + mode first (shutil.copy never calls utime) and
-        then attempting the timestamp separately keeps the merge robust: a junk
-        timestamp is silently skipped instead of killing the install."""
-        shutil.copy(src, target)
-        try:
-            shutil.copystat(src, target)
-        except OSError:
-            pass
+    def _copy_file_tolerant(self, src=None, target=None, progress_callback=None) -> bool:
+        r"""Copy src -> target, defeating locks, mappings, and AV interference.
+
+        Three strategies per attempt, in order:
+          1. direct byte copy (metadata never touched)
+          2. rename the existing target aside, then move the new file in —
+             Windows blocks overwriting a file mapped into a running process
+             but allows renaming it, so this is what makes a live game folder
+             writable
+          3. the same direct copy through a \\?\ long-path prefix
+        """
+        if src is not None and target is None and not isinstance(self, InstallWorker):
+            # Called as function/staticmethod: InstallWorker._copy_file_tolerant(src, target, ...)
+            src, target = self, src
+
+        def _clear_attr():
+            try:
+                if os.path.exists(target):
+                    os.chmod(target, 0o666)
+            except OSError:
+                pass
+
+        def _rename_swap():
+            tmp = target + ".incoming"
+            InstallWorker._copy_bytes(src, tmp, progress_callback=progress_callback)
+            old = target + ".old"
+            try:
+                if os.path.exists(old):
+                    os.remove(old)
+            except OSError:
+                pass
+            if os.path.exists(target):
+                try:
+                    os.replace(target, old)
+                except OSError:
+                    pass
+            os.replace(tmp, target)
+            try:
+                os.remove(old)
+            except OSError:
+                pass
+
+        last_exc = None
+        for attempt in range(10):
+            try:
+                _clear_attr()
+                InstallWorker._copy_bytes(src, target, progress_callback=progress_callback)
+                return True
+            except FileNotFoundError:
+                raise
+            except OSError as exc:
+                last_exc = exc
+                _log.debug("_copy_file_tolerant  attempt=%d  errno=%s  %s -> %s",
+                           attempt + 1, exc.errno, src, target)
+                try:
+                    _rename_swap()
+                    return True
+                except OSError as exc2:
+                    last_exc = exc2
+                    _log.debug("  rename-swap failed  errno=%s", exc2.errno)
+                try:
+                    InstallWorker._copy_bytes("\\\\?\\" + os.path.abspath(src),
+                                              "\\\\?\\" + os.path.abspath(target),
+                                              progress_callback=progress_callback)
+                    return True
+                except OSError:
+                    pass
+                time.sleep(0.2 * (attempt + 1))
+        _log.debug("_copy_file_tolerant FAILED  %s -> %s  %r", src, target, last_exc)
+        return False
 
     def _merge_tree(self, source_root, dest_dir,
                     progress_signal=None, stage_idx=3,
@@ -3002,6 +3093,7 @@ class InstallWorker(QObject):
         _sig = progress_signal if progress_signal is not None else self.fix_apply_progress
 
         file_list = []
+        failed = []
         for root, _dirs, files in os.walk(source_root):
             for name in files:
                 file_list.append(os.path.join(root, name))
@@ -3020,13 +3112,46 @@ class InstallWorker(QObject):
             rel = os.path.relpath(src, source_root)
             target = os.path.join(dest_dir, rel)
             os.makedirs(os.path.dirname(target), exist_ok=True)
-            self._copy_file_tolerant(src, target)  # overwrites if it exists
+            if not self._copy_file_tolerant(src, target):
+                failed.append(rel)
             pct = int(index * 100 / total)
             _sig.emit(pct)
             self._stage_progress[stage_idx] = pct
             if index % max(1, total // 20) == 0:  # Update 20 times
                 self._emit_status(status_text, pct, f"{index} / {total} files")
                 self._update_overall_progress()
+
+        if failed:
+            time.sleep(1.5)  # let AV release its holds
+            still_failed = []
+            for rel in failed:
+                src = os.path.join(source_root, rel)
+                target = os.path.join(dest_dir, rel)
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                ok = self._copy_file_tolerant(src, target)
+                if ok and not os.path.isfile(target):
+                    ok = False  # written, then removed — Defender quarantine
+                if not ok:
+                    still_failed.append(rel)
+            failed = still_failed
+
+        if failed:
+            self._cleanup_temp()
+            preview = "\n".join(f"  •  {m}" for m in failed[:8])
+            if len(failed) > 8:
+                preview += f"\n  …  and {len(failed) - 8} more"
+            self.error.emit(
+                f"{len(failed)} file(s) could not be written into the install "
+                f"folder.\n\n"
+                f"Two causes, both fixable:\n"
+                f"  •  Defender quarantined the file — tick the exclusion and "
+                f"reinstall, or restore it from Protection history\n"
+                f"  •  the game is still running and holds the DLL open — close "
+                f"it and retry\n\n"
+                f"Failed:\n{preview}\n\n"
+                f"Install folder:\n{dest_dir}"
+            )
+            return False
 
         _sig.emit(100)
         self._stage_progress[stage_idx] = 100
@@ -4790,8 +4915,161 @@ class MainWindow(QMainWindow):
         bulk_hint.setWordWrap(True)
         lay.addWidget(bulk_hint)
 
+        # --- Game Catalog / Custom games.json ------------------------------
+        catalog_sep = QFrame()
+        catalog_sep.setFrameShape(QFrame.Shape.HLine)
+        catalog_sep.setStyleSheet("color: #232b40; margin-top: 8px; margin-bottom: 4px;")
+        lay.addWidget(catalog_sep)
+
+        catalog_title = QLabel("Game Catalog (games.json)")
+        catalog_title.setStyleSheet("font-size: 15px; font-weight: 600; color: #e6e9f0;")
+        lay.addWidget(catalog_title)
+
+        catalog_desc = QLabel(
+            "Import your own games.json file to customize the game list, add "
+            "private titles, or point to your own download mirrors. The app "
+            "saves your custom catalog directly next to the executable."
+        )
+        catalog_desc.setObjectName("SubInfo")
+        catalog_desc.setWordWrap(True)
+        lay.addWidget(catalog_desc)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+
+        self.import_catalog_btn = QPushButton("Import custom games.json…")
+        self.import_catalog_btn.setObjectName("PrimaryButton")
+        self.import_catalog_btn.clicked.connect(self._on_import_catalog_clicked)
+        btn_row.addWidget(self.import_catalog_btn)
+
+        self.reset_catalog_btn = QPushButton("Reset to default catalog")
+        self.reset_catalog_btn.setObjectName("SpacewarButton")
+        self.reset_catalog_btn.clicked.connect(self._on_reset_catalog_clicked)
+        btn_row.addWidget(self.reset_catalog_btn)
+
+        self.open_catalog_btn = QPushButton("Open catalog folder")
+        self.open_catalog_btn.setObjectName("SpacewarButton")
+        self.open_catalog_btn.clicked.connect(self._on_open_catalog_folder_clicked)
+        btn_row.addWidget(self.open_catalog_btn)
+
+        btn_row.addStretch(1)
+        lay.addLayout(btn_row)
+
+        self.catalog_status_label = QLabel("")
+        self.catalog_status_label.setObjectName("SubInfo")
+        self.catalog_status_label.setWordWrap(True)
+        lay.addWidget(self.catalog_status_label)
+
         lay.addStretch(1)
         return page
+
+    def _on_import_catalog_clicked(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select custom games.json",
+            app_dir(),
+            "JSON Files (*.json);;All Files (*)",
+        )
+        if not file_path:
+            return
+
+        try:
+            with open(file_path, "r", encoding="utf-8") as fh:
+                raw = fh.read()
+            games = parse_manifest(raw)
+            if not games:
+                raise ValueError("The selected JSON file does not contain any game entries.")
+        except Exception as exc:
+            QMessageBox.critical(
+                self,
+                "Invalid games.json",
+                f"Could not load the selected catalog:\n\n{exc}"
+            )
+            return
+
+        target_path = os.path.join(app_dir(), LOCAL_MANIFEST)
+        try:
+            with open(target_path, "w", encoding="utf-8") as fh:
+                fh.write(raw)
+        except OSError as exc:
+            QMessageBox.critical(
+                self,
+                "Write Error",
+                f"Could not save games.json to {target_path}:\n\n{exc}"
+            )
+            return
+
+        settings = load_settings()
+        settings["manifest_url"] = ""
+        save_settings(settings)
+
+        self.catalog_status_label.setText(
+            f"Successfully imported {len(games)} games from {os.path.basename(file_path)}."
+        )
+        QMessageBox.information(
+            self,
+            "Catalog Imported",
+            f"Successfully imported {len(games)} games from {os.path.basename(file_path)}.\n\n"
+            "The library is now refreshing with your custom catalog."
+        )
+        self.load_manifest()
+
+    def _on_reset_catalog_clicked(self):
+        bundled_path = os.path.join(getattr(sys, "_MEIPASS", app_dir()), LOCAL_MANIFEST)
+        target_path = os.path.join(app_dir(), LOCAL_MANIFEST)
+
+        if not os.path.isfile(bundled_path):
+            QMessageBox.warning(
+                self,
+                "Default Catalog Missing",
+                "The bundled default catalog could not be found."
+            )
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Reset Catalog",
+            "Are you sure you want to restore the default game list? "
+            "Any custom games.json in this folder will be replaced with the original catalog.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            shutil.copyfile(bundled_path, target_path)
+        except OSError as exc:
+            QMessageBox.critical(
+                self,
+                "Reset Failed",
+                f"Could not restore default catalog:\n\n{exc}"
+            )
+            return
+
+        settings = load_settings()
+        settings.pop("manifest_url", None)
+        save_settings(settings)
+
+        self.catalog_status_label.setText("Default catalog restored.")
+        QMessageBox.information(
+            self,
+            "Catalog Reset",
+            "The default game catalog has been restored. Reloading library…"
+        )
+        self.load_manifest()
+
+    def _on_open_catalog_folder_clicked(self):
+        directory = app_dir()
+        try:
+            if sys.platform == "win32":
+                os.startfile(directory)
+            elif sys.platform == "darwin":
+                subprocess.run(["open", directory])
+            else:
+                subprocess.run(["xdg-open", directory])
+        except Exception as exc:
+            QMessageBox.warning(self, "Open Folder", f"Could not open folder:\n{exc}")
 
     def _on_shortcut_pref_toggled(self, checked):
         prefs = load_prefs()
@@ -4852,8 +5130,10 @@ class MainWindow(QMainWindow):
         self.refresh_btn.setEnabled(False)
         self.stack.setCurrentWidget(self.loading_page)
 
+        settings = load_settings()
+        manifest_url = settings.get("manifest_url", CONFIG.get("manifest_url", ""))
         self.manifest_thread = QThread()
-        self.manifest_worker = ManifestLoader(CONFIG["manifest_url"])
+        self.manifest_worker = ManifestLoader(manifest_url)
         self.manifest_worker.moveToThread(self.manifest_thread)
         self.manifest_thread.started.connect(self.manifest_worker.run)
         self.manifest_worker.loaded.connect(self._on_manifest_loaded)

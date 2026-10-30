@@ -8,6 +8,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from html.parser import HTMLParser
 from host_resolver_client import ResolutionStopped, provider_for, resolve_source, download_host_allowed
 
@@ -157,6 +158,72 @@ class Downloader:
         self.status = status
         self.resolver = resolver
 
+    def measure_speed(self, source, sample_bytes=256 * 1024, timeout=8):
+        """Estimate a link's throughput from a small ranged sample.
+
+        Hosts that ignore Range are still safe to probe: the response is closed
+        as soon as the sample limit is reached. A failed or non-archive response
+        is treated as an unavailable source by the caller.
+        """
+        source = canonical_source(source)
+        provider = provider_for(source)
+        opener = self.opener
+        url = source
+        headers = {"User-Agent": "GameInstaller/1.0", "Accept-Encoding": "identity",
+                   "Range": f"bytes=0-{sample_bytes - 1}"}
+        if provider:
+            resolved = self.resolver(source, stop=self.stop, status=self.status)
+            jar = http.cookiejar.CookieJar()
+            add_session_cookies(jar, resolved["cookies"])
+            opener = urllib.request.build_opener(HostedRedirect(provider),
+                                                  urllib.request.HTTPCookieProcessor(jar))
+            url = resolved["url"]
+            headers.update({"User-Agent": resolved["user_agent"], "Referer": source})
+        started = time.monotonic()
+        response = None
+        try:
+            for attempt in range(3):
+                response = opener.open(urllib.request.Request(url, headers=headers), timeout=timeout)
+                self.last_probe = {
+                    "status_code": response.status,
+                    "content_type": response.headers.get("Content-Type", ""),
+                    "final_url": response.geturl(),
+                    "bytes_received": 0,
+                }
+                if response.status not in (200, 206):
+                    raise ValueError("The link did not return a downloadable response.")
+                content_type = response.headers.get("Content-Type", "").lower()
+                first = response.read(min(sample_bytes, 64 * 1024))
+                is_html = ("text/html" in content_type or
+                           first.lstrip().lower().startswith((b"<!doctype html", b"<html")))
+                if not is_html:
+                    break
+                html = (first + response.read(512 * 1024)).decode("utf-8", "replace")
+                current = response.geturl()
+                response.close()
+                response = None
+                if urllib.parse.urlsplit(source).hostname not in {
+                        "drive.google.com", "drive.usercontent.google.com"}:
+                    raise ValueError("The link returned a web page instead of an archive.")
+                url = drive_confirmation(html, current)
+            else:
+                raise ValueError("Google Drive confirmation did not yield a downloadable response.")
+            received = len(first)
+            self.last_probe["bytes_received"] = received
+            while received < sample_bytes:
+                checkpoint(self.stop)
+                chunk = response.read(min(64 * 1024, sample_bytes - received))
+                if not chunk:
+                    break
+                received += len(chunk)
+                self.last_probe["bytes_received"] = received
+            elapsed = max(time.monotonic() - started, 0.001)
+            if not received:
+                raise ValueError("The link returned no archive data.")
+            return received / elapsed
+        finally:
+            if response is not None:
+                response.close()
     def fetch(self, source, destination, expected_hash=None, _restart=False, _refresh=False):
         destination = Path(destination)
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -308,6 +375,36 @@ class Downloader:
                 response.close()
 
 
+def choose_faster_source(source, backup_source, stop=lambda: False, status=lambda message: None):
+    """Return (preferred, alternate) after comparing small samples of both URLs.
+
+    Probe failures do not block an install: an unmeasurable link is ranked
+    below one that responds successfully, and ties preserve catalog order.
+    """
+    if not backup_source:
+        return source, backup_source
+    transfer = Downloader(stop=stop, status=status)
+
+    def probe(url):
+        try:
+            return transfer.measure_speed(url)
+        except Stopped:
+            raise
+        except Exception:
+            return 0.0
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        primary_future = pool.submit(probe, source)
+        backup_future = pool.submit(probe, backup_source)
+        primary_speed = primary_future.result()
+        backup_speed = backup_future.result()
+    if backup_speed > primary_speed:
+        status("Backup link is faster; using it first.")
+        return backup_source, source
+    status("Using the main link first.")
+    return source, backup_source
+
+
 def fetch_with_backup(downloader, source, backup_source, destination, on_fallback=None):
     """Try the primary URL first, then an independent backup URL if it fails.
 
@@ -317,6 +414,11 @@ def fetch_with_backup(downloader, source, backup_source, destination, on_fallbac
     """
     if not backup_source:
         return downloader.fetch(source, destination)
+    # Keep deterministic injected downloaders used by callers and test fixtures;
+    # the real downloader compares both catalog links before the full transfer.
+    if isinstance(downloader, Downloader) and not downloader.injected_opener:
+        source, backup_source = choose_faster_source(
+            source, backup_source, stop=downloader.stop, status=downloader.status)
     # A completed backup was promoted to the final destination on an earlier
     # run. Verify and reuse it without requesting either host again.
     destination = Path(destination)
