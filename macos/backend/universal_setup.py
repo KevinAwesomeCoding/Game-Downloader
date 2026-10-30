@@ -78,6 +78,68 @@ def _report(step, status, detail):
     return {"step": step, "status": status, "detail": detail}
 
 
+def _verified_recipe_asset(asset_path, expected_hash):
+    """Read one bundled patch asset without allowing traversal or symlinks."""
+    backend_root = RECIPE_FILE.parent.resolve()
+    relative = safe_path(asset_path)
+    candidate = backend_root / relative
+    if any((backend_root / Path(*relative.parts[:index])).is_symlink()
+           for index in range(1, len(relative.parts) + 1)):
+        raise ValueError(f"Recipe asset contains a symbolic link: {asset_path}")
+    asset = candidate.resolve()
+    if not asset.is_relative_to(backend_root) or not asset.is_file():
+        raise ValueError(f"Recipe asset is missing or unsafe: {asset_path}")
+    data = asset.read_bytes()
+    if hashlib.sha256(data).hexdigest() != expected_hash.lower():
+        raise ValueError(f"Recipe asset hash does not match: {asset_path}")
+    return data
+
+
+def _install_recipe_file(root, specification):
+    """Install a hash-verified support file without replacing unknown content."""
+    root = Path(root).resolve()
+    relative = safe_path(specification["targetPath"])
+    candidate = root / relative
+    if any((root / Path(*relative.parts[:index])).is_symlink()
+           for index in range(1, len(relative.parts) + 1)):
+        raise ValueError(f"Recipe file target contains a symbolic link: {specification['targetPath']}")
+    target = candidate.resolve()
+    if not target.is_relative_to(root):
+        raise ValueError(f"Recipe file target escapes the game folder: {specification['targetPath']}")
+
+    data = _verified_recipe_asset(specification["assetPath"], specification["sha256"])
+    expected = specification["sha256"].lower()
+    if target.exists() or target.is_symlink():
+        if target.is_file() and not target.is_symlink() and hashlib.sha256(target.read_bytes()).hexdigest() == expected:
+            return f"Support file already matches: {specification['targetPath']}"
+        raise ValueError(f"An unrelated file already occupies {specification['targetPath']}; it was not replaced.")
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if any((root / Path(*relative.parts[:index])).is_symlink()
+           for index in range(1, len(relative.parts) + 1)):
+        raise ValueError(f"Recipe file target contains a symbolic link: {specification['targetPath']}")
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(prefix=target.name + ".", dir=target.parent,
+                                         delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            os.link(temporary, target)
+        except FileExistsError:
+            if target.is_file() and not target.is_symlink() and hashlib.sha256(target.read_bytes()).hexdigest() == expected:
+                return f"Support file already matches: {specification['targetPath']}"
+            raise ValueError(f"An unrelated file already occupies {specification['targetPath']}; it was not replaced.")
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+    if hashlib.sha256(target.read_bytes()).hexdigest() != expected:
+        raise ValueError(f"Installed support file failed its hash check: {specification['targetPath']}")
+    return f"Installed verified support file: {specification['targetPath']}"
+
+
 def _apply_managed_patch(root, patch):
     """Apply an exact-build IL patch using hash and byte guards, idempotently."""
     root = Path(root).resolve()
@@ -98,14 +160,17 @@ def _apply_managed_patch(root, patch):
     if current_hash != expected:
         raise ValueError("Patch source DLL hash does not match the recorded build.")
 
-    offset = patch["offset"]
-    original = bytes.fromhex(patch["originalHex"])
-    replacement = bytes.fromhex(patch["replacementHex"])
-    if len(original) != len(replacement) or current[offset:offset + len(original)] != original:
-        raise ValueError("Patch IL bytes do not match the recorded method body.")
-    changed = bytearray(current)
-    changed[offset:offset + len(replacement)] = replacement
-    output = bytes(changed)
+    if patch.get("assetPath"):
+        output = _verified_recipe_asset(patch["assetPath"], patched_hash)
+    else:
+        offset = patch["offset"]
+        original = bytes.fromhex(patch["originalHex"])
+        replacement = bytes.fromhex(patch["replacementHex"])
+        if len(original) != len(replacement) or current[offset:offset + len(original)] != original:
+            raise ValueError("Patch IL bytes do not match the recorded method body.")
+        changed = bytearray(current)
+        changed[offset:offset + len(replacement)] = replacement
+        output = bytes(changed)
     if hashlib.sha256(output).hexdigest() != patched_hash:
         raise ValueError("Patched DLL hash differs from the expected output.")
 
@@ -216,12 +281,29 @@ def apply_universal_setup(game):
         detail, status = "Build gate did not pass; folder scan was skipped.", "skipped"
     report.append(_report("DLL overrides", status, detail))
 
-    managed_patches = (delta or {}).get("managedPatches", [])
-    patch_ok = True
-    if managed_patches:
+    setup_files = (delta or {}).get("setupFiles", [])
+    setup_files_ok = True
+    if setup_files:
         if not files_match:
+            setup_files_ok = False
+            report.append(_report("Game patch files", "skipped", "Build or required-file gate did not pass."))
+        else:
+            details = []
+            for specification in setup_files:
+                try:
+                    details.append(_install_recipe_file(install_root, specification))
+                except (OSError, ValueError, KeyError) as error:
+                    setup_files_ok = False
+                    details.append(str(error))
+            report.append(_report("Game patch files", "applied" if setup_files_ok else "failed", "; ".join(details)))
+
+    managed_patches = (delta or {}).get("managedPatches", [])
+    patch_ok = setup_files_ok
+    if managed_patches:
+        if not files_match or not setup_files_ok:
             patch_ok = False
-            report.append(_report("Game patch", "skipped", "Build or required-file gate did not pass."))
+            reason = "Build or required-file gate did not pass." if not files_match else "Required patch files were not installed."
+            report.append(_report("Game patch", "skipped", reason))
         else:
             details = []
             for patch in managed_patches:
@@ -270,6 +352,8 @@ def report_lines(report):
         "Launch arguments": "Launch args",
         "Steam first": "Steam first",
         "DLL overrides": "DLL overrides",
+        "Game patch files": "Patch helper",
+        "Game patch": "Game patch",
         "Steam manifest": "Steam manifest",
         "Steam bottle": "Steam bottle",
     }

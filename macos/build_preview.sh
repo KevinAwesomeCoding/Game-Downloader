@@ -27,6 +27,45 @@ cp "$ROOT/macos/backend/recipes.json" "$RESOURCES/Backend/recipes.json"
 mkdir -p "$RESOURCES/Backend/HighballRecipes"
 cp "$ROOT/macos/backend/HighballRecipes/"*.json "$RESOURCES/Backend/HighballRecipes/"
 
+# The Needle save fix is build-specific. Keep its binary payload out of the
+# source tree and stage it from the user's retained diagnostic backup only
+# for this local app build. The recipe's hashes are the authority.
+python3 - "$ROOT" "$RESOURCES/Backend" <<'PY'
+import hashlib
+import json
+import shutil
+import sys
+from pathlib import Path
+
+root, backend = map(Path, sys.argv[1:])
+catalog = json.loads((backend / "recipes.json").read_text(encoding="utf-8"))
+delta = catalog.get("deltas", {}).get("needle-in-a-haystack", {})
+specs = list(delta.get("setupFiles", [])) + list(delta.get("managedPatches", []))
+if not specs:
+    raise SystemExit("Needle recipe has no local patch payload declarations.")
+source_dir = Path.home() / "Library/Application Support/Game-Downloader/Diagnostics/Needle-20261026-194923"
+source_by_name = {
+    "NeedleHighballIO.dll": "NeedleHighballIO.dll",
+    "Assembly-CSharp.fixed.dll": "Assembly-CSharp.fixed.dll",
+}
+for spec in specs:
+    asset = Path(spec["assetPath"])
+    filename = source_by_name.get(asset.name)
+    if not filename or asset.parts[:2] != ("Patches", "needle"):
+        raise SystemExit(f"Unexpected Needle patch asset path: {asset}")
+    source = source_dir / filename
+    if not source.is_file():
+        raise SystemExit(f"Required local Needle patch asset is missing: {source}")
+    expected = spec["sha256"] if "sha256" in spec else spec["patchedSha256"]
+    actual = hashlib.sha256(source.read_bytes()).hexdigest()
+    if actual != expected.lower():
+        raise SystemExit(f"Needle patch asset hash mismatch for {source.name}: {actual}")
+    target = backend / asset
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, target)
+    print(f"Staged verified Needle patch asset: {asset} ({actual})")
+PY
+
 # Build the free, official RARLAB UnRAR extractor. Unlike unar, it follows
 # encrypted RAR5 volume sets as a single archive when started from volume 1.
 readonly UNRAR_VERSION="7.3.1"
@@ -127,7 +166,7 @@ for path in sorted(root.rglob("*"), key=lambda p: len(p.parts), reverse=True):
             subprocess.run(["codesign", "--force", "--sign", "-", str(path)], check=True)
 PY
 
-mkdir -p "$HOME/Applications"
+mkdir -p "$HOME/Applications" "$(dirname "$DESTINATION")"
 stage="$(mktemp -d "$HOME/Applications/.game-installer-preview.XXXXXX")"
 cleanup() {
 python3 - "$stage" <<'PY'

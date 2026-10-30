@@ -62,6 +62,7 @@ try:
         QApplication, QMainWindow, QWidget, QLabel, QPushButton, QVBoxLayout,
         QHBoxLayout, QScrollArea, QFrame, QStackedWidget, QDialog, QLineEdit,
         QProgressBar, QFileDialog, QMessageBox, QSizePolicy, QLayout, QCheckBox,
+        QComboBox, QPlainTextEdit,
     )
 except ImportError as _qt_err:
     _msg = (
@@ -287,6 +288,30 @@ def save_prefs(data: dict):
             json.dump(data, fh, indent=2)
     except OSError:
         pass
+
+
+def user_catalog_path() -> str:
+    return os.path.join(_prefs_dir(), "games.json")
+
+
+def normalize_catalog_url(value: str) -> str:
+    """Convert a Pastebin page link to its raw JSON endpoint; keep raw URLs."""
+    from urllib.parse import urlparse
+    value = (value or "").strip()
+    if not value:
+        raise ValueError("Enter a catalog URL first.")
+    parsed = urlparse(value)
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise ValueError("Catalog links must use HTTPS.")
+    host = parsed.hostname.casefold()
+    if host in {"pastebin.com", "www.pastebin.com"}:
+        parts = [part for part in parsed.path.split("/") if part]
+        if parts and parts[0] == "raw":
+            return f"https://pastebin.com/raw/{parts[-1]}"
+        if parts:
+            return f"https://pastebin.com/raw/{parts[-1]}"
+        raise ValueError("That Pastebin link does not include a paste ID.")
+    return value
 
 
 def consume_update_status() -> str:
@@ -932,6 +957,18 @@ def parse_manifest(text: str) -> list:
     return [Game(item) for item in data if isinstance(item, dict)]
 
 
+def validate_manifest(text: str) -> list:
+    games = parse_manifest(text)
+    if not games:
+        raise ValueError("The catalog has no game entries.")
+    ids = [game.id for game in games]
+    if any(not game_id for game_id in ids):
+        raise ValueError("Every catalog entry must have an ID.")
+    if len(set(ids)) != len(ids):
+        raise ValueError("The catalog contains duplicate game IDs.")
+    return games
+
+
 # ---------------------------------------------------------------------------
 # System spec detection + "will it run?" requirement matching.
 #
@@ -1283,17 +1320,30 @@ class ManifestLoader(QObject):
     loaded = pyqtSignal(list, str)   # games, source label
     failed = pyqtSignal(str)
 
-    def __init__(self, manifest_url: str):
+    def __init__(self, manifest_url: str, mode: str = "url"):
         super().__init__()
         self.manifest_url = manifest_url
+        self.mode = mode
 
     @pyqtSlot()
     def run(self):
         local_path = os.path.join(app_dir(), LOCAL_MANIFEST)
         bundled_path = os.path.join(getattr(sys, "_MEIPASS", app_dir()), LOCAL_MANIFEST)
 
-        # 1) Try the remote manifest URL.
-        if self.manifest_url:
+        # Imported files and pasted JSON share a managed copy in AppData, so
+        # the app does not depend on a removable file or security-scoped path.
+        if self.mode in {"local", "paste"}:
+            try:
+                with open(user_catalog_path(), "r", encoding="utf-8") as fh:
+                    games = validate_manifest(fh.read())
+                self.loaded.emit(games, "local games.json" if self.mode == "local" else "pasted games.json")
+                return
+            except Exception as exc:
+                self.failed.emit(f"Could not load the saved local games.json:\n{exc}")
+                return
+
+        # 1) Try the configured remote URL when this load is allowed to update.
+        if self.mode == "url" and self.manifest_url:
             try:
                 req = urllib.request.Request(
                     self.manifest_url,
@@ -1301,10 +1351,13 @@ class ManifestLoader(QObject):
                 )
                 with urllib.request.urlopen(req, timeout=3) as resp:
                     raw = resp.read().decode("utf-8")
-                games = parse_manifest(raw)
+                games = validate_manifest(raw)
                 # Persist to disk so the next offline launch uses the latest list.
                 try:
                     with open(local_path, "w", encoding="utf-8") as fh:
+                        fh.write(raw)
+                    os.makedirs(os.path.dirname(user_catalog_path()), exist_ok=True)
+                    with open(user_catalog_path(), "w", encoding="utf-8") as fh:
                         fh.write(raw)
                 except OSError:
                     pass  # write failure is non-fatal; we already have the data
@@ -1313,40 +1366,38 @@ class ManifestLoader(QObject):
             except Exception:
                 pass  # network or parse error — fall through to local copy
 
-        # 2) Local games.json fallback (file in folder, or bundled copy).
-        # If games.json is missing next to the executable, regenerate it from the bundled copy.
+        # 2) Fall back through the user's saved catalog, app-local copy, and
+        # bundled copy. Restore the app-local copy from the bundle when absent.
         if not os.path.isfile(local_path) and os.path.isfile(bundled_path):
             try:
                 shutil.copyfile(bundled_path, local_path)
             except OSError:
                 pass
 
-        # Try reading local_path first, then bundled_path if local_path is missing or corrupted.
+        # Imported catalogs take precedence over cached and bundled defaults.
         candidates = []
-        if os.path.isfile(local_path):
-            candidates.append(local_path)
-        if os.path.isfile(bundled_path) and bundled_path not in candidates:
-            candidates.append(bundled_path)
+        for path in (user_catalog_path(), local_path, bundled_path):
+            if os.path.isfile(path) and path not in candidates:
+                candidates.append(path)
 
+        last_error = None
         for path in candidates:
             try:
                 with open(path, "r", encoding="utf-8") as fh:
-                    raw = fh.read()
-                games = parse_manifest(raw)
-                label = "local games.json"
-                if self.manifest_url:
-                    label = "local games.json (remote unavailable)"
+                    games = validate_manifest(fh.read())
+                label = "local games.json (online source unavailable)" if self.manifest_url else "local games.json"
                 self.loaded.emit(games, label)
                 return
-            except json.JSONDecodeError:
-                continue
-            except Exception:
-                continue
+            except Exception as exc:
+                last_error = exc
 
-        self.failed.emit(
-            "Could not reach the online game list and no valid local games.json was found.\n\n"
-            "Place a valid games.json next to the application or check your network connection."
-        )
+        if last_error is not None:
+            self.failed.emit(f"Failed to load games:\n{last_error}")
+        else:
+            self.failed.emit(
+                "Could not reach the game list server and no valid local games.json was found.\n\n"
+                "Check your internet connection or restore the bundled game list."
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -4794,7 +4845,7 @@ class MainWindow(QMainWindow):
 
         self.refresh_btn = QPushButton("↻  Refresh")
         self.refresh_btn.setObjectName("PrimaryButton")
-        self.refresh_btn.clicked.connect(self.load_manifest)
+        self.refresh_btn.clicked.connect(lambda: self.load_manifest(manual=True))
         lay.addWidget(self.refresh_btn)
         return header
 
@@ -4831,7 +4882,7 @@ class MainWindow(QMainWindow):
         btn_row.addStretch(1)
         retry = QPushButton("Retry")
         retry.setObjectName("PrimaryButton")
-        retry.clicked.connect(self.load_manifest)
+        retry.clicked.connect(lambda: self.load_manifest(manual=True))
         btn_row.addWidget(retry)
         btn_row.addStretch(1)
         lay.addSpacing(10)
@@ -4866,14 +4917,75 @@ class MainWindow(QMainWindow):
         return page
 
     def _build_settings_page(self):
-        page = QWidget()
-        lay = QVBoxLayout(page)
+        page = QScrollArea()
+        page.setWidgetResizable(True)
+        page.setObjectName("Scroll")
+        content = QWidget()
+        lay = QVBoxLayout(content)
         lay.setContentsMargins(24, 20, 24, 20)
         lay.setSpacing(12)
 
         title = QLabel("Settings")
         title.setObjectName("AppTitle")
         lay.addWidget(title)
+
+        catalog_title = QLabel("Game catalog")
+        catalog_title.setObjectName("SectionTitle")
+        lay.addWidget(catalog_title)
+        self.catalog_source_combo = QComboBox()
+        self.catalog_source_combo.addItem("Game-Downloader online catalog", "url")
+        self.catalog_source_combo.addItem("Pastebin or other HTTPS link", "url")
+        self.catalog_source_combo.addItem("Local games.json file", "local")
+        self.catalog_source_combo.addItem("Paste or edit JSON", "paste")
+        self.catalog_source_combo.addItem("Saved catalog (offline)", "cached")
+        catalog_prefs = load_prefs()
+        selected_mode = catalog_prefs.get("catalog_mode", "url")
+        # The two URL choices share behavior; the URL itself distinguishes them.
+        if selected_mode == "url" and catalog_prefs.get("catalog_url", CONFIG["manifest_url"]) != CONFIG["manifest_url"]:
+            self.catalog_source_combo.setCurrentIndex(1)
+        else:
+            for index in range(self.catalog_source_combo.count()):
+                if self.catalog_source_combo.itemData(index) == selected_mode:
+                    self.catalog_source_combo.setCurrentIndex(index)
+                    break
+        self.catalog_source_combo.currentIndexChanged.connect(self._on_catalog_source_changed)
+        lay.addWidget(self.catalog_source_combo)
+
+        self.catalog_url_edit = QLineEdit(catalog_prefs.get("catalog_url", CONFIG["manifest_url"]))
+        self.catalog_url_edit.setPlaceholderText("https://pastebin.com/raw/…")
+        lay.addWidget(self.catalog_url_edit)
+        self.catalog_save_url_btn = QPushButton("Save link and refresh")
+        self.catalog_save_url_btn.setObjectName("SpacewarButton")
+        self.catalog_save_url_btn.clicked.connect(self._save_catalog_url)
+        lay.addWidget(self.catalog_save_url_btn)
+
+        self.catalog_auto_check = QCheckBox("Automatically update from this link when Game Installer opens")
+        self.catalog_auto_check.setChecked(bool(catalog_prefs.get("catalog_auto_update", True)))
+        self.catalog_auto_check.toggled.connect(self._on_catalog_auto_toggled)
+        lay.addWidget(self.catalog_auto_check)
+
+        self.catalog_file_label = QLabel("A selected file is copied into Game Installer's own data folder.")
+        self.catalog_file_label.setObjectName("SubInfo")
+        self.catalog_file_label.setWordWrap(True)
+        lay.addWidget(self.catalog_file_label)
+        self.catalog_choose_file_btn = QPushButton("Choose local games.json…")
+        self.catalog_choose_file_btn.setObjectName("NavButton")
+        self.catalog_choose_file_btn.clicked.connect(self._choose_catalog_file)
+        lay.addWidget(self.catalog_choose_file_btn)
+
+        self.catalog_json_edit = QPlainTextEdit()
+        self.catalog_json_edit.setPlaceholderText("Paste a games.json array here. You can edit it before applying.")
+        self.catalog_json_edit.setMaximumHeight(180)
+        lay.addWidget(self.catalog_json_edit)
+        self.catalog_apply_paste_btn = QPushButton("Apply pasted JSON")
+        self.catalog_apply_paste_btn.setObjectName("PrimaryButton")
+        self.catalog_apply_paste_btn.clicked.connect(self._apply_pasted_catalog)
+        lay.addWidget(self.catalog_apply_paste_btn)
+        self.catalog_status_label = QLabel("")
+        self.catalog_status_label.setObjectName("SubInfo")
+        self.catalog_status_label.setWordWrap(True)
+        lay.addWidget(self.catalog_status_label)
+        self._on_catalog_source_changed(self.catalog_source_combo.currentIndex())
 
         self.shortcut_check = QCheckBox(
             "Create a desktop shortcut to the game after installing"
@@ -4961,6 +5073,7 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.catalog_status_label)
 
         lay.addStretch(1)
+        page.setWidget(content)
         return page
 
     def _on_import_catalog_clicked(self):
@@ -5076,6 +5189,83 @@ class MainWindow(QMainWindow):
         prefs["create_desktop_shortcut"] = bool(checked)
         save_prefs(prefs)
 
+    def _on_catalog_source_changed(self, _index):
+        prefs = load_prefs()
+        mode = self.catalog_source_combo.currentData()
+        prefs["catalog_mode"] = mode
+        is_url = mode == "url"
+        is_local = mode == "local"
+        is_paste = mode == "paste"
+        self.catalog_url_edit.setVisible(is_url)
+        self.catalog_save_url_btn.setVisible(is_url)
+        self.catalog_auto_check.setVisible(is_url)
+        self.catalog_auto_check.setEnabled(is_url)
+        self.catalog_file_label.setVisible(is_local or is_paste)
+        self.catalog_choose_file_btn.setVisible(is_local or is_paste)
+        self.catalog_json_edit.setVisible(is_paste)
+        self.catalog_apply_paste_btn.setVisible(is_paste)
+        if mode == "url" and self.catalog_source_combo.currentIndex() == 0:
+            prefs["catalog_url"] = CONFIG["manifest_url"]
+            self.catalog_url_edit.setText(CONFIG["manifest_url"])
+        save_prefs(prefs)
+
+    def _on_catalog_auto_toggled(self, checked):
+        prefs = load_prefs()
+        prefs["catalog_auto_update"] = bool(checked)
+        save_prefs(prefs)
+
+    def _save_catalog_url(self):
+        try:
+            url = normalize_catalog_url(self.catalog_url_edit.text())
+            prefs = load_prefs()
+            prefs.update({"catalog_mode": "url", "catalog_url": url})
+            save_prefs(prefs)
+            self.catalog_url_edit.setText(url)
+            target_index = 0 if url == CONFIG["manifest_url"] else 1
+            self.catalog_source_combo.blockSignals(True)
+            self.catalog_source_combo.setCurrentIndex(target_index)
+            self.catalog_source_combo.blockSignals(False)
+            self.catalog_status_label.setText("Saved. Loading catalog from the HTTPS link…")
+            self.load_manifest(manual=True)
+        except Exception as exc:
+            QMessageBox.warning(self, "Catalog link", str(exc))
+
+    def _save_local_catalog_data(self, raw: str, mode: str, label: str):
+        games = validate_manifest(raw)
+        path = user_catalog_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(raw)
+        prefs = load_prefs()
+        prefs["catalog_mode"] = mode
+        save_prefs(prefs)
+        for index in range(self.catalog_source_combo.count()):
+            if self.catalog_source_combo.itemData(index) == mode:
+                self.catalog_source_combo.blockSignals(True)
+                self.catalog_source_combo.setCurrentIndex(index)
+                self.catalog_source_combo.blockSignals(False)
+                break
+        self.catalog_status_label.setText(f"Saved {len(games)} games from {label}.")
+        self.load_manifest(manual=True)
+
+    def _choose_catalog_file(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Choose games.json", "", "JSON files (games.json *.json)")
+        if not path:
+            return
+        try:
+            with open(path, "r", encoding="utf-8-sig") as fh:
+                raw = fh.read()
+            self._save_local_catalog_data(raw, "local", os.path.basename(path))
+            self.catalog_file_label.setText(f"Using a managed copy of: {path}")
+        except Exception as exc:
+            QMessageBox.warning(self, "Local game catalog", f"This file could not be used:\n{exc}")
+
+    def _apply_pasted_catalog(self):
+        try:
+            self._save_local_catalog_data(self.catalog_json_edit.toPlainText(), "paste", "pasted JSON")
+        except Exception as exc:
+            QMessageBox.warning(self, "Pasted game catalog", f"This JSON could not be used:\n{exc}")
+
     # -- bulk shortcut creation for already-installed games -----------------
     def _on_bulk_shortcuts_clicked(self):
         if self._sweep_thread is not None:
@@ -5124,16 +5314,19 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "Desktop shortcuts", "\n".join(lines))
 
     # -- manifest loading ---------------------------------------------------
-    def load_manifest(self):
+    def load_manifest(self, manual: bool = False):
         if self.manifest_thread is not None:
             return
+        prefs = load_prefs()
+        mode = prefs.get("catalog_mode", "url")
+        url = prefs.get("catalog_url", CONFIG["manifest_url"])
+        if mode == "url" and not manual and not prefs.get("catalog_auto_update", True):
+            mode = "cached"
         self.refresh_btn.setEnabled(False)
         self.stack.setCurrentWidget(self.loading_page)
 
-        settings = load_settings()
-        manifest_url = settings.get("manifest_url", CONFIG.get("manifest_url", ""))
         self.manifest_thread = QThread()
-        self.manifest_worker = ManifestLoader(manifest_url)
+        self.manifest_worker = ManifestLoader(url if mode == "url" else "", mode)
         self.manifest_worker.moveToThread(self.manifest_thread)
         self.manifest_thread.started.connect(self.manifest_worker.run)
         self.manifest_worker.loaded.connect(self._on_manifest_loaded)

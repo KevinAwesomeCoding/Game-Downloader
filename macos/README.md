@@ -98,8 +98,8 @@ fake Steam installation records.
   archive is installed, the app automatically registers the external game path,
   title, cover and saved settings. This does not copy game files into the bottle
   or start the game. Component recipes affect every game using that bottle.
-- **Four recorded recipes:** MECCHA CHAMELEON, Cut That Wire, Buckshot Roulette,
-  and Party Animals. Exact main/repair archive hashes and the tested Highball
+- **Recorded recipes:** MECCHA CHAMELEON, Cut That Wire, Buckshot Roulette,
+  Party Animals, and the exact-build Needle In A Haystack storage fix. Exact main/repair archive hashes and the tested Highball
   engine must match before a recipe can be applied. Recipes may leave renderer,
   arguments, or environment at the bottle defaults when no override was verified.
   Party Animals also checks for `UnityPlayer.dll` and `PartyAnimals_Data`; if either
@@ -234,6 +234,10 @@ bash macos/build_preview.sh
   verifies the patched output, and skips Highball setup if any guard fails.
   Its Unity runtime and game data files are required before the recipe can apply.
   Other historical settings are not guessed from detected DLLs or compatibility predictions.
+- Needle In A Haystack's storage patch is limited to its recorded v1.2.7 archive
+  and original assembly hashes. The local build stages the verified helper and
+  patched assembly from `~/Library/Application Support/Game-Downloader/Diagnostics/Needle-20261026-194923/`;
+  the original managed assembly is backed up beside the game before patching.
 - Startup, menu, gameplay, hosting, invites and joining remain separate results.
   Archive hashes identify tested bytes, not publisher authenticity. Menu arrival,
   an install receipt or a successful CLI exit cannot establish multiplayer.

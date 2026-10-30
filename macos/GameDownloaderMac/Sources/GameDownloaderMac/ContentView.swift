@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import SwiftUI
+import UniformTypeIdentifiers
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -12,6 +13,27 @@ final class AppModel: ObservableObject {
     @Published var isInstallingHelper = false
     @Published var helperInstallMessage: String?
     @Published var catalogError: String?
+    @Published var catalogMessage: String?
+    @Published var catalogSource = UserDefaults.standard.string(forKey: "catalogSource") ?? "url" {
+        didSet {
+            UserDefaults.standard.set(catalogSource, forKey: "catalogSource")
+            if oldValue != catalogSource { loadCatalog() }
+        }
+    }
+    @Published var catalogURL = UserDefaults.standard.string(forKey: "catalogURL")
+        ?? "https://raw.githubusercontent.com/KevinAwesomeCoding/Game-Downloader/main/games.json" {
+        didSet { UserDefaults.standard.set(catalogURL, forKey: "catalogURL") }
+    }
+    @Published var autoUpdateCatalog = UserDefaults.standard.bool(forKey: "autoUpdateCatalog") {
+        didSet {
+            UserDefaults.standard.set(autoUpdateCatalog, forKey: "autoUpdateCatalog")
+            if autoUpdateCatalog && catalogSource == "url" {
+                Task { await refreshCatalog() }
+            }
+        }
+    }
+    @Published var catalogJSONDraft = ""
+    @Published var localCatalogName: String?
     @Published var jobs: [InstallJob] = []
     @Published var ownedInstallations: [OwnedGameInstallation] = []
     @Published var downloadEstimates: [String: String] = [:]
@@ -76,6 +98,9 @@ final class AppModel: ObservableObject {
         updateMessage = AppUpdater.consumeStatus()
         updateAlertMessage = updateMessage
         loadCatalog()
+        if catalogSource == "url" && autoUpdateCatalog {
+            Task { await refreshCatalog() }
+        }
         restoreQueue()
         restoreGameFolderAccess()
     }
@@ -261,25 +286,51 @@ final class AppModel: ObservableObject {
 
     func loadCatalog() {
         do {
-            // Keep the source catalog order: it represents when entries were added.
-            games = try Game.load()
+            if catalogSource == "local" || catalogSource == "paste" {
+                let data = try Data(contentsOf: managedCatalogURL())
+                games = try Self.decodeCatalog(data)
+                catalogJSONDraft = String(decoding: data, as: UTF8.self)
+                catalogError = nil
+            } else if catalogSource == "cached", let data = try? Data(contentsOf: managedCatalogURL()) {
+                games = try Self.decodeCatalog(data)
+                catalogError = nil
+            } else if catalogSource == "url", let data = try? Data(contentsOf: managedCatalogURL()) {
+                games = try Self.decodeCatalog(data)
+                catalogError = nil
+            } else {
+                // Keep bundled catalog order: it represents when entries were added.
+                games = try Game.load()
+                catalogError = nil
+            }
             scanOwnedGames()
-            catalogError = nil
         } catch {
-            catalogError = error.localizedDescription
+            do {
+                games = try Game.load()
+                scanOwnedGames()
+                catalogError = "Could not load the selected catalog; showing the bundled catalog. \(error.localizedDescription)"
+            } catch {
+                catalogError = error.localizedDescription
+            }
         }
     }
 
     func refreshCatalog() async {
-        guard let url = URL(string: "https://raw.githubusercontent.com/KevinAwesomeCoding/Game-Downloader/main/games.json") else {
-            catalogError = "The catalog URL is invalid. The bundled catalog is still available."
-            return
-        }
         isRefreshingCatalog = true
         catalogError = nil
         defer { isRefreshingCatalog = false }
 
         do {
+            if catalogSource == "local" || catalogSource == "paste" || catalogSource == "cached" {
+                let data = try Data(contentsOf: managedCatalogURL())
+                games = try Self.decodeCatalog(data)
+                catalogJSONDraft = String(decoding: data, as: UTF8.self)
+                scanOwnedGames()
+                catalogMessage = "Loaded \(games.count) games from your local catalog."
+                return
+            }
+            guard let url = Self.normalizedCatalogURL(catalogURL) else {
+                throw CatalogRefreshError.invalidURL
+            }
             var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
                                      timeoutInterval: 20)
             request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -290,13 +341,88 @@ final class AppModel: ObservableObject {
                 throw CatalogRefreshError.httpStatus(code)
             }
             let refreshed = try Self.decodeCatalog(data)
+            try data.write(to: managedCatalogURL(), options: .atomic)
             // Preserve games.json order so the library's "added" sort reflects the catalog.
             games = refreshed
             scanOwnedGames()
-            actionMessage = "Catalog refreshed: \(games.count) games."
+            catalogMessage = "Catalog refreshed: \(games.count) games."
         } catch {
-            catalogError = "Could not refresh the online catalog; showing the bundled copy. \(error.localizedDescription)"
+            catalogError = "Could not refresh the selected catalog. Your current game list was kept. \(error.localizedDescription)"
         }
+    }
+
+    func chooseLocalCatalog() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose games.json"
+        panel.prompt = "Use Catalog"
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.json]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let data = try Data(contentsOf: url)
+            let parsed = try Self.decodeCatalog(data)
+            try data.write(to: managedCatalogURL(), options: .atomic)
+            localCatalogName = url.lastPathComponent
+            catalogJSONDraft = String(decoding: data, as: UTF8.self)
+            catalogSource = "local"
+            games = parsed
+            scanOwnedGames()
+            catalogMessage = "Loaded \(games.count) games from \(url.lastPathComponent)."
+            catalogError = nil
+        } catch {
+            catalogError = "That file could not be used as a game catalog. \(error.localizedDescription)"
+        }
+    }
+
+    func applyPastedCatalog() {
+        do {
+            let data = Data(catalogJSONDraft.utf8)
+            let parsed = try Self.decodeCatalog(data)
+            try data.write(to: managedCatalogURL(), options: .atomic)
+            if catalogSource != "local" { catalogSource = "paste" }
+            games = parsed
+            scanOwnedGames()
+            catalogMessage = "Applied your JSON catalog with \(games.count) games."
+            catalogError = nil
+        } catch {
+            catalogError = "This JSON catalog could not be used. \(error.localizedDescription)"
+        }
+    }
+
+    func saveCatalogEdits() { applyPastedCatalog() }
+
+    func saveCatalogLink() {
+        guard let url = Self.normalizedCatalogURL(catalogURL) else {
+            catalogError = "Enter an HTTPS games.json link or Pastebin URL."
+            return
+        }
+        catalogURL = url.absoluteString
+        catalogSource = "url"
+        catalogMessage = "Catalog link saved."
+        Task { await refreshCatalog() }
+    }
+
+    private func managedCatalogURL() throws -> URL {
+        let base = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
+                                               appropriateFor: nil, create: true)
+        let folder = base.appending(path: "Game-Downloader", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder.appending(path: "games.json")
+    }
+
+    private static func normalizedCatalogURL(_ value: String) -> URL? {
+        var candidate = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !candidate.isEmpty else { return nil }
+        if let parsed = URLComponents(string: candidate),
+           let host = parsed.host?.lowercased(), host == "pastebin.com" || host == "www.pastebin.com" {
+            let parts = parsed.path.split(separator: "/").map(String.init)
+            guard let id = parts.last else { return nil }
+            candidate = "https://pastebin.com/raw/\(id)"
+        }
+        guard let url = URL(string: candidate), url.scheme?.lowercased() == "https" else { return nil }
+        return url
     }
 
     private static func decodeCatalog(_ data: Data) throws -> [Game] {
@@ -309,12 +435,14 @@ final class AppModel: ObservableObject {
     private enum CatalogRefreshError: LocalizedError {
         case empty
         case duplicateIDs
+        case invalidURL
         case httpStatus(String)
 
         var errorDescription: String? {
             switch self {
             case .empty: return "The online catalog was empty."
             case .duplicateIDs: return "The online catalog contains duplicate game IDs."
+            case .invalidURL: return "Enter a valid HTTPS link to a raw games.json file or Pastebin paste."
             case .httpStatus(let code): return "The catalog server returned HTTP \(code)."
             }
         }
@@ -981,6 +1109,64 @@ struct ContentView: View {
                         Text(model.installFolder).lineLimit(2).textSelection(.enabled)
                             .font(.callout.monospaced()).foregroundStyle(.secondary)
                         Button("Choose folder…", action: model.chooseInstallFolder)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }
+                GroupBox("Game catalog") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Picker("Catalog source", selection: $model.catalogSource) {
+                            Text("Game-Downloader online catalog").tag("url")
+                            Text("Local games.json file").tag("local")
+                            Text("Paste or edit JSON").tag("paste")
+                            Text("Saved catalog (offline)").tag("cached")
+                        }
+                        if model.catalogSource == "url" {
+                            TextField("HTTPS link or Pastebin URL", text: $model.catalogURL)
+                                .textFieldStyle(.roundedBorder)
+                            Button("Save link and refresh") { model.saveCatalogLink() }
+                            Toggle("Automatically update from this link when Game Installer opens",
+                                   isOn: $model.autoUpdateCatalog)
+                            Text("Pastebin links are converted to their raw view. Other links must point directly to a games.json file and use HTTPS.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        } else if model.catalogSource == "local" {
+                            HStack {
+                                Button("Choose games.json…") { model.chooseLocalCatalog() }
+                                if let name = model.localCatalogName { Text(name).font(.caption).foregroundStyle(.secondary) }
+                            }
+                            TextEditor(text: $model.catalogJSONDraft)
+                                .font(.system(.caption, design: .monospaced))
+                                .frame(minHeight: 180)
+                                .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.secondary.opacity(0.35)))
+                            Button("Save edits to local catalog") { model.saveCatalogEdits() }
+                        } else if model.catalogSource == "paste" {
+                            Text("Paste a games.json array below, edit it here, then apply it. The catalog is saved in Game Installer's application support folder.")
+                                .font(.caption).foregroundStyle(.secondary)
+                            TextEditor(text: $model.catalogJSONDraft)
+                                .font(.system(.caption, design: .monospaced))
+                                .frame(minHeight: 180)
+                                .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.secondary.opacity(0.35)))
+                            HStack {
+                                Button("Choose games.json…") { model.chooseLocalCatalog() }
+                                Button("Apply pasted JSON") { model.applyPastedCatalog() }
+                            }
+                        } else {
+                            Text("Uses the last saved catalog without checking the network.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        HStack {
+                            Button {
+                                Task { await model.refreshCatalog() }
+                            } label: {
+                                if model.isRefreshingCatalog { ProgressView().controlSize(.small) }
+                                else { Label("Refresh catalog now", systemImage: "arrow.clockwise") }
+                            }
+                            .disabled(model.isRefreshingCatalog)
+                            if let message = model.catalogMessage {
+                                Text(message).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        if let error = model.catalogError {
+                            Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled)
+                        }
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }
                 readinessCard

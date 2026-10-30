@@ -1407,7 +1407,7 @@
     "macCompatibility": {
       "tier": "Runs with a recipe",
       "riskLevel": "Standard",
-      "reasoning": "For the tested v1.2.7 build, a local build-specific workaround cleared the campaign-storage initialization error; a clean launch reached the Lobby with Steam ready, and the game save store passed an isolated save/update/backup/reload check. This workaround is not yet automated by the installer. Real campaign gameplay and multiplayer remain unverified.",
+      "reasoning": "For the tested v1.2.7 build, the installer applies the verified campaign-storage workaround only when the archive and Assembly-CSharp hashes match. A clean launch reached the Lobby with Steam ready, and the game save store passed an isolated save/update/backup/reload check. Real campaign gameplay and multiplayer remain unverified.",
       "confidence": "Medium",
       "classifiedAt": "2026-10-26T20:05:45-05:00"
     },

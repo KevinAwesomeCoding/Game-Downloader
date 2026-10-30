@@ -168,6 +168,31 @@
         "invites": "not separately tested",
         "joining": "not tested"
       }
+    },
+    "needle-in-a-haystack": {
+      "main": [
+        {
+          "bytes": 779888474,
+          "sha256": "40568faf629a03b73b735579528af0e473ffe94ea02d803fe4551d0bd691f97a"
+        }
+      ],
+      "repair": [
+        {
+          "bytes": 11259518,
+          "sha256": "18caa2f0ff2a06c56630d3ef21b4e1e237be7894a580068bbcd78b134330436c"
+        }
+      ],
+      "engine": "x64-sikarugir10.0_6-r28",
+      "tested": {
+        "date": "2026-10-26",
+        "highball": "0.10.22",
+        "macOS": "26.5.1",
+        "chip": "M5",
+        "renderer": "dxmt",
+        "startup": "observed",
+        "menu": "lobby observed",
+        "storage": "campaign store passed isolated save/update/backup/reload verification"
+      }
     }
   },
   "deltas": {
@@ -222,6 +247,36 @@
     "lucid-cats": {
       "executable": "LucidCats.exe",
       "requiredRecipes": ["steam", "vcrun2022"]
+    },
+    "needle-in-a-haystack": {
+      "executable": "NeedleInAHaystack.exe",
+      "rendererOverride": "dxmt",
+      "requiredRecipes": ["steam", "vcrun2022"],
+      "extraFilesToVerify": [
+        "UnityPlayer.dll",
+        "NeedleInAHaystack_Data/Managed/Assembly-CSharp.dll"
+      ],
+      "extraDirectoriesToVerify": [
+        "MonoBleedingEdge",
+        "NeedleInAHaystack_Data",
+        "NeedleInAHaystack_Data/Managed"
+      ],
+      "setupFiles": [
+        {
+          "assetPath": "Patches/needle/NeedleHighballIO.dll",
+          "sha256": "02b5d72501dffe596695d5255917bc9ef29063423cf229942ca72ecd4ba2608a",
+          "targetPath": "NeedleInAHaystack_Data/Managed/NeedleHighballIO.dll"
+        }
+      ],
+      "managedPatches": [
+        {
+          "path": "NeedleInAHaystack_Data/Managed/Assembly-CSharp.dll",
+          "sourceSha256": "0bdefa08bf3e28b275be86bb39164b7bb1d75ba6cd131d4a9b534cd05e403922",
+          "patchedSha256": "0736aede50e2f7f6e4c73bb9ad2dcce10309fc7b7c3a9928486cff29317a2e43",
+          "assetPath": "Patches/needle/Assembly-CSharp.fixed.dll",
+          "backupPath": "NeedleInAHaystack_Data/Managed/Assembly-CSharp.original.dll"
+        }
+      ]
     }
   }
 }
