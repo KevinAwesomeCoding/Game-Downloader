@@ -9,6 +9,9 @@ workflow:
 
 variables:
   GIT_DEPTH: "0"
+  GIT_CONFIG_COUNT: "1"
+  GIT_CONFIG_KEY_0: "credential.helper"
+  GIT_CONFIG_VALUE_0: ""
 
 release_info:
   stage: prepare
