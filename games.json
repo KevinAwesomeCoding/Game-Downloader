@@ -1732,5 +1732,35 @@
       "classifiedAt": "2026-10-31T00:00:00-05:00"
     },
     "requirementsPlatform": "Windows"
+  }  ,{
+    "id": "oh-deer",
+    "steamAppId": "2708450",
+    "name": "Oh Deer",
+    "source": "https://online-fix.me/games/survival/17471-oh-deer-po-seti.html",
+    "description": "A hide-and-seek game for up to 10 players where one hunter tracks player-controlled deer hiding among the herd.",
+    "version": "3.0.0",
+    "size": "",
+    "players": "Up to 10 players (online PvP/co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2708450/677d8a61ee8d532b590df691174914eb7bfac0f1/header.jpg?t=1792166826",
+    "zipUrl": "https://gofile.io/d/FgAqms",
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://pixeldrain.com/u/7Wfc2RM3",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 10 or later 64-bit (latest update)",
+      "cpu": "Intel Core i5-7400 or AMD Ryzen 5 1400",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GTX 1060 or AMD RX 580",
+      "directx": "Version 12"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists Windows support only, and no recorded Highball recipe or local macOS test was found for this archive.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-31T00:00:00-05:00"
+    },
+    "requirementsPlatform": "Windows"
   }
+
 ]
