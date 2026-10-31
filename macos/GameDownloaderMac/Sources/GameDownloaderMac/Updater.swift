@@ -37,7 +37,7 @@ enum AppUpdater {
         let body: String?
         let assets: [Asset]
     }
-    private static let endpoint = URL(string: "https://api.github.com/repos/KevinAwesomeCoding/Game-Downloader/releases/latest")!
+    private static let endpoint = URL(string: "https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json")!
     private static let expectedBundleID = "com.kevinawesomecoding.GameInstaller"
 
     static func consumeStatus() -> String? {
@@ -57,7 +57,7 @@ enum AppUpdater {
     static func check() async throws -> AppUpdate? {
         guard Bundle.main.bundleIdentifier == expectedBundleID else { return nil }
         var request = URLRequest(url: endpoint, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 20)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("GameInstaller-updater", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
@@ -82,12 +82,12 @@ enum AppUpdater {
                              downloadURL: nil, sha256: nil,
                              manualReason: "This release does not include a compatible Apple silicon app download.")
         }
-        let digest = asset.digest?.lowercased().replacingOccurrences(of: "sha256:", with: "")
+        let digest = asset.digest?.replacingOccurrences(of: "sha256:", with: "").lowercased()
         guard let digest, digest.range(of: #"^[0-9a-f]{64}$"#, options: .regularExpression) != nil else {
             return AppUpdate(id: release.tag_name, version: release.tag_name,
                              notes: release.body ?? "No release notes provided.", releaseURL: release.html_url,
                              downloadURL: nil, sha256: nil,
-                             manualReason: "GitHub did not provide a valid SHA-256 checksum. Review and install this release manually.")
+                             manualReason: "This release has no valid SHA-256 checksum. Review and install it manually.")
         }
         return AppUpdate(id: release.tag_name, version: release.tag_name,
                          notes: release.body ?? "No release notes provided.", releaseURL: release.html_url,

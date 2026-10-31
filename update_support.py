@@ -52,7 +52,7 @@ def compatible_release(release: dict, current_version: str, system: str, machine
     if not asset:
         manual_reason = "This release has no Windows x64 app download. Review the release page manually."
     elif not digest:
-        manual_reason = "GitHub did not provide a valid SHA-256 checksum. Review and download this release manually."
+        manual_reason = "This release has no valid SHA-256 checksum. Review and download it manually."
     elif not packaged:
         manual_reason = "Self-updates are available only in the packaged Windows app. Download and replace it manually."
     return UpdateRelease(

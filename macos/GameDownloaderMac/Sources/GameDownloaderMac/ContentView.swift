@@ -20,8 +20,17 @@ final class AppModel: ObservableObject {
             if oldValue != catalogSource { loadCatalog() }
         }
     }
-    @Published var catalogURL = UserDefaults.standard.string(forKey: "catalogURL")
-        ?? "https://raw.githubusercontent.com/KevinAwesomeCoding/Game-Downloader/main/games.json" {
+    @Published var catalogURL: String = {
+        let current = UserDefaults.standard.string(forKey: "catalogURL")
+        let previous = [
+            "https://gitlab.com/api/v4/projects/88321703/releases/permalink/latest/downloads/games.json",
+            "https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/games.json",
+        ]
+        if current == nil || previous.contains(current!) {
+            return "https://gitlab.com/kevinanil-projects/Game-Downloader/-/raw/main/games.json"
+        }
+        return current!
+    }() {
         didSet { UserDefaults.standard.set(catalogURL, forKey: "catalogURL") }
     }
     @Published var autoUpdateCatalog = UserDefaults.standard.bool(forKey: "autoUpdateCatalog") {
@@ -787,7 +796,7 @@ struct ContentView: View {
             ? Color(red: 0.20, green: 0.25, blue: 0.36)
             : Color(red: 0.95, green: 0.61, blue: 0.18), darkText: update != nil))
         .disabled(model.isCheckingForAppUpdate && update == nil)
-        .help(update == nil ? "Check GitHub for a compatible app update" : "Show release notes and update options")
+        .help(update == nil ? "Check GitLab for a compatible app update" : "Show release notes and update options")
     }
 
     @ViewBuilder private var pageContent: some View {
@@ -1203,7 +1212,7 @@ struct ContentView: View {
                 }
                 GroupBox("App updates") {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Checks GitHub for updates at launch and every two minutes. Downloads are verified with SHA-256 before installation.")
+                        Text("Checks GitLab for updates at launch and every two minutes. Downloads are verified with SHA-256 before installation.")
                             .font(.caption).foregroundStyle(.secondary)
                         Button("Check for updates") { Task { await model.checkForAppUpdate(manual: true) } }
                             .disabled(model.isInstallingUpdate || model.isCheckingForAppUpdate)

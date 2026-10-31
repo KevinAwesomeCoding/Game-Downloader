@@ -241,10 +241,13 @@ CONFIG = {
 
 ## 4. Package to a standalone `.exe` with PyInstaller
 
-Install PyInstaller and build a single-file, windowed executable:
+Install the pinned application dependencies and PyInstaller, then build a
+single-file, windowed executable. The `requirements.txt` pins PyQt6 to the
+Qt 6.6 line because newer Qt builds can fail to load in older CrossOver/Wine
+bottles:
 
 ```powershell
-python -m pip install pyinstaller
+python -m pip install -r requirements.txt pyinstaller
 pyinstaller --onefile --windowed --runtime-hook tools/windows_dll_safety_hook.py --name GameInstaller main.py
 ```
 

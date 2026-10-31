@@ -6,11 +6,10 @@ enum UpdateModelChecks {
         let hash = String(repeating: "a", count: 64)
         let release = AppUpdater.Release(
             tag_name: "v1.4-20261027-84",
-            html_url: URL(string: "https://github.com/KevinAwesomeCoding/Game-Downloader/releases/tag/v1.4-20261027-84")!,
+            html_url: URL(string: "https://gitlab.com/example/app/-/releases/v1.4-20261027-84")!,
             body: "Release notes",
             assets: [.init(name: "GameInstaller-macOS-arm64.zip",
-                           browser_download_url: URL(string: "https://example.invalid/app.zip")!,
-                           digest: "sha256:\(hash)")]
+                           browser_download_url: URL(string: "https://example.invalid/app.zip")!, digest: "sha256:" + hash)]
         )
         precondition(AppUpdater.resolve(release, currentVersion: "v1.4-20261027-84", architecture: "arm64") == nil)
         precondition(AppUpdater.resolve(release, currentVersion: "v1.3", architecture: "x86_64") == nil)
@@ -21,8 +20,7 @@ enum UpdateModelChecks {
         let legacyRelease = AppUpdater.Release(
             tag_name: release.tag_name, html_url: release.html_url, body: nil,
             assets: [.init(name: "GameInstaller-macOS.zip",
-                           browser_download_url: URL(string: "https://example.invalid/legacy.zip")!,
-                           digest: "sha256:\(hash)")]
+                           browser_download_url: URL(string: "https://example.invalid/legacy.zip")!, digest: "sha256:" + hash)]
         )
         precondition(AppUpdater.resolve(legacyRelease, currentVersion: "v1.3", architecture: "arm64")?.canSelfUpdate == true)
 
@@ -57,8 +55,7 @@ enum UpdateModelChecks {
         precondition(LibrarySearch.matches(query: "   ", name: "Example", description: nil))
 
         let missingChecksum = AppUpdater.Release(
-            tag_name: "v1.5-20261027-85", html_url: release.html_url,
-            body: nil,
+            tag_name: "v1.5-20261027-85", html_url: release.html_url, body: nil,
             assets: [.init(name: "GameInstaller-macOS-arm64.zip",
                            browser_download_url: URL(string: "https://example.invalid/app.zip")!, digest: nil)]
         )

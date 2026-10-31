@@ -28,8 +28,9 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 source_repository="$REPOSITORY"
-if git -C "$ROOT/Highball" cat-file -e "$COMMIT^{commit}" 2>/dev/null; then
-  source_repository="$ROOT/Highball"
+local_source="${HIGHBALL_SOURCE_DIR:-$ROOT/Highball}"
+if git -C "$local_source" cat-file -e "$COMMIT^{commit}" 2>/dev/null; then
+  source_repository="$local_source"
 fi
 git clone --quiet --no-checkout "$source_repository" "$TEMPORARY/source"
 git -C "$TEMPORARY/source" checkout --quiet "$COMMIT"

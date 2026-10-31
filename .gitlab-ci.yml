@@ -1,0 +1,70 @@
+stages:
+  - prepare
+  - build
+  - release
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+variables:
+  GIT_DEPTH: "0"
+
+release_info:
+  stage: prepare
+  image: python:3.11
+  script:
+    - python ci/release_info.py
+  artifacts:
+    reports:
+      dotenv: release.env
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+build_windows:
+  stage: build
+  variables:
+    GIT_CONFIG_NOSYSTEM: "1"
+    GIT_CONFIG_GLOBAL: "NUL"
+  tags:
+    - saas-windows-medium-amd64
+  needs:
+    - job: release_info
+      artifacts: true
+  script:
+    - pwsh -NoProfile -File ci/build_windows.ps1
+  artifacts:
+    access: developer
+    paths:
+      - dist/GameInstaller.zip
+      - dist/GameInstaller-windows-x64.exe
+    expire_in: 7 days
+
+build_macos:
+  stage: build
+  tags:
+    - game-downloader-macos-arm64
+  needs:
+    - job: release_info
+      artifacts: true
+  script:
+    - bash ci/build_macos.sh
+  artifacts:
+    access: developer
+    paths:
+      - dist/GameInstaller-macOS-arm64.zip
+    expire_in: 7 days
+
+publish_release:
+  stage: release
+  image: python:3.11
+  needs:
+    - job: release_info
+      artifacts: true
+    - job: build_windows
+      artifacts: true
+    - job: build_macos
+      artifacts: true
+  script:
+    - python ci/publish_gitlab_release.py
+  resource_group: game-downloader-release

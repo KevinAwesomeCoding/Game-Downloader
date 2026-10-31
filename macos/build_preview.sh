@@ -88,7 +88,7 @@ readonly SEVENZIP_VERSION="26.05"
 readonly SEVENZIP_SHA256="12ef6830317743cfd3f0ab1724bde43fcc270d8b6d8564f8c12c2a2b7f993570"
 sevenzip_build="$(mktemp -d "${TMPDIR:-/tmp}/game-installer-7zip.XXXXXX")"
 curl -fL --retry 2 -o "$sevenzip_build/7zip-mac.tar.xz" \
-  "https://github.com/ip7z/7zip/releases/download/${SEVENZIP_VERSION}/7z${SEVENZIP_VERSION//./}-mac.tar.xz"
+  "https://downloads.sourceforge.net/project/sevenzip/7-Zip/${SEVENZIP_VERSION}/7z${SEVENZIP_VERSION//./}-mac.tar.xz"
 printf '%s  %s\n' "$SEVENZIP_SHA256" "$sevenzip_build/7zip-mac.tar.xz" | shasum -a 256 -c -
 tar -xJf "$sevenzip_build/7zip-mac.tar.xz" -C "$sevenzip_build" 7zz License.txt
 lipo "$sevenzip_build/7zz" -verify_arch arm64 x86_64

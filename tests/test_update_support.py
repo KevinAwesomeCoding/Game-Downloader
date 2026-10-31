@@ -39,7 +39,7 @@ class UpdateFlowTests(unittest.TestCase):
         self.payload = b"verified Windows x64 release payload"
         self.release = {
             "tag_name": "v1.4-20261027-22",
-            "html_url": "https://github.com/example/project/releases/tag/v1.4-20261027-22",
+            "html_url": "https://gitlab.com/example/project/-/releases/v1.4-20261027-22",
             "body": "Release notes",
             "assets": [{
                 "name": "GameInstaller-windows-x64.exe",
@@ -61,6 +61,23 @@ class UpdateFlowTests(unittest.TestCase):
         self.assertEqual(update.notes, "Release notes")
         self.assertEqual(update.sha256, self.release["assets"][0]["digest"].removeprefix("sha256:"))
         self.assertTrue(update.self_updatable)
+
+    def test_public_release_manifest(self):
+        digest = hashlib.sha256(self.payload).hexdigest()
+        release = {
+            "tag_name": "v1.5-20261030-1",
+            "html_url": "https://gitlab.com/example/app/-/releases/v1.5-20261030-1",
+            "body": "GitLab release notes",
+            "assets": [{
+                "name": "GameInstaller-windows-x64.exe",
+                "browser_download_url": "https://gitlab.com/example/app/-/releases/v1.5-20261030-1/downloads/GameInstaller-windows-x64.exe",
+                "digest": "sha256:" + digest,
+            }],
+        }
+        update = compatible_release(release, "v1.4", "Windows", "AMD64")
+        self.assertEqual(update.sha256, digest)
+        self.assertTrue(update.self_updatable)
+        self.assertEqual(update.notes, "GitLab release notes")
 
     def test_missing_asset_checksum_or_source_build_use_manual_release_page(self):
         no_digest = dict(self.release, assets=[dict(self.release["assets"][0], digest=None)])

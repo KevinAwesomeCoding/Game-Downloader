@@ -84,9 +84,13 @@ except ImportError as _qt_err:
 # CONFIG
 # ---------------------------------------------------------------------------
 CONFIG = {
-    "manifest_url": "https://raw.githubusercontent.com/KevinAwesomeCoding/Game-Downloader/main/games.json",
+    "manifest_url": "https://gitlab.com/kevinanil-projects/Game-Downloader/-/raw/main/games.json",
     "window_title": "Game Installer",
     "default_install_subfolder": True
+}
+PREVIOUS_CATALOG_URLS = {
+    "https://gitlab.com/api/v4/projects/88321703/releases/permalink/latest/downloads/games.json",
+    "https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/games.json",
 }
 
 # Bundled fallback manifest, looked up next to this file / the exe.
@@ -107,7 +111,7 @@ SETTINGS_FILE = "settings.json"
 # Current build version.  Set this to match the semver in the VERSION file
 # before each release so the self-update check knows what is installed.
 VERSION = "v1.0.0"
-RELEASES_API = "https://api.github.com/repos/KevinAwesomeCoding/Game-Downloader/releases/latest"
+RELEASES_API = "https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json"
 
 # ---------------------------------------------------------------------------
 # DEBUG — temporary instrumentation to diagnose fixZipUrl download failures.
@@ -275,6 +279,8 @@ def load_prefs() -> dict:
     try:
         with open(path, "r", encoding="utf-8") as fh:
             data = json.load(fh)
+            if isinstance(data, dict) and data.get("catalog_url") in PREVIOUS_CATALOG_URLS:
+                data["catalog_url"] = CONFIG["manifest_url"]
             return data if isinstance(data, dict) else {}
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
@@ -1422,7 +1428,7 @@ class DefenderWorker(QObject):
 # Self-update workers
 # ---------------------------------------------------------------------------
 class UpdateChecker(QObject):
-    """Fetches the latest GitHub release and signals if a newer version exists."""
+    """Fetches the latest GitLab release and signals if a newer version exists."""
     result = pyqtSignal(object, str)  # UpdateRelease or None, error text
     finished = pyqtSignal()
 
@@ -1432,13 +1438,13 @@ class UpdateChecker(QObject):
         _ulog.info("[1] App started. Current VERSION = %r", VERSION)
         _log.debug("UpdateChecker: runtime VERSION = %r", VERSION)
         try:
-            # Step 2 — GitHub API request: log the URL being called.
-            _ulog.info("[2] GitHub API request  URL = %s", RELEASES_API)
+            # Step 2 — public release manifest request.
+            _ulog.info("[2] Release manifest request  URL = %s", RELEASES_API)
             resp = requests.get(
                 RELEASES_API,
                 timeout=(5, 10),
                 headers={
-                    "Accept": "application/vnd.github+json",
+                    "Accept": "application/json",
                     "User-Agent": "GameInstaller-updater",
                 },
             )
@@ -1448,7 +1454,7 @@ class UpdateChecker(QObject):
             data = resp.json()
             tag = data.get("tag_name", "")
             _ulog.info(
-                "[3] GitHub API response  status=%s  tag_name=%r",
+                "[3] Release manifest response  status=%s  tag_name=%r",
                 resp.status_code, tag,
             )
             _log.debug("UpdateChecker: tag_name from API = %r", tag)
@@ -4761,7 +4767,7 @@ class MainWindow(QMainWindow):
         update = self._update_notice.open_details()
         if update is None:
             self._manual_update_check = True
-            self.check_updates_btn.setToolTip("Checking GitHub releases…")
+            self.check_updates_btn.setToolTip("Checking GitLab releases…")
             self._start_update_check()
             return
         try:
