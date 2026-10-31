@@ -8,12 +8,12 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 
-def request(url: str, *, data: bytes, content_type: str) -> dict:
+def request(url: str, *, data: bytes, content_type: str, method: str = "POST") -> dict:
     headers = {
         "JOB-TOKEN": os.environ["CI_JOB_TOKEN"],
         "Content-Type": content_type,
     }
-    with urlopen(Request(url, data=data, headers=headers, method="POST"), timeout=600) as response:
+    with urlopen(Request(url, data=data, headers=headers, method=method), timeout=600) as response:
         body = response.read()
         return json.loads(body) if body else {}
 
@@ -40,7 +40,7 @@ files.append(manifest)
 links = []
 for path in files:
     package_url = f"{package_root}/{quote(path.name)}"
-    request(package_url, data=path.read_bytes(), content_type="application/octet-stream")
+    request(package_url, data=path.read_bytes(), content_type="application/octet-stream", method="PUT")
     links.append({
         "name": path.name,
         "url": package_url,

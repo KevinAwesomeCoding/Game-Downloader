@@ -97,7 +97,7 @@ class GameFolderScanTests(unittest.TestCase):
 
             self.assertFalse(extracted)
             self.assertEqual(len(errors), 1)
-            self.assertIn("Extraction did not complete", errors[0])
+            self.assertIn("Extraction finished, but 1 file(s) never landed", errors[0])
             self.assertIn("winmm.dll", errors[0])
             self.assertIn("quarantined", errors[0])
 
