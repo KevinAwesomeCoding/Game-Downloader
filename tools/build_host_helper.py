@@ -9,7 +9,9 @@ import venv
 
 
 def main():
-    root = Path(__file__).resolve().parents[1]
+    # Keep a short subst drive on Windows CI; resolve() expands it back to the
+    # runner's long checkout path and can exceed MAX_PATH inside Chromium.
+    root = Path(__file__).absolute().parents[1]
     environment = root / "build" / "host-helper-env"
     python = environment / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
     if not python.exists():

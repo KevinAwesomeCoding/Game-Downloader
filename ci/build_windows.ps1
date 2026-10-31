@@ -1,5 +1,12 @@
 $ErrorActionPreference = 'Stop'
 
+# GitLab's Windows checkout path is too deep for Chromium's resource files.
+# Build through a short drive alias while artifacts still land in the checkout.
+if (Test-Path 'R:\') { throw 'Build drive R: is already in use.' }
+subst R: $env:CI_PROJECT_DIR
+if ($LASTEXITCODE -ne 0) { throw 'Could not create the short build drive.' }
+Set-Location 'R:\'
+
 $python = (Get-Command py -ErrorAction SilentlyContinue) ? 'py' : 'python'
 if ($python -eq 'py') {
     & py -3.11 --version *> $null
