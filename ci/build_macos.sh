@@ -3,7 +3,9 @@ set -euo pipefail
 
 export PATH="/opt/homebrew/bin:/Library/Frameworks/Python.framework/Versions/3.13/bin:$PATH"
 export HIGHBALL_SOURCE_DIR="$HOME/Game-Downloader/Highball"
-python3 -m pip install --user 'requests>=2.28'
+python3 -m venv "$CI_PROJECT_DIR/.ci-macos-venv"
+source "$CI_PROJECT_DIR/.ci-macos-venv/bin/activate"
+python3 -m pip install 'requests>=2.28'
 python3 -m unittest discover -s tests -v
 python3 -m unittest discover -s macos/backend/tests -v
 bash macos/package_highball_helper.sh
