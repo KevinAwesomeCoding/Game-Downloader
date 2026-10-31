@@ -7,29 +7,6 @@ import re
 import requests
 
 
-def normalize_gitlab_release(release: dict, checksums: dict) -> dict:
-    """Map GitLab's release links and checksum manifest to the updater model."""
-    links = release.get("assets", {}).get("links", [])
-    assets = []
-    for link in links:
-        name = str(link.get("name") or "")
-        url = link.get("direct_asset_url") or link.get("url")
-        if not name or not url:
-            continue
-        digest = str(checksums.get(name) or "").lower()
-        assets.append({
-            "name": name,
-            "browser_download_url": url,
-            "digest": "sha256:" + digest if re.fullmatch(r"[0-9a-f]{64}", digest) else None,
-        })
-    return {
-        "tag_name": release.get("tag_name"),
-        "body": release.get("description"),
-        "html_url": release.get("_links", {}).get("self", ""),
-        "assets": assets,
-    }
-
-
 def version_key(tag: str) -> tuple[int, ...]:
     """Order project tags such as v1.4-20261027-23 by version/date/run."""
     core, *suffix = tag.lstrip("v").split("-")

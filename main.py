@@ -50,7 +50,7 @@ from download_support import (Downloader as HostedDownloader, Stopped as Downloa
 from host_resolver_client import provider_for, helper_command
 from update_support import (UpdateNoticeState, UpdateRelease, compatible_release,
                             download_verified_file, schedule_background_check,
-                            windows_update_script, normalize_gitlab_release)
+                            windows_update_script)
 from search_support import matches_game_search
 try:
     from PyQt6.QtCore import (
@@ -84,10 +84,11 @@ except ImportError as _qt_err:
 # CONFIG
 # ---------------------------------------------------------------------------
 CONFIG = {
-    "manifest_url": "https://gitlab.com/api/v4/projects/88321703/releases/permalink/latest/downloads/games.json",
+    "manifest_url": "https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/games.json",
     "window_title": "Game Installer",
     "default_install_subfolder": True
 }
+PREVIOUS_CATALOG_URL = "https://gitlab.com/api/v4/projects/88321703/releases/permalink/latest/downloads/games.json"
 
 # Bundled fallback manifest, looked up next to this file / the exe.
 LOCAL_MANIFEST = "games.json"
@@ -107,7 +108,7 @@ SETTINGS_FILE = "settings.json"
 # Current build version.  Set this to match the semver in the VERSION file
 # before each release so the self-update check knows what is installed.
 VERSION = "v1.0.0"
-RELEASES_API = "https://gitlab.com/api/v4/projects/88321703/releases/permalink/latest"
+RELEASES_API = "https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json"
 
 # ---------------------------------------------------------------------------
 # DEBUG — temporary instrumentation to diagnose fixZipUrl download failures.
@@ -275,6 +276,8 @@ def load_prefs() -> dict:
     try:
         with open(path, "r", encoding="utf-8") as fh:
             data = json.load(fh)
+            if isinstance(data, dict) and data.get("catalog_url") == PREVIOUS_CATALOG_URL:
+                data["catalog_url"] = CONFIG["manifest_url"]
             return data if isinstance(data, dict) else {}
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
@@ -1432,8 +1435,8 @@ class UpdateChecker(QObject):
         _ulog.info("[1] App started. Current VERSION = %r", VERSION)
         _log.debug("UpdateChecker: runtime VERSION = %r", VERSION)
         try:
-            # Step 2 — GitLab API request: log the URL being called.
-            _ulog.info("[2] GitLab API request  URL = %s", RELEASES_API)
+            # Step 2 — public release manifest request.
+            _ulog.info("[2] Release manifest request  URL = %s", RELEASES_API)
             resp = requests.get(
                 RELEASES_API,
                 timeout=(5, 10),
@@ -1445,23 +1448,10 @@ class UpdateChecker(QObject):
             # Step 3 — response received: log raw tag_name and HTTP status.
             _log.debug("UpdateChecker: HTTP status = %s", resp.status_code)
             resp.raise_for_status()
-            release = resp.json()
-            checksum_link = next(
-                (link for link in release.get("assets", {}).get("links", [])
-                 if link.get("name") == "checksums.json"), None,
-            )
-            checksums = {}
-            if checksum_link:
-                checksum_resp = requests.get(
-                    checksum_link.get("direct_asset_url") or checksum_link["url"],
-                    timeout=(5, 10), headers={"User-Agent": "GameInstaller-updater"},
-                )
-                checksum_resp.raise_for_status()
-                checksums = checksum_resp.json()
-            data = normalize_gitlab_release(release, checksums)
+            data = resp.json()
             tag = data.get("tag_name", "")
             _ulog.info(
-                "[3] GitLab API response  status=%s  tag_name=%r",
+                "[3] Release manifest response  status=%s  tag_name=%r",
                 resp.status_code, tag,
             )
             _log.debug("UpdateChecker: tag_name from API = %r", tag)

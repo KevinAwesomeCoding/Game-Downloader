@@ -20,8 +20,13 @@ final class AppModel: ObservableObject {
             if oldValue != catalogSource { loadCatalog() }
         }
     }
-    @Published var catalogURL = UserDefaults.standard.string(forKey: "catalogURL")
-        ?? "https://gitlab.com/api/v4/projects/88321703/releases/permalink/latest/downloads/games.json" {
+    @Published var catalogURL: String = {
+        let current = UserDefaults.standard.string(forKey: "catalogURL")
+        let previous = "https://gitlab.com/api/v4/projects/88321703/releases/permalink/latest/downloads/games.json"
+        return current == previous || current == nil
+            ? "https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/games.json"
+            : current!
+    }() {
         didSet { UserDefaults.standard.set(catalogURL, forKey: "catalogURL") }
     }
     @Published var autoUpdateCatalog = UserDefaults.standard.bool(forKey: "autoUpdateCatalog") {

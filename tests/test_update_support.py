@@ -7,7 +7,6 @@ from update_support import (
     UpdateNoticeState,
     compatible_release,
     download_verified_file,
-    normalize_gitlab_release,
     schedule_background_check,
     windows_update_script,
 )
@@ -40,7 +39,7 @@ class UpdateFlowTests(unittest.TestCase):
         self.payload = b"verified Windows x64 release payload"
         self.release = {
             "tag_name": "v1.4-20261027-22",
-            "html_url": "https://github.com/example/project/releases/tag/v1.4-20261027-22",
+            "html_url": "https://gitlab.com/example/project/-/releases/v1.4-20261027-22",
             "body": "Release notes",
             "assets": [{
                 "name": "GameInstaller-windows-x64.exe",
@@ -63,20 +62,19 @@ class UpdateFlowTests(unittest.TestCase):
         self.assertEqual(update.sha256, self.release["assets"][0]["digest"].removeprefix("sha256:"))
         self.assertTrue(update.self_updatable)
 
-    def test_gitlab_release_links_and_checksum_manifest(self):
+    def test_public_release_manifest(self):
         digest = hashlib.sha256(self.payload).hexdigest()
         release = {
             "tag_name": "v1.5-20261030-1",
-            "description": "GitLab release notes",
-            "_links": {"self": "https://gitlab.com/example/app/-/releases/v1.5-20261030-1"},
-            "assets": {"links": [{
+            "html_url": "https://gitlab.com/example/app/-/releases/v1.5-20261030-1",
+            "body": "GitLab release notes",
+            "assets": [{
                 "name": "GameInstaller-windows-x64.exe",
-                "url": "https://gitlab.com/api/v4/projects/1/packages/generic/app/file.exe",
-                "direct_asset_url": "https://gitlab.com/example/app/-/releases/v1.5-20261030-1/downloads/GameInstaller-windows-x64.exe",
-            }]},
+                "browser_download_url": "https://gitlab.com/example/app/-/releases/v1.5-20261030-1/downloads/GameInstaller-windows-x64.exe",
+                "digest": "sha256:" + digest,
+            }],
         }
-        mapped = normalize_gitlab_release(release, {"GameInstaller-windows-x64.exe": digest})
-        update = compatible_release(mapped, "v1.4", "Windows", "AMD64")
+        update = compatible_release(release, "v1.4", "Windows", "AMD64")
         self.assertEqual(update.sha256, digest)
         self.assertTrue(update.self_updatable)
         self.assertEqual(update.notes, "GitLab release notes")
