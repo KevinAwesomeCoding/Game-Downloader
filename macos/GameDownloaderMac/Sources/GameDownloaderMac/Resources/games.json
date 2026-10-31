@@ -1701,5 +1701,36 @@
       "classifiedAt": "2026-10-30T00:00:00-05:00"
     },
     "requirementsPlatform": "Windows"
+  },
+  {
+    "id": "we-are-so-dead",
+    "steamAppId": "4796830",
+    "name": "WE ARE SO DEAD",
+    "source": "https://online-fix.me/games/horror/18200-we-are-so-dead-po-seti.html",
+    "description": "A 2-6 player co-op horror game where the dead use a Ouija board to guide the living through a haunted house and help banish its demon.",
+    "version": "Build 18082026",
+    "size": "",
+    "players": "2-6 players (online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4796830/d0f51a2e0497ac208b2604562779b648015eb7f3/header.jpg?t=1787326438",
+    "zipUrl": "https://gofile.io/d/Cq04JMBc",
+    "zipBackupUrl": "https://filekeeper.net/q9lub5rs8ihk/WE.ARE.SO.DEAD.Build.18082026-OFME.rar",
+    "fixZipUrl": "https://gofile.io/d/Zt0Jh9Ye",
+    "fixBackupUrl": "https://filekeeper.net/98uhh4mghs79/WEARESODEAD_Fix_Repair_Steam_Generic.rar",
+    "requirements": {
+      "os": "Windows 10+ 64-bit",
+      "cpu": "Intel Core i5-7400 @ 3.3 GHz or AMD Ryzen 3 3300X",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GeForce GTX 1050-TI or AMD Radeon RX 5500 XT",
+      "storage": "3 GB",
+      "additionalNotes": "Microphone required."
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists Windows support only, and no recorded Highball recipe or local macOS test was found for this archive.",
+      "confidence": "Low",
+      "classifiedAt": "2026-10-31T00:00:00-05:00"
+    },
+    "requirementsPlatform": "Windows"
   }
 ]
