@@ -84,11 +84,14 @@ except ImportError as _qt_err:
 # CONFIG
 # ---------------------------------------------------------------------------
 CONFIG = {
-    "manifest_url": "https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/games.json",
+    "manifest_url": "https://gitlab.com/kevinanil-projects/Game-Downloader/-/raw/main/games.json",
     "window_title": "Game Installer",
     "default_install_subfolder": True
 }
-PREVIOUS_CATALOG_URL = "https://gitlab.com/api/v4/projects/88321703/releases/permalink/latest/downloads/games.json"
+PREVIOUS_CATALOG_URLS = {
+    "https://gitlab.com/api/v4/projects/88321703/releases/permalink/latest/downloads/games.json",
+    "https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/games.json",
+}
 
 # Bundled fallback manifest, looked up next to this file / the exe.
 LOCAL_MANIFEST = "games.json"
@@ -276,7 +279,7 @@ def load_prefs() -> dict:
     try:
         with open(path, "r", encoding="utf-8") as fh:
             data = json.load(fh)
-            if isinstance(data, dict) and data.get("catalog_url") == PREVIOUS_CATALOG_URL:
+            if isinstance(data, dict) and data.get("catalog_url") in PREVIOUS_CATALOG_URLS:
                 data["catalog_url"] = CONFIG["manifest_url"]
             return data if isinstance(data, dict) else {}
     except (FileNotFoundError, json.JSONDecodeError):
