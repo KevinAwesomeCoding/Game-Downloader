@@ -29,15 +29,20 @@ enum AppUpdater {
     struct Release: Decodable {
         struct Asset: Decodable {
             let name: String
-            let browser_download_url: URL
-            let digest: String?
+            let url: URL
+            let direct_asset_url: URL?
+        }
+        struct Assets: Decodable { let links: [Asset] }
+        struct Links: Decodable {
+            let releaseURL: URL
+            enum CodingKeys: String, CodingKey { case releaseURL = "self" }
         }
         let tag_name: String
-        let html_url: URL
-        let body: String?
-        let assets: [Asset]
+        let description: String?
+        let _links: Links
+        let assets: Assets
     }
-    private static let endpoint = URL(string: "https://api.github.com/repos/KevinAwesomeCoding/Game-Downloader/releases/latest")!
+    private static let endpoint = URL(string: "https://gitlab.com/api/v4/projects/88321703/releases/permalink/latest")!
     private static let expectedBundleID = "com.kevinawesomecoding.GameInstaller"
 
     static func consumeStatus() -> String? {
@@ -57,41 +62,49 @@ enum AppUpdater {
     static func check() async throws -> AppUpdate? {
         guard Bundle.main.bundleIdentifier == expectedBundleID else { return nil }
         var request = URLRequest(url: endpoint, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 20)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("GameInstaller-updater", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw UpdateError.httpStatus((response as? HTTPURLResponse)?.statusCode ?? -1)
         }
         let release = try JSONDecoder().decode(Release.self, from: data)
+        var checksums: [String: String] = [:]
+        if let link = release.assets.links.first(where: { $0.name == "checksums.json" }) {
+            let (manifest, manifestResponse) = try await URLSession.shared.data(from: link.direct_asset_url ?? link.url)
+            guard let http = manifestResponse as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                throw UpdateError.httpStatus((manifestResponse as? HTTPURLResponse)?.statusCode ?? -1)
+            }
+            checksums = try JSONDecoder().decode([String: String].self, from: manifest)
+        }
         let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
         #if arch(arm64)
-        return resolve(release, currentVersion: current, architecture: "arm64")
+        return resolve(release, checksums: checksums, currentVersion: current, architecture: "arm64")
         #else
         return nil
         #endif
     }
 
-    static func resolve(_ release: Release, currentVersion: String, architecture: String) -> AppUpdate? {
+    static func resolve(_ release: Release, checksums: [String: String], currentVersion: String, architecture: String) -> AppUpdate? {
         guard compare(release.tag_name, currentVersion) > 0 else { return nil }
         guard architecture.lowercased() == "arm64" else { return nil }
         let compatibleNames = ["GameInstaller-macOS-arm64.zip", "GameInstaller-macOS.zip"]
-        guard let asset = release.assets.first(where: { compatibleNames.contains($0.name) }) else {
+        guard let asset = release.assets.links.first(where: { compatibleNames.contains($0.name) }) else {
             return AppUpdate(id: release.tag_name, version: release.tag_name,
-                             notes: release.body ?? "No release notes provided.", releaseURL: release.html_url,
+                             notes: release.description ?? "No release notes provided.", releaseURL: release._links.releaseURL,
                              downloadURL: nil, sha256: nil,
                              manualReason: "This release does not include a compatible Apple silicon app download.")
         }
-        let digest = asset.digest?.lowercased().replacingOccurrences(of: "sha256:", with: "")
+        let digest = checksums[asset.name]?.lowercased()
         guard let digest, digest.range(of: #"^[0-9a-f]{64}$"#, options: .regularExpression) != nil else {
             return AppUpdate(id: release.tag_name, version: release.tag_name,
-                             notes: release.body ?? "No release notes provided.", releaseURL: release.html_url,
+                             notes: release.description ?? "No release notes provided.", releaseURL: release._links.releaseURL,
                              downloadURL: nil, sha256: nil,
-                             manualReason: "GitHub did not provide a valid SHA-256 checksum. Review and install this release manually.")
+                             manualReason: "This release has no valid SHA-256 checksum. Review and install it manually.")
         }
         return AppUpdate(id: release.tag_name, version: release.tag_name,
-                         notes: release.body ?? "No release notes provided.", releaseURL: release.html_url,
-                         downloadURL: asset.browser_download_url, sha256: digest, manualReason: nil)
+                         notes: release.description ?? "No release notes provided.", releaseURL: release._links.releaseURL,
+                         downloadURL: asset.direct_asset_url ?? asset.url, sha256: digest, manualReason: nil)
     }
 
     static func compare(_ lhs: String, _ rhs: String) -> Int {

@@ -50,7 +50,7 @@ from download_support import (Downloader as HostedDownloader, Stopped as Downloa
 from host_resolver_client import provider_for, helper_command
 from update_support import (UpdateNoticeState, UpdateRelease, compatible_release,
                             download_verified_file, schedule_background_check,
-                            windows_update_script)
+                            windows_update_script, normalize_gitlab_release)
 from search_support import matches_game_search
 try:
     from PyQt6.QtCore import (
@@ -84,7 +84,7 @@ except ImportError as _qt_err:
 # CONFIG
 # ---------------------------------------------------------------------------
 CONFIG = {
-    "manifest_url": "https://raw.githubusercontent.com/KevinAwesomeCoding/Game-Downloader/main/games.json",
+    "manifest_url": "https://gitlab.com/api/v4/projects/88321703/releases/permalink/latest/downloads/games.json",
     "window_title": "Game Installer",
     "default_install_subfolder": True
 }
@@ -107,7 +107,7 @@ SETTINGS_FILE = "settings.json"
 # Current build version.  Set this to match the semver in the VERSION file
 # before each release so the self-update check knows what is installed.
 VERSION = "v1.0.0"
-RELEASES_API = "https://api.github.com/repos/KevinAwesomeCoding/Game-Downloader/releases/latest"
+RELEASES_API = "https://gitlab.com/api/v4/projects/88321703/releases/permalink/latest"
 
 # ---------------------------------------------------------------------------
 # DEBUG — temporary instrumentation to diagnose fixZipUrl download failures.
@@ -1422,7 +1422,7 @@ class DefenderWorker(QObject):
 # Self-update workers
 # ---------------------------------------------------------------------------
 class UpdateChecker(QObject):
-    """Fetches the latest GitHub release and signals if a newer version exists."""
+    """Fetches the latest GitLab release and signals if a newer version exists."""
     result = pyqtSignal(object, str)  # UpdateRelease or None, error text
     finished = pyqtSignal()
 
@@ -1432,23 +1432,36 @@ class UpdateChecker(QObject):
         _ulog.info("[1] App started. Current VERSION = %r", VERSION)
         _log.debug("UpdateChecker: runtime VERSION = %r", VERSION)
         try:
-            # Step 2 — GitHub API request: log the URL being called.
-            _ulog.info("[2] GitHub API request  URL = %s", RELEASES_API)
+            # Step 2 — GitLab API request: log the URL being called.
+            _ulog.info("[2] GitLab API request  URL = %s", RELEASES_API)
             resp = requests.get(
                 RELEASES_API,
                 timeout=(5, 10),
                 headers={
-                    "Accept": "application/vnd.github+json",
+                    "Accept": "application/json",
                     "User-Agent": "GameInstaller-updater",
                 },
             )
             # Step 3 — response received: log raw tag_name and HTTP status.
             _log.debug("UpdateChecker: HTTP status = %s", resp.status_code)
             resp.raise_for_status()
-            data = resp.json()
+            release = resp.json()
+            checksum_link = next(
+                (link for link in release.get("assets", {}).get("links", [])
+                 if link.get("name") == "checksums.json"), None,
+            )
+            checksums = {}
+            if checksum_link:
+                checksum_resp = requests.get(
+                    checksum_link.get("direct_asset_url") or checksum_link["url"],
+                    timeout=(5, 10), headers={"User-Agent": "GameInstaller-updater"},
+                )
+                checksum_resp.raise_for_status()
+                checksums = checksum_resp.json()
+            data = normalize_gitlab_release(release, checksums)
             tag = data.get("tag_name", "")
             _ulog.info(
-                "[3] GitHub API response  status=%s  tag_name=%r",
+                "[3] GitLab API response  status=%s  tag_name=%r",
                 resp.status_code, tag,
             )
             _log.debug("UpdateChecker: tag_name from API = %r", tag)
@@ -4761,7 +4774,7 @@ class MainWindow(QMainWindow):
         update = self._update_notice.open_details()
         if update is None:
             self._manual_update_check = True
-            self.check_updates_btn.setToolTip("Checking GitHub releases…")
+            self.check_updates_btn.setToolTip("Checking GitLab releases…")
             self._start_update_check()
             return
         try:
