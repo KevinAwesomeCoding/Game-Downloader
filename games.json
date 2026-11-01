@@ -1762,7 +1762,8 @@
       "classifiedAt": "2026-10-31T00:00:00-05:00"
     },
     "requirementsPlatform": "Windows"
-  }  ,{
+  },
+  {
     "id": "peak",
     "steamAppId": "3527290",
     "name": "PEAK",
@@ -1793,5 +1794,4 @@
     },
     "requirementsPlatform": "Windows"
   }
-
 ]
