@@ -105,6 +105,7 @@ extension AppModel {
     }
 
     func enqueue(_ game: Game) {
+        guard !operationBusy else { actionMessage = "A Highball action is still running."; return }
         guard gameFolderAccessGranted else {
             actionMessage = "Choose and authorize a Games folder before downloading."
             return
@@ -118,25 +119,26 @@ extension AppModel {
             return
         }
         guard queueWritable else { actionMessage = "The saved queue needs repair before adding downloads. Its original file was preserved."; return }
+        let targetBottle = selectedBottle
         if game.isSteamEntry {
             let uri = game.zipURL ?? ""
             let required = Self.requiredHighballRecipes(for: game.id)
             let existing = Set(bottle.recipes.split(separator: ",").map(String.init))
             let missing = required.filter { !existing.contains($0) }
-            guard !missing.isEmpty else { requestSteam(uri); return }
+            guard !missing.isEmpty else { requestSteam(uri, bottle: targetBottle); return }
 
             let names = missing.map(Self.prerequisiteName).joined(separator: " and ")
             let alert = NSAlert()
             alert.messageText = "Prepare Highball for \(game.name)?"
-            alert.informativeText = "Game Installer can set up \(names) in the \(selectedBottle) bottle before opening Windows Steam. These components are shared with other games in that bottle."
+            alert.informativeText = "Game Installer can set up \(names) in the \(targetBottle) bottle before opening Windows Steam. These components are shared with other games in that bottle."
             alert.addButton(withTitle: "Set Up & Open Steam")
             alert.addButton(withTitle: "Open Steam Only")
             alert.addButton(withTitle: "Cancel")
             switch alert.runModal() {
             case .alertFirstButtonReturn:
-                prepareSteamPrerequisites(missing, thenOpen: uri, bottle: selectedBottle)
+                prepareSteamPrerequisites(missing, thenOpen: uri, bottle: targetBottle)
             case .alertSecondButtonReturn:
-                requestSteam(uri, confirmed: true)
+                requestSteam(uri, confirmed: true, bottle: targetBottle)
             default:
                 break
             }
@@ -205,6 +207,7 @@ extension AppModel {
 
     func startNext() {
         guard highballSetupComplete,
+              !operationBusy,
               installSession == nil,
               let job = jobs.first(where: { $0.status == "queued" }) else { return }
         activeJobID = job.id
@@ -496,23 +499,27 @@ extension AppModel {
     }
 
     func requestSteam(_ uri: String) {
-        requestSteam(uri, confirmed: false)
+        requestSteam(uri, confirmed: false, bottle: selectedBottle)
     }
 
-    private func requestSteam(_ uri: String, confirmed: Bool) {
-        guard operationSession == nil else { actionMessage = "A Highball action is still running."; return }
+    private func requestSteam(_ uri: String, bottle: String) {
+        requestSteam(uri, confirmed: false, bottle: bottle)
+    }
+
+    private func requestSteam(_ uri: String, confirmed: Bool, bottle: String) {
+        guard operationSession == nil, installSession == nil, !operationBusy else { actionMessage = "A Highball action is still running."; return }
         if !confirmed {
             let isLaunch = uri == "steam://open/main"
             let alert = NSAlert()
             alert.messageText = isLaunch ? "Launch Windows Steam in Highball?" : "Open Windows Steam in Highball?"
             alert.informativeText = isLaunch
-                ? "This opens Windows Steam in the selected bottle (\(selectedBottle)). Steam must be installed there."
-                : "This sends \(uri) to Steam in the selected bottle (\(selectedBottle)). Windows Steam must be installed and signed in there. Steam handles its own download."
+                ? "This opens Windows Steam in the selected bottle (\(bottle)). Steam must be installed there."
+                : "This sends \(uri) to Steam in the selected bottle (\(bottle)). Windows Steam must be installed and signed in there. Steam handles its own download."
             alert.addButton(withTitle: isLaunch ? "Launch Windows Steam" : "Open Windows Steam")
             alert.addButton(withTitle: "Cancel")
             guard alert.runModal() == .alertFirstButtonReturn else { return }
         }
-        beginOperation(["steam", "--bottle", selectedBottle, "--uri", uri], jobID: nil, bottle: selectedBottle)
+        beginOperation(["steam", "--bottle", bottle, "--uri", uri], jobID: nil, bottle: bottle)
     }
 
     private func prepareSteamPrerequisites(_ recipes: [String], thenOpen uri: String, bottle: String) {
@@ -545,7 +552,7 @@ extension AppModel {
                     self.operationSession = nil
                     self.operationBusy = false
                     if code == 0 {
-                        self.requestSteam(uri, confirmed: true)
+                        self.requestSteam(uri, confirmed: true, bottle: bottle)
                     } else {
                         self.actionMessage = diagnostics ?? "Highball prerequisite setup failed. Steam was not opened."
                     }
@@ -561,6 +568,10 @@ extension AppModel {
 
     func beginOperation(_ arguments: [String], jobID: String?, bottle: String,
                         completion: (() -> Void)? = nil) {
+        guard !operationBusy, installSession == nil else {
+            actionMessage = "Another Highball action is still running."
+            return
+        }
         actionMessage = "Checking Highball…"
         actionLogPath = nil
         operationBusy = true
@@ -589,11 +600,13 @@ extension AppModel {
                 self.operationSession = nil
                 self.operationBusy = false
                 completion?()
+                self.startNext()
             }
         } catch {
             actionMessage = error.localizedDescription
             operationBusy = false
             completion?()
+            startNext()
         }
     }
 }
