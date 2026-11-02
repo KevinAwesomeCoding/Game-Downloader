@@ -16,7 +16,7 @@ from unittest.mock import Mock, AsyncMock, patch
 
 from download_support import Downloader, Stopped, atomic_json, download_host_name, fetch_with_backup
 from host_resolver import ResolutionError, single_file
-from host_resolver_client import ResolutionStopped, resolve_source, validate_result
+from host_resolver_client import ResolutionStopped, provider_for, resolve_source, validate_result
 
 
 class Response(io.BytesIO):
@@ -139,6 +139,19 @@ class HostedTests(unittest.TestCase):
             validate_result(invalid, self.source)
         cdn = {**self.info, "url": "https://edge01.fetchio.cc/file", "cookies": []}
         validate_result(cdn, "https://filekeeper.net/fixture")
+
+    def test_new_hosts_are_resolved_and_reject_unrelated_downloads(self):
+        for source, provider in (("https://bzzhr.to/fixture", "bzzhr"),
+                                 ("https://fileditchfiles.st/fixture/archive.rar", "fileditch")):
+            with self.subTest(source=source):
+                self.assertEqual(provider_for(source), provider)
+                valid = {**self.info, "url": source, "cookies": []}
+                validate_result(valid, source)
+                with self.assertRaises(ValueError):
+                    validate_result({**valid, "url": "https://attacker.example/file"}, source)
+                with self.assertRaises(ValueError):
+                    validate_result({**valid, "cookies": [{"domain": ".attacker.example"}]}, source)
+        self.assertIsNone(provider_for("https://bzzhr.to.attacker.example/file"))
 
     def test_host_labels_name_services_without_exposing_urls(self):
         for url, expected in [

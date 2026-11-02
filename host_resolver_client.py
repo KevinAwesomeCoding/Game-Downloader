@@ -21,12 +21,18 @@ def provider_for(url):
         return "gofile"
     if host == "filekeeper.net" or host.endswith(".filekeeper.net"):
         return "filekeeper"
+    if any(host == d or host.endswith('.' + d) for d in ('bzzhr.to', 'bzzhr.co', 'buzzheavier.com')):
+        return "bzzhr"
+    if any(host == d or host.endswith('.' + d) for d in ('fileditchfiles.st', 'fileditchfiles.me', 'itsfileditchfiles.st')):
+        return "fileditch"
     return None
 
 
 def download_host_allowed(provider, url):
     host = (urlsplit(url).hostname or "").lower()
-    domains = {"gofile": ("gofile.io",), "filekeeper": ("filekeeper.net", "fetchio.cc")}.get(provider, ())
+    domains = {"gofile": ("gofile.io",), "filekeeper": ("filekeeper.net", "fetchio.cc"),
+               "bzzhr": ("bzzhr.to", "bzzhr.co", "buzzheavier.com"),
+               "fileditch": ("fileditchfiles.st", "fileditchfiles.me", "itsfileditchfiles.st")}.get(provider, ())
     return any(host == domain or host.endswith("." + domain) for domain in domains)
 
 
@@ -111,7 +117,7 @@ def resolve_source(source, stop=lambda: False, status=lambda message: None, comm
     parsed = urlsplit(source)
     if (not provider_for(source) or parsed.scheme != "https" or parsed.username
             or parsed.password or parsed.port not in {None, 443}):
-        raise ValueError("Use a public HTTPS GoFile or FileKeeper link.")
+        raise ValueError("Use a supported public HTTPS file-host link.")
     if stop():
         raise ResolutionStopped()
     process = subprocess.Popen(

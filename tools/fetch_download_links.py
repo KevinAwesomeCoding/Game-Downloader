@@ -1,7 +1,33 @@
 from playwright.sync_api import sync_playwright
+import argparse
+from pathlib import Path
+import sys
 import time
 import json
 import urllib.parse
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from host_resolver_client import provider_for
+
+
+def steamrip_links(page, url):
+    """Return stable supported host-page URLs, never a temporary transfer URL."""
+    parts = urllib.parse.urlsplit(url)
+    if parts.scheme != 'https' or parts.hostname not in ('steamrip.com', 'www.steamrip.com'):
+        raise ValueError('Expected an HTTPS steamrip.com game page.')
+    page.goto(url, wait_until='domcontentloaded', timeout=45000)
+    links = page.locator('a[href]').evaluate_all(
+        'nodes => nodes.map(node => node.href)')
+    result = {}
+    for link in links:
+        parsed = urllib.parse.urlsplit(link)
+        provider = provider_for(link)
+        if (provider in ('bzzhr', 'fileditch') and parsed.scheme == 'https'
+                and not parsed.username and not parsed.password and parsed.port in (None, 443)):
+            result.setdefault(provider, link)
+    if not result:
+        raise ValueError('No supported host page links found; the page may require a browser challenge or use intermediary links.')
+    return result
 
 # All 47 game URLs from your list
 game_urls = [
@@ -97,4 +123,19 @@ def run_scraper():
         print("=== DONE! Check online_fix_hosters.txt for results. ===")
 
 if __name__ == "__main__":
-    run_scraper()
+    parser = argparse.ArgumentParser(description='Collect game host page links.')
+    parser.add_argument('--steamrip', metavar='GAME_URL', help='Collect BZZHR and FileDitch page links')
+    args = parser.parse_args()
+    if args.steamrip:
+        try:
+            with sync_playwright() as playwright:
+                browser = playwright.chromium.launch(headless=True)
+                try:
+                    print(json.dumps(steamrip_links(browser.new_page(), args.steamrip), indent=2))
+                finally:
+                    browser.close()
+        except Exception as exc:
+            print(f'Could not extract host page links: {exc}', file=sys.stderr)
+            raise SystemExit(1)
+    else:
+        run_scraper()

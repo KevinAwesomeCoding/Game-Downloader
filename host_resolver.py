@@ -123,7 +123,8 @@ async def resolve(source):
         try:
             last_error = None
             for attempt in range(1, 4):
-                emit("status", message=f"Preparing {'GoFile' if provider == 'gofile' else 'FileKeeper'} download ({attempt}/3)…")
+                name = {"gofile": "GoFile", "filekeeper": "FileKeeper", "bzzhr": "BZZHR", "fileditch": "FileDitch"}[provider]
+                emit("status", message=f"Preparing {name} download ({attempt}/3)…")
                 context = await browser.new_context(accept_downloads=True)
                 try:
                     result = await (gofile(context, source) if provider == "gofile"
@@ -188,7 +189,7 @@ def main():
                 or parts.password or parts.port not in {None, 443}):
             raise ValueError()
     except (ValueError, KeyError, TypeError):
-        emit("failed", message="Use a public HTTPS GoFile or FileKeeper link.")
+        emit("failed", message="Use a supported public HTTPS file-host link.")
         return 2
     asyncio.run(run(source))
     return 0

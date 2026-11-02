@@ -28,6 +28,10 @@ UI at all times.
 - Cancel a running download or extraction safely at any time.
 - Public single-file GoFile and FileKeeper links use a bundled browser to prepare
   the download, then stream through the installer's progress and resume controls.
+- BZZHR and FileDitch host-page support is experimental: the bundled browser
+  attempts the host's download button and the installer uses the resulting session.
+  Live host and SteamRIP compatibility has not yet been verified; challenges or
+  delivery domains that are not supported can prevent a download.
 - Friendly loading / error states, a **Retry** button, **Refresh**, and a
   "Last updated" timestamp.
 - All long-running work runs on background threads — the window never freezes.

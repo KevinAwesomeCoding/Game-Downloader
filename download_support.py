@@ -44,6 +44,7 @@ def download_host_name(url):
     services = (
         (("gofile.io",), "GoFile"),
         (("filekeeper.net", "fetchio.cc"), "FileKeeper"),
+        (("bzzhr.to", "bzzhr.co", "buzzheavier.com"), "BZZHR"),
         (("drive.google.com", "drive.usercontent.google.com", "docs.google.com",
           "googleusercontent.com"), "Google Drive"),
         (("archive.org",), "Internet Archive"),

@@ -47,6 +47,9 @@ Download `GameInstaller-windows-x64.exe` for the single-file app. `GameInstaller
 Download `GameInstaller-macOS-arm64.zip`, extract it, and open Game Installer.app. The app targets macOS 14 or later. macOS may ask you to approve this ad-hoc signed app in Privacy & Security. The archive includes the Highball helper's GPL-3.0 license and matching source.
 
 SHA-256 checksums are in `checksums.json`.
+
+BZZHR and FileDitch host-page support is experimental. Live SteamRIP and host
+download flows have not yet been verified and may fail on browser challenges.
 """
 project_url = os.environ["CI_PROJECT_URL"].rstrip("/")
 release_url = f"{project_url}/-/releases/{quote(tag)}"
