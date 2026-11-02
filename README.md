@@ -118,6 +118,12 @@ click **Execute / Install**.
 | `fixZipUrl`  | *(optional)* URL to a second "repair/fix patch" archive (`.zip` or `.rar`). Leave `""` to skip. |
 | `zipBackupUrl` | *(optional)* Backup URL(s) for the main archive, attempted only if the matching `zipUrl` download fails. |
 | `fixBackupUrl` | *(optional)* Backup URL(s) for the repair archive, attempted only if the matching `fixZipUrl` download fails. |
+| `morePlayers` | *(optional)* Object with `zipUrl`, `version`, and `description` for a separate more-players edition. |
+
+When `morePlayers.zipUrl` is present, the game dialog offers **Normal** and
+**More Players**. The more-players edition installs into its own folder and uses
+only its own archive; it does not inherit the normal edition's repair or backup
+links. Existing non-empty edition folders are not overwritten.
 
 Backup links are aligned with primary links by position. For a single archive,
 each field contains one URL. For a multipart archive, list every part in the

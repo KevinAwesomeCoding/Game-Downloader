@@ -1,6 +1,11 @@
 import Foundation
 
 struct Game: Codable, Identifiable, Hashable {
+    struct MorePlayersEdition: Codable, Hashable {
+        let zipUrl: CatalogLinks
+        let version: String?
+        let description: String?
+    }
     struct Compatibility: Codable, Hashable {
         let tier: String?
         let riskLevel: String?
@@ -25,6 +30,7 @@ struct Game: Codable, Identifiable, Hashable {
     let fixBackupSource: CatalogLinks?
     let type: String?
     let macCompatibility: Compatibility?
+    let morePlayers: MorePlayersEdition?
 
     enum CodingKeys: String, CodingKey {
         case id, steamAppId, name, description, version, size, players, thumbnail
@@ -33,13 +39,33 @@ struct Game: Codable, Identifiable, Hashable {
         case fixSource = "fixZipUrl"
         case zipBackupSource = "zipBackupUrl"
         case fixBackupSource = "fixBackupUrl"
-        case macCompatibility
+        case macCompatibility, morePlayers
     }
 
     var zipURL: String? { zipSource?.firstURL ?? zipBackupSource?.firstURL }
     var isSteamEntry: Bool { zipURL?.hasPrefix("steam://") == true }
     var isAvailable: Bool { zipURL != nil }
     var hasFix: Bool { fixSource?.firstURL != nil || fixBackupSource?.firstURL != nil }
+
+    /// A separate queue and folder identity keeps the original repair away from the modded archive.
+    func morePlayersGame() -> Game? {
+        guard let edition = morePlayers, edition.zipUrl.firstURL != nil,
+              let encoded = try? JSONEncoder().encode(self),
+              var raw = (try? JSONSerialization.jsonObject(with: encoded)) as? [String: Any],
+              let source = try? JSONEncoder().encode(edition.zipUrl),
+              let sourceValue = try? JSONSerialization.jsonObject(with: source, options: .fragmentsAllowed)
+        else { return nil }
+        raw["id"] = id + "--more-players"
+        raw["name"] = name + " (More Players)"
+        raw["zipUrl"] = sourceValue
+        raw["version"] = edition.version ?? ""
+        raw["description"] = edition.description ?? ""
+        raw["macCompatibility"] = ["tier": "Unverified", "confidence": "Low",
+                                   "reasoning": "The more-players edition has not been tested on Mac."]
+        for key in ["morePlayers", "zipBackupUrl", "fixZipUrl", "fixBackupUrl"] { raw.removeValue(forKey: key) }
+        guard let data = try? JSONSerialization.data(withJSONObject: raw) else { return nil }
+        return try? JSONDecoder().decode(Game.self, from: data)
+    }
 
     var downloadSizeInBytes: Int64? {
         guard let size else { return nil }

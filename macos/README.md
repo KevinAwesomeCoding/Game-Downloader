@@ -68,6 +68,10 @@ fake Steam installation records.
   tried only after the corresponding primary link fails. Multipart backup lists
   must match primary part-for-part and use the same order; each host keeps a
   separate partial download.
+- **Separate editions:** games with a `morePlayers` catalog object offer Normal
+  and More Players in their details sheet. Each edition has a distinct queue
+  identity and install folder; the modified archive does not inherit the normal
+  edition's repair or backup links. Its Highball compatibility remains unverified.
 - **GoFile and FileKeeper:** the bundled browser helper prepares a public file's
   download session, then closes while the shared Python downloader streams the
   archive with progress, cancellation, and verified resume. GoFile shares must

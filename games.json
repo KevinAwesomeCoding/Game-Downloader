@@ -66,7 +66,12 @@
       "confidence": "High",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "morePlayers": {
+      "zipUrl": "https://archive.org/download/mimesis-0.2.6-six-player-experimental/MIMESIS-0.2.6-six-player-experimental.zip",
+      "version": "0.2.6",
+      "description": "Experimental six-player mod; lobby, interface, and Mac compatibility are unverified. Startup reported a lobby patch warning."
+    }
   },
   {
     "id": "human-fall-flat",
@@ -1650,7 +1655,7 @@
     "size": "6.93 GB installed",
     "players": "Solo or online co-op",
     "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3164500/header.jpg",
-    "zipUrl": "https://archive.org/download/schedule-i-v-0.4.6f-13-six-player/Schedule-I-v0.4.6f13-six-player.zip",
+    "zipUrl": "https://gofile.io/d/5mmWLj8W",
     "zipBackupUrl": "",
     "_comment_disabledZipBackupUrl": "https://gofile.io/d/5mmWLj8W",
     "comment": "Previous game download links for later reference: https://gofile.io/d/5mmWLj8W ; https://filekeeper.net/gljmtjczg12a/Schedule.I.v0.4.6f13-OFME.rar",
@@ -1671,7 +1676,12 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-27T22:42:40-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "morePlayers": {
+      "zipUrl": "https://archive.org/download/schedule-i-v-0.4.6f-13-six-player/Schedule-I-v0.4.6f13-six-player.zip",
+      "version": "0.4.6f13",
+      "description": "Six-player mod; multiplayer and Mac compatibility are unverified. Everyone needs the mod."
+    }
   },
   {
     "id": "moon-sweepers",
@@ -1794,6 +1804,11 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-31T00:00:00-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "morePlayers": {
+      "zipUrl": "https://archive.org/download/peak-2.4.b-six-player/PEAK-2.4.b-six-player.zip",
+      "version": "2.4.b",
+      "description": "Six-player mod on the older 2.4.b Steam build; may require Steam ownership. Multiplayer and Mac compatibility are unverified."
+    }
   }
 ]

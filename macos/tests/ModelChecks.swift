@@ -27,5 +27,20 @@ enum ModelChecks {
         precondition(!catalog.isEmpty && Set(catalog.map(\.id)).count == catalog.count)
         precondition(catalog.contains(where: \.isSteamEntry))
         print("PASS: current catalog decodes (\(catalog.count) entries with unique IDs)")
+
+        for id in ["mimesis", "peak", "schedule-i"] {
+            guard let normal = catalog.first(where: { $0.id == id }),
+                  let more = normal.morePlayersGame() else { fatalError("Missing edition for \(id)") }
+            precondition(more.id == id + "--more-players")
+            precondition(more.name == normal.name + " (More Players)")
+            precondition(more.zipURL == normal.morePlayers?.zipUrl.firstURL)
+            precondition(!more.hasFix && more.zipBackupSource == nil)
+            precondition(more.macCompatibility?.tier == "Unverified")
+            let saved = try JSONEncoder().encode(InstallJob(id: "job-\(id)", game: more, installFolder: "/tmp"))
+            let restored = try JSONDecoder().decode(InstallJob.self, from: saved)
+            precondition(restored.game == more && restored.game.zipURL == more.zipURL && !restored.game.hasFix)
+        }
+        precondition(catalog.first(where: { $0.id == "schedule-i" })?.zipURL == "https://gofile.io/d/5mmWLj8W")
+        print("PASS: separate edition downloads, repair isolation, and persisted jobs")
     }
 }

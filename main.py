@@ -902,6 +902,9 @@ class Game:
     """A single game entry parsed from the manifest."""
 
     def __init__(self, raw: dict):
+        self._raw = dict(raw)
+        candidate = raw.get("morePlayers")
+        self.more_players = candidate if isinstance(candidate, dict) and _normalize_parts(candidate.get("zipUrl", "")) else None
         self.id = str(raw.get("id", "")).strip()
         self.name = str(raw.get("name", "Untitled")).strip()
         self.description = str(raw.get("description", "")).strip()
@@ -929,6 +932,20 @@ class Game:
         # (compat/batchClassify.py). The app only reads — never computes — this.
         _compat = raw.get("macCompatibility")
         self.mac_compat: dict | None = _compat if isinstance(_compat, dict) else None
+
+    def more_players_game(self):
+        """Create an isolated download identity without inheriting normal repairs."""
+        if not self.more_players:
+            raise ValueError("No more-players edition is configured.")
+        raw = dict(self._raw)
+        raw.update(id=self.id + "--more-players", name=self.name + " (More Players)",
+                   zipUrl=self.more_players["zipUrl"], zipBackupUrl="", fixZipUrl="", fixBackupUrl="",
+                   version=self.more_players.get("version", ""),
+                   description=self.more_players.get("description", ""),
+                   macCompatibility={"tier": "Unverified", "confidence": "Low",
+                                     "reasoning": "The more-players edition has not been tested on Mac."})
+        raw.pop("morePlayers", None)
+        return Game(raw)
 
 
     @property
@@ -3430,6 +3447,7 @@ class InstallDialog(QDialog):
                  manager=None):
         super().__init__(parent)
         self.game = game
+        self._catalog_game = game
         self._patch_target = patch_target
         self._manager = manager  # DownloadManager; dialog enqueues then closes
         self.thread = None
@@ -3470,11 +3488,25 @@ class InstallDialog(QDialog):
         desc.setWordWrap(True)
         root.addWidget(desc)
 
+        self.edition_combo = None
+        if game.more_players and not patch_target:
+            root.addWidget(self._label("Edition", "SectionLabel"))
+            self.edition_combo = QComboBox()
+            self.edition_combo.addItem("Normal", "normal")
+            self.edition_combo.addItem("More Players", "more-players")
+            root.addWidget(self.edition_combo)
+            self.edition_note = QLabel()
+            self.edition_note.setObjectName("CardMeta")
+            self.edition_note.setWordWrap(True)
+            root.addWidget(self.edition_note)
+
         # macCompatibility tier badge + reasoning (publish-time data, read-only)
         _compat_badge = _build_compat_badge(game)
+        self._compat_badge = _compat_badge
         if _compat_badge is not None:
             root.addWidget(_compat_badge)
         _compat_reasoning = _build_compat_reasoning(game)
+        self._compat_reasoning = _compat_reasoning
         if _compat_reasoning is not None:
             root.addWidget(_compat_reasoning)
 
@@ -3491,6 +3523,9 @@ class InstallDialog(QDialog):
             meta = QLabel("   •   ".join(meta_bits))
             meta.setObjectName("CardMeta")
             root.addWidget(meta)
+            self._edition_meta = meta
+        else:
+            self._edition_meta = None
 
 
         # "Will it run on your PC?" — compared against this game's requirements.
@@ -3611,6 +3646,10 @@ class InstallDialog(QDialog):
             self.install_btn.setText("Coming Soon")
             self.status_label.setText("This game isn't available to download yet.")
 
+        if self.edition_combo is not None:
+            self.edition_combo.currentIndexChanged.connect(self._change_edition)
+            self._change_edition()
+
     # -- ui helpers ---------------------------------------------------------
     def _label(self, text, obj):
         lbl = QLabel(text)
@@ -3695,9 +3734,30 @@ class InstallDialog(QDialog):
         if self._patch_target:
             return self._patch_target
         base = self.dest_edit.text().strip()
-        if CONFIG["default_install_subfolder"]:
+        if CONFIG["default_install_subfolder"] or self._catalog_game.more_players:
             return os.path.join(base, self.game.safe_folder_name)
         return base
+
+    def _change_edition(self):
+        modified = self.edition_combo.currentData() == "more-players"
+        self.game = self._catalog_game.more_players_game() if modified else self._catalog_game
+        self.edition_note.setText(self.game.description if modified else "Original game download and its configured repair, if available.")
+        for widget in (self._compat_badge, self._compat_reasoning):
+            if widget is not None:
+                widget.setVisible(not modified)
+        if self._edition_meta is not None:
+            details = ([f"Version {self.game.version}"] if self.game.version else [])
+            if not modified and self.game.size:
+                details.append(f"Size {self.game.size}")
+            if not modified and self.game.players:
+                details.append(f"👥 {self.game.players}")
+            if self.game.has_fix:
+                details.append("Includes repair patch")
+            self._edition_meta.setText("   •   ".join(details))
+        self.fix_only_btn.setVisible(self.game.has_fix)
+        self.install_btn.setEnabled(self.game.is_available)
+        self.install_btn.setText("Execute / Install" if self.game.is_available else "Coming Soon")
+        self._update_hint()
 
     def _update_hint(self):
         if self.dest_edit.text().strip():
@@ -3721,6 +3781,23 @@ class InstallDialog(QDialog):
                 return
 
         target = self._target_path()
+
+        if self._catalog_game.more_players and self._manager is not None:
+            target_key = os.path.normcase(os.path.abspath(target))
+            for card in self._manager.cards:
+                if card.state in ("queued", "running") and os.path.normcase(os.path.abspath(card.target)) == target_key:
+                    QMessageBox.warning(self, "Already queued", "An installation is already using this folder.")
+                    return
+        if self._catalog_game.more_players and os.path.exists(target):
+            try:
+                occupied = not os.path.isdir(target) or bool(os.listdir(target))
+            except OSError as exc:
+                QMessageBox.warning(self, "Cannot inspect folder", str(exc))
+                return
+            if occupied:
+                QMessageBox.warning(self, "Folder already exists",
+                                    "This edition's install folder is not empty. Choose another install location to avoid overwriting existing files.")
+                return
 
         # Hand the job to the download manager and close — it runs in the
         # background on the Downloads page (and applies the Defender exclusion

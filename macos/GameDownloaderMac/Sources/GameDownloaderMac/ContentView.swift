@@ -241,7 +241,10 @@ final class AppModel: ObservableObject {
             return (folder.lastPathComponent.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current), folder)
         }, uniquingKeysWith: { first, _ in first })
 
-        ownedInstallations = games.compactMap { game in
+        let editions = games.flatMap { game in
+            [game] + (game.morePlayersGame().map { [$0] } ?? [])
+        }
+        ownedInstallations = editions.compactMap { game in
             let folderName = Self.gameFolderName(game.name)
                 .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
             guard let folder = folderByName[folderName] else { return nil }
@@ -575,8 +578,8 @@ struct ContentView: View {
             let installedIDs = Set(model.ownedInstallations.map(\.game.id))
             let catalogPositions = Dictionary(uniqueKeysWithValues: model.games.enumerated().map { ($0.element.id, $0.offset) })
             return matches.sorted {
-                let leftInstalled = installedIDs.contains($0.id)
-                let rightInstalled = installedIDs.contains($1.id)
+                let leftInstalled = installedIDs.contains($0.id) || installedIDs.contains($0.id + "--more-players")
+                let rightInstalled = installedIDs.contains($1.id) || installedIDs.contains($1.id + "--more-players")
                 if leftInstalled != rightInstalled { return leftInstalled }
                 return (catalogPositions[$0.id] ?? .max) < (catalogPositions[$1.id] ?? .max)
             }
@@ -627,10 +630,10 @@ struct ContentView: View {
         .background(Color(red: 0.055, green: 0.071, blue: 0.11))
         .preferredColorScheme(.dark)
         .sheet(item: $selectedGame) { game in
-            GameDetailsSheet(game: game, model: model) {
-                model.enqueue(game)
+            GameDetailsSheet(game: game, model: model) { selected in
+                model.enqueue(selected)
                 selectedGame = nil
-                if !game.isSteamEntry { page = .downloads }
+                if !selected.isSteamEntry { page = .downloads }
             }
                 .frame(minWidth: 720, idealWidth: 820, minHeight: 620, idealHeight: 760)
         }
@@ -1541,8 +1544,13 @@ private struct RequirementsGroup: View {
 private struct GameDetailsSheet: View {
     let game: Game
     @ObservedObject var model: AppModel
-    let onInstall: () -> Void
+    let onInstall: (Game) -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var useMorePlayers = false
+
+    private var selectedEdition: Game? {
+        useMorePlayers ? game.morePlayersGame() : game
+    }
 
     var body: some View {
         ScrollView {
@@ -1562,7 +1570,18 @@ private struct GameDetailsSheet: View {
             .frame(height: 180).frame(maxWidth: .infinity).clipShape(RoundedRectangle(cornerRadius: 10))
             Text(game.description ?? "No description provided.")
                 .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            if let compatibility = game.macCompatibility {
+            if let edition = game.morePlayers, edition.zipUrl.firstURL != nil {
+                Picker("Edition", selection: $useMorePlayers) {
+                    Text("Normal").tag(false)
+                    Text("More Players").tag(true)
+                }.pickerStyle(.segmented)
+                Text(useMorePlayers ? (edition.description ?? "More-players edition.") : "Original game download and its configured repair, if available.")
+                    .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                if useMorePlayers, let version = edition.version, !version.isEmpty {
+                    Text("More Players version: \(version)").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if let compatibility = selectedEdition?.macCompatibility {
                 GroupBox("Mac compatibility notes") {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(compatibility.tier ?? "Not yet assessed").font(.headline)
@@ -1589,20 +1608,22 @@ private struct GameDetailsSheet: View {
                 )
             }
             HStack(spacing: 16) {
-                if let size = game.size { Label(size, systemImage: "internaldrive") }
-                if let players = game.players { Label(players, systemImage: "person.2") }
-                if let version = game.version { Text("v\(version)") }
+                if !useMorePlayers, let size = game.size { Label(size, systemImage: "internaldrive") }
+                if !useMorePlayers, let players = game.players { Label(players, systemImage: "person.2") }
+                if !useMorePlayers, let version = game.version { Text("v\(version)") }
             }.font(.callout).foregroundStyle(.secondary)
             Spacer()
-            Text("\(game.isSteamEntry ? "This entry opens Windows Steam in the selected Highball bottle. Its repair-only flow is not implemented yet." : model.hasRecordedHighballRecipe(for: game.id) ? "Downloads the game to the selected folder, then adds its verified executable, title, cover, and saved settings to the selected Highball bottle. Missing Steam or Visual C++ components can be set up first. The game does not launch automatically." : "Downloads the game to the selected folder, detects a likely game executable, and adds it to the selected Highball bottle with default settings plus any detected DLL-loading overrides. If detection is uncertain, choose the .exe yourself; you can change it later.")")
+            Text("\(selectedEdition?.isSteamEntry == true ? "This entry opens Windows Steam in the selected Highball bottle. Its repair-only flow is not implemented yet." : model.hasRecordedHighballRecipe(for: selectedEdition?.id ?? "") ? "Downloads the game to the selected folder, then adds its verified executable, title, cover, and saved settings to the selected Highball bottle. Missing Steam or Visual C++ components can be set up first. The game does not launch automatically." : "Downloads the game to the selected folder, detects a likely game executable, and adds it to the selected Highball bottle with default settings plus any detected DLL-loading overrides. If detection is uncertain, choose the .exe yourself; you can change it later.")")
                 .font(.footnote).foregroundStyle(.secondary)
             Text(model.installFolder).font(.caption.monospaced()).lineLimit(2).foregroundStyle(.secondary)
             HStack {
                 Button("Choose folder…", action: model.chooseInstallFolder)
                 Spacer()
-                Button(game.isSteamEntry ? "Open in Windows Steam" : (model.hasRecordedHighballRecipe(for: game.id) ? "Download & add to Highball" : "Download & install"), action: onInstall)
+                Button(selectedEdition?.isSteamEntry == true ? "Open in Windows Steam" : (model.hasRecordedHighballRecipe(for: selectedEdition?.id ?? "") ? "Download & add to Highball" : "Download & install")) {
+                    if let selectedEdition { onInstall(selectedEdition) }
+                }
                     .buttonStyle(.borderedProminent).tint(.teal)
-                    .disabled(!game.isAvailable || (game.isSteamEntry && model.operationBusy))
+                    .disabled(selectedEdition?.isAvailable != true || (selectedEdition?.isSteamEntry == true && model.operationBusy))
             }
         }
         .padding(22).background(Color(red: 0.055, green: 0.071, blue: 0.11))

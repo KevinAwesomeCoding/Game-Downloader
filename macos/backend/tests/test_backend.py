@@ -325,6 +325,32 @@ class ArchiveTests(TemporaryTest):
         with self.assertRaisesRegex(ValueError, "already exists"):
             install(dict(job, id="other"), self.root / "other-cache", notify=Mock(), downloader=downloader)
 
+    def test_normal_and_more_players_install_independently(self):
+        normal = self.zipped("normal.zip", {"Game/Game.exe": b"normal"})
+        modified = self.zipped("modified.zip", {"Game/Game.exe": b"modified"})
+        repair = self.zipped("repair.zip", {"Game/repair.txt": b"normal repair"})
+        files = {"https://fixture/normal": normal, "https://fixture/more": modified,
+                 "https://fixture/repair": repair}
+        downloader = Mock()
+        def fetch(url, destination):
+            shutil.copyfile(files[url], destination)
+            return sha256(destination)
+        downloader.fetch.side_effect = fetch
+        base = str(self.root / "Games")
+        original = {"id": "normal-job", "game": {"id": "fixture", "name": "Fixture",
+                    "zipUrl": "https://fixture/normal", "fixZipUrl": "https://fixture/repair"},
+                    "installFolder": base}
+        more = {"id": "more-job", "game": {"id": "fixture--more-players", "name": "Fixture (More Players)",
+                "zipUrl": "https://fixture/more"}, "installFolder": base}
+        first = install(original, self.root / "normal-cache", notify=Mock(), downloader=downloader)
+        second = install(more, self.root / "more-cache", notify=Mock(), downloader=downloader)
+        original_path, more_path = Path(first["installPath"]), Path(second["installPath"])
+        self.assertNotEqual(original_path, more_path)
+        self.assertEqual((original_path / "Game.exe").read_bytes(), b"normal")
+        self.assertEqual((more_path / "Game.exe").read_bytes(), b"modified")
+        self.assertTrue((original_path / "repair.txt").is_file())
+        self.assertFalse((more_path / "repair.txt").exists())
+
     def test_download_status_names_primary_and_active_backup_host(self):
         archive = self.zipped("host-fixture.zip", {"Fixture/Game.exe": b"fixture never executed"})
         data = archive.read_bytes()
