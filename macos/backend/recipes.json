@@ -278,6 +278,9 @@
           "backupPath": "NeedleInAHaystack_Data/Managed/Assembly-CSharp.original.dll"
         }
       ]
+    },
+    "we-are-so-dead": {
+      "requiredRecipes": ["steam", "vcrun2022"]
     }
   }
 }
