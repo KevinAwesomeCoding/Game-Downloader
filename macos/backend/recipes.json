@@ -221,6 +221,7 @@
     },
     "fears-to-fathom-scratch-creek": {
       "executable": "Fears to Fathom - Scratch Creek.exe",
+      "rendererOverride": "dxmt",
       "requiredRecipes": ["steam", "vcrun2022"],
       "extraFilesToVerify": [
         "UnityPlayer.dll",
@@ -277,6 +278,9 @@
           "backupPath": "NeedleInAHaystack_Data/Managed/Assembly-CSharp.original.dll"
         }
       ]
+    },
+    "we-are-so-dead": {
+      "requiredRecipes": ["steam", "vcrun2022"]
     }
   }
 }
