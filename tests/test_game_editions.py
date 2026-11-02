@@ -2,8 +2,12 @@ import json
 import os
 import tempfile
 import unittest
+import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
+
+if sys.platform != "win32":
+    raise unittest.SkipTest("Windows installer edition tests")
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtWidgets import QApplication
