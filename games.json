@@ -1652,6 +1652,7 @@
     "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3164500/header.jpg",
     "zipUrl": "https://archive.org/download/schedule-i-v-0.4.6f-13-six-player/Schedule-I-v0.4.6f13-six-player.zip",
     "zipBackupUrl": "",
+    "_comment_disabledZipBackupUrl": "https://gofile.io/d/5mmWLj8W",
     "comment": "Previous game download links for later reference: https://gofile.io/d/5mmWLj8W ; https://filekeeper.net/gljmtjczg12a/Schedule.I.v0.4.6f13-OFME.rar",
     "fixZipUrl": "https://gofile.io/d/Ta1lFW",
     "fixBackupUrl": "https://pixeldrain.com/u/3NWtksCK",
@@ -1763,7 +1764,8 @@
       "classifiedAt": "2026-10-31T00:00:00-05:00"
     },
     "requirementsPlatform": "Windows"
-  }  ,{
+  },
+  {
     "id": "peak",
     "steamAppId": "3527290",
     "name": "PEAK",
@@ -1794,5 +1796,4 @@
     },
     "requirementsPlatform": "Windows"
   }
-
 ]
