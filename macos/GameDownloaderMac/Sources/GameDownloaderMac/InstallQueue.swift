@@ -471,14 +471,13 @@ extension AppModel {
             }
             beginOperation(
                 ["register", "--job", Self.supportFolder.appending(path: "\(job.id).json").path, "--bottle", bottle],
-                jobID: job.id, bottle: bottle
-            ) {
+                jobID: job.id, bottle: bottle, completion: {
                 HighballLifecycle.reopenIfNeeded(wasRunning)
                 if let current = self.jobs.first(where: { $0.id == job.id }), !current.registered {
                     self.updateJob(job.id) { $0.message = "Installed, but automatic registration could not finish. Use Choose .exe & add to select or change the game executable." }
                 }
                 self.startNext()
-            }
+            }, allowReservedBusy: true)
         }
     }
 
@@ -567,8 +566,8 @@ extension AppModel {
     }
 
     func beginOperation(_ arguments: [String], jobID: String?, bottle: String,
-                        completion: (() -> Void)? = nil) {
-        guard !operationBusy, installSession == nil else {
+                        completion: (() -> Void)? = nil, allowReservedBusy: Bool = false) {
+        guard (!operationBusy || allowReservedBusy), installSession == nil, operationSession == nil else {
             actionMessage = "Another Highball action is still running."
             return
         }
