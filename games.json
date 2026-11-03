@@ -1678,9 +1678,10 @@
     },
     "requirementsPlatform": "Windows",
     "morePlayers": {
-      "zipUrl": "https://archive.org/download/schedule-i-v-0.4.6f-13-six-player/Schedule-I-v0.4.6f13-six-player.zip",
+      "zipUrl": "https://archive.org/download/schedule-i-12-player-test/Schedule-I-12-player-test.zip",
       "version": "0.4.6f13",
-      "description": "Six-player mod; multiplayer and Mac compatibility are unverified. Everyone needs the mod."
+      "description": "Configured for up to 12 players including the host; multiplayer and Mac compatibility are unverified. Everyone needs the mod.",
+      "previousZipUrl": "https://archive.org/download/schedule-i-v-0.4.6f-13-six-player/Schedule-I-v0.4.6f13-six-player.zip"
     }
   },
   {
