@@ -34,8 +34,8 @@ class GameEditionTests(unittest.TestCase):
                 self.assertFalse(modified.zip_backup_parts)
                 self.assertEqual(modified.mac_compat["tier"], "Unverified")
         schedule = Game(next(item for item in self.catalog if item["id"] == "schedule-i"))
-        self.assertEqual(schedule.zip_url, "https://gofile.io/d/5mmWLj8W")
-        self.assertTrue(schedule.has_fix)
+        self.assertEqual(schedule.zip_url, "https://archive.org/download/schedule-i-0.4.7f-12-12-player/Schedule-I-0.4.7f12-normal.zip")
+        self.assertFalse(schedule.has_fix)
 
     def test_dialog_queues_selected_edition_and_separate_destination(self):
         game = Game(next(item for item in self.catalog if item["id"] == "schedule-i"))
