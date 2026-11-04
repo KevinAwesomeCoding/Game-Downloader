@@ -52,6 +52,7 @@ from update_support import (UpdateNoticeState, UpdateRelease, compatible_release
                             download_verified_file, schedule_background_check,
                             windows_update_script)
 from search_support import matches_game_search
+from macos.backend.itch_login import sign_in as itch_sign_in
 try:
     from PyQt6.QtCore import (
         Qt, QObject, QThread, QThreadPool, QRunnable, QSize, QRect, QPoint,
@@ -3468,6 +3469,26 @@ class GameCard(QFrame):
 # ---------------------------------------------------------------------------
 # Install dialog — owns the worker thread for one install.
 # ---------------------------------------------------------------------------
+class ItchLoginSignals(QObject):
+    finished = pyqtSignal(str, bool)
+
+
+class ItchLoginTask(QRunnable):
+    def __init__(self):
+        super().__init__()
+        self.signals = ItchLoginSignals()
+
+    def run(self):
+        try:
+            from pathlib import Path
+            destination = Path.home() / "AppData/LocalLow/Innersloth/Among Us/itch"
+            itch_sign_in("d9148c070f56eba6b00ae58b3cf9621a", destination)
+        except Exception as exc:
+            self.signals.finished.emit(str(exc), False)
+        else:
+            self.signals.finished.emit("Login saved. Launch Among Us to verify sign-in.", True)
+
+
 class InstallDialog(QDialog):
     def __init__(self, game: Game, parent=None, *, patch_target: str | None = None,
                  manager=None):
@@ -3508,6 +3529,11 @@ class InstallDialog(QDialog):
         )
         title_row.addWidget(self.fix_only_btn)
         root.addLayout(title_row)
+
+        if game.id == "among-us":
+            login_button = QPushButton("Set up itch.io login")
+            login_button.clicked.connect(self._start_itch_login)
+            root.addWidget(login_button)
 
         desc = QLabel(game.description)
         desc.setObjectName("CardDesc")
@@ -3677,6 +3703,19 @@ class InstallDialog(QDialog):
             self._change_edition()
 
     # -- ui helpers ---------------------------------------------------------
+    def _start_itch_login(self):
+        app = QApplication.instance()
+        if getattr(app, "_itch_login_task", None) is not None:
+            QMessageBox.information(self, "itch.io login", "A sign-in is already in progress.")
+            return
+        task = ItchLoginTask()
+        app._itch_login_task = task
+        def finished(message, success):
+            app._itch_login_task = None
+            (QMessageBox.information if success else QMessageBox.warning)(None, "itch.io login", message)
+        task.signals.finished.connect(finished)
+        QThreadPool.globalInstance().start(task)
+
     def _label(self, text, obj):
         lbl = QLabel(text)
         lbl.setObjectName(obj)
