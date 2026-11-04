@@ -36,7 +36,7 @@ def main():
         "--specpath", str(root / "build"), "--collect-all", "playwright",
         str(root / "host_resolver.py"),
     ], cwd=root, env=env, check=True)
-    destination = root / "build/host-resolver/HostResolver/_internal/playwright/driver/package/.local-browsers"
+    destination = root / "build/host-resolver/HostResolver/.local-browsers"
     shutil.copytree(browser_cache, destination, dirs_exist_ok=True,
                     ignore=shutil.ignore_patterns(".links"))
     executable = root / "build/host-resolver/HostResolver" / ("HostResolver.exe" if sys.platform == "win32" else "HostResolver")

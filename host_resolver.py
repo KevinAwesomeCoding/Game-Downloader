@@ -10,7 +10,11 @@ from urllib.parse import urlsplit
 from host_resolver_client import provider_for, validate_result
 
 if getattr(sys, "frozen", False):
-    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
+    # Keep the browser payload beside the executable. Nesting it under
+    # _internal/playwright/driver/package exceeds MAX_PATH in Windows CI.
+    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.path.join(
+        os.path.dirname(sys.executable), ".local-browsers"
+    )
 
 
 class ResolutionError(Exception):
