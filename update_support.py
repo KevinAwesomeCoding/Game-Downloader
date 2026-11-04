@@ -113,11 +113,12 @@ def windows_update_script(new_exe: str, current_exe: str, pid: int, status_file:
         "@echo off\n"
         "chcp 65001 >nul\n"
         f'powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -Command "Wait-Process -Id {pid} -ErrorAction SilentlyContinue" >NUL 2>&1\n'
-        f'if not exist "{new_exe}" (echo failed>"{status_file}" & start "" "{current_exe}" & del "%~f0" & exit /b 1)\n'
+        f'if not exist "{new_exe}" (echo failed>"{status_file}" & set "PYINSTALLER_RESET_ENVIRONMENT=1" & start "" "{current_exe}" & del "%~f0" & exit /b 1)\n'
         f'move /y "{new_exe}" "{current_exe}"\n'
-        f'if errorlevel 1 (echo failed>"{status_file}" & start "" "{current_exe}" & del "%~f0" & exit /b 1)\n'
+        f'if errorlevel 1 (echo failed>"{status_file}" & set "PYINSTALLER_RESET_ENVIRONMENT=1" & start "" "{current_exe}" & del "%~f0" & exit /b 1)\n'
         f'if not exist "{current_exe}" (echo failed>"{status_file}" & exit /b 1)\n'
         f'echo installed>"{status_file}"\n'
+        'set "PYINSTALLER_RESET_ENVIRONMENT=1"\n'
         f'start "" "{current_exe}"\n'
         'del "%~f0"\n'
     )

@@ -18,7 +18,7 @@ if (-not $pythonArgs) { $pythonArgs = @() }
 if ($LASTEXITCODE -ne 0) { throw 'Python 3.11 is required.' }
 & $python @pythonArgs -m pip install --upgrade pip
 if ($LASTEXITCODE -ne 0) { throw 'pip upgrade failed.' }
-& $python @pythonArgs -m pip install -r requirements.txt 'pyinstaller>=6.0'
+& $python @pythonArgs -m pip install -r requirements.txt 'pyinstaller>=6.10.0'
 if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
 & $python @pythonArgs -m unittest discover -s tests -v
 if ($LASTEXITCODE -ne 0) { throw 'Windows tests failed.' }
