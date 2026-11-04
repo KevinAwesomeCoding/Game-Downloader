@@ -330,6 +330,15 @@ final class AppModel: ObservableObject {
     }
 
     func refreshCatalog() async {
+        guard !isRefreshingCatalog else { return }
+        let defaults = UserDefaults.standard
+        let now = Date().timeIntervalSince1970
+        let nextCheck = defaults.double(forKey: "catalogNextCheck")
+        let lastCheck = defaults.double(forKey: "catalogLastCheck")
+        if catalogSource == "url" && (now < nextCheck || now - lastCheck < 15 * 60) {
+            catalogMessage = "Using the saved catalog. GitLab will be checked again after the refresh cooldown."
+            return
+        }
         isRefreshingCatalog = true
         catalogError = nil
         defer { isRefreshingCatalog = false }
@@ -346,23 +355,38 @@ final class AppModel: ObservableObject {
             guard let url = Self.normalizedCatalogURL(catalogURL) else {
                 throw CatalogRefreshError.invalidURL
             }
-            var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
+            var request = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy,
                                      timeoutInterval: 20)
             request.setValue("application/json", forHTTPHeaderField: "Accept")
+            defaults.set(now, forKey: "catalogLastCheck")
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let response = response as? HTTPURLResponse,
                   (200..<300).contains(response.statusCode) else {
-                let code = (response as? HTTPURLResponse)?.statusCode.description ?? "unknown"
+                let httpResponse = response as? HTTPURLResponse
+                if httpResponse?.statusCode == 429 {
+                    let retryAfter = httpResponse?.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init) ?? 0
+                    defaults.set(Date().timeIntervalSince1970 + max(retryAfter, 60 * 60), forKey: "catalogNextCheck")
+                }
+                let code = httpResponse?.statusCode.description ?? "unknown"
                 throw CatalogRefreshError.httpStatus(code)
             }
             let refreshed = try Self.decodeCatalog(data)
             try data.write(to: managedCatalogURL(), options: .atomic)
+            defaults.removeObject(forKey: "catalogNextCheck")
             // Preserve games.json order so the library's "added" sort reflects the catalog.
             games = refreshed
             scanOwnedGames()
             catalogMessage = "Catalog refreshed: \(games.count) games."
         } catch {
-            catalogError = "Could not refresh the selected catalog. Your current game list was kept. \(error.localizedDescription)"
+            if let data = try? Data(contentsOf: managedCatalogURL()),
+               let cached = try? Self.decodeCatalog(data) {
+                games = cached
+                scanOwnedGames()
+                catalogMessage = "GitLab could not refresh the catalog; using the saved copy (\(games.count) games)."
+                catalogError = nil
+            } else {
+                catalogError = "Could not refresh the selected catalog. Your current game list was kept. \(error.localizedDescription)"
+            }
         }
     }
 

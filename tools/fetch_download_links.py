@@ -1,25 +1,39 @@
-from playwright.sync_api import sync_playwright
 import argparse
+from html.parser import HTMLParser
 from pathlib import Path
 import sys
 import time
 import json
 import urllib.parse
+import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from host_resolver_client import provider_for
 
 
-def steamrip_links(page, url):
-    """Return stable supported host-page URLs, never a temporary transfer URL."""
+def steamrip_links(url):
+    """Return supported host page URLs from the public game page."""
     parts = urllib.parse.urlsplit(url)
-    if parts.scheme != 'https' or parts.hostname not in ('steamrip.com', 'www.steamrip.com'):
+    if (parts.scheme != 'https' or parts.hostname not in ('steamrip.com', 'www.steamrip.com')
+            or parts.username or parts.password or parts.port not in (None, 443)):
         raise ValueError('Expected an HTTPS steamrip.com game page.')
-    page.goto(url, wait_until='domcontentloaded', timeout=45000)
-    links = page.locator('a[href]').evaluate_all(
-        'nodes => nodes.map(node => node.href)')
+    response = requests.get(url, timeout=30, allow_redirects=False)
+    response.raise_for_status()
+    if response.status_code != 200:
+        raise ValueError('SteamRIP returned a redirect or unexpected response.')
+    class Links(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.links = []
+        def handle_starttag(self, tag, attrs):
+            if tag.lower() == 'a':
+                href = dict(attrs).get('href')
+                if href:
+                    self.links.append(urllib.parse.urljoin(url, href))
+    parser = Links()
+    parser.feed(response.text)
     result = {}
-    for link in links:
+    for link in parser.links:
         parsed = urllib.parse.urlsplit(link)
         provider = provider_for(link)
         if (provider in ('bzzhr', 'fileditch') and parsed.scheme == 'https'
@@ -36,6 +50,7 @@ game_urls = [
 ]
 
 def run_scraper():
+    from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)
         context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -128,12 +143,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.steamrip:
         try:
-            with sync_playwright() as playwright:
-                browser = playwright.chromium.launch(headless=True)
-                try:
-                    print(json.dumps(steamrip_links(browser.new_page(), args.steamrip), indent=2))
-                finally:
-                    browser.close()
+            print(json.dumps(steamrip_links(args.steamrip), indent=2))
         except Exception as exc:
             print(f'Could not extract host page links: {exc}', file=sys.stderr)
             raise SystemExit(1)

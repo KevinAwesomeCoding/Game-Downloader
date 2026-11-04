@@ -95,6 +95,8 @@ PREVIOUS_CATALOG_URLS = {
 
 # Bundled fallback manifest, looked up next to this file / the exe.
 LOCAL_MANIFEST = "games.json"
+MANIFEST_REFRESH_INTERVAL = 15 * 60
+MANIFEST_RATE_LIMIT_COOLDOWN = 60 * 60
 ZIP_PASSWORD = b"online-fix.me"
 
 # Network timeouts (connect, read) in seconds, and download chunk size.
@@ -1367,27 +1369,51 @@ class ManifestLoader(QObject):
 
         # 1) Try the configured remote URL when this load is allowed to update.
         if self.mode == "url" and self.manifest_url:
-            try:
-                req = urllib.request.Request(
-                    self.manifest_url,
-                    headers={"User-Agent": "GameInstaller/1.0"},
-                )
-                with urllib.request.urlopen(req, timeout=3) as resp:
-                    raw = resp.read().decode("utf-8")
-                games = validate_manifest(raw)
-                # Persist to disk so the next offline launch uses the latest list.
+            prefs = load_prefs()
+            now = time.time()
+            next_check = float(prefs.get("manifest_next_check", 0) or 0)
+            last_check = float(prefs.get("manifest_last_check", 0) or 0)
+            # The catalog is already cached locally. Avoid asking GitLab on
+            # every app launch or repeated manual refresh during a cooldown.
+            if now < next_check or now - last_check < MANIFEST_REFRESH_INTERVAL:
+                pass
+            else:
+                prefs["manifest_last_check"] = now
+                save_prefs(prefs)
                 try:
-                    with open(local_path, "w", encoding="utf-8") as fh:
-                        fh.write(raw)
-                    os.makedirs(os.path.dirname(user_catalog_path()), exist_ok=True)
-                    with open(user_catalog_path(), "w", encoding="utf-8") as fh:
-                        fh.write(raw)
-                except OSError:
-                    pass  # write failure is non-fatal; we already have the data
-                self.loaded.emit(games, "remote manifest")
-                return
-            except Exception:
-                pass  # network or parse error — fall through to local copy
+                    req = urllib.request.Request(
+                        self.manifest_url,
+                        headers={"User-Agent": "GameInstaller/1.0"},
+                    )
+                    with urllib.request.urlopen(req, timeout=3) as resp:
+                        raw = resp.read().decode("utf-8")
+                    games = validate_manifest(raw)
+                    # Persist to disk so the next offline launch uses the latest list.
+                    try:
+                        with open(local_path, "w", encoding="utf-8") as fh:
+                            fh.write(raw)
+                        os.makedirs(os.path.dirname(user_catalog_path()), exist_ok=True)
+                        with open(user_catalog_path(), "w", encoding="utf-8") as fh:
+                            fh.write(raw)
+                    except OSError:
+                        pass  # write failure is non-fatal; we already have the data
+                    prefs = load_prefs()
+                    prefs.pop("manifest_next_check", None)
+                    save_prefs(prefs)
+                    self.loaded.emit(games, "remote manifest")
+                    return
+                except urllib.error.HTTPError as exc:
+                    if exc.code == 429:
+                        retry_after = exc.headers.get("Retry-After", "")
+                        try:
+                            cooldown = max(int(retry_after), MANIFEST_RATE_LIMIT_COOLDOWN)
+                        except (TypeError, ValueError):
+                            cooldown = MANIFEST_RATE_LIMIT_COOLDOWN
+                        prefs = load_prefs()
+                        prefs["manifest_next_check"] = time.time() + cooldown
+                        save_prefs(prefs)
+                except Exception:
+                    pass  # network or parse error — fall through to local copy
 
         # 2) Fall back through the user's saved catalog, app-local copy, and
         # bundled copy. Restore the app-local copy from the bundle when absent.
