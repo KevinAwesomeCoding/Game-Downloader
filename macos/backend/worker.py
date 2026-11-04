@@ -15,6 +15,7 @@ from archives import (content_root, extract, extract_rar_volume_set, find_tool,
 from downloads import (Downloader, Stopped, atomic_json, checkpoint, download_host_name,
                        fetch_with_backup, parts, sha256)
 from highball import Highball
+from itch_login import sign_in, token_destination
 from universal_setup import apply_universal_setup, recipe_catalog, report_lines
 
 
@@ -262,7 +263,7 @@ def cleanup_downloads(job, cache, notify=emit):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["install", "prepare", "register", "launch", "steam", "tools", "cleanup"])
+    parser.add_argument("action", choices=["install", "prepare", "register", "launch", "steam", "tools", "cleanup", "bettercrewlink", "itch-login"])
     parser.add_argument("--job", type=Path)
     parser.add_argument("--bottle")
     parser.add_argument("--uri")
@@ -270,6 +271,7 @@ def main():
     parser.add_argument("--executable")
     parser.add_argument("--manual", action="store_true")
     parser.add_argument("--registered", action="store_true")
+    parser.add_argument("--itch-client-id")
     args = parser.parse_args()
     stopped = threading.Event()
 
@@ -322,6 +324,14 @@ def main():
             return 0
         receipt = json.loads(path.read_text())
         highball = Highball()
+        if args.action == "itch-login":
+            sign_in(args.itch_client_id, token_destination(highball, receipt), lambda message: emit("running", message))
+            emit("itchLoginSaved", "Login saved. Launch Among Us to check sign-in; compatibility with this OAuth application is not yet verified.")
+            return 0
+        if args.action == "bettercrewlink":
+            executable = highball.install_bettercrewlink(receipt, lambda message: emit("running", message))
+            emit("crewlinkInstalled", f"BetterCrewLink was installed and its Highball entry was verified in {receipt['registration']['bottle']}: {executable}. Launch the game and BetterCrewLink to check detection and voice.")
+            return 0
         if args.action == "launch":
             result = highball.launch_steam_game(
                 receipt, job["game"].get("steamAppId"),

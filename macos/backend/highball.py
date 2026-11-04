@@ -122,6 +122,78 @@ class Highball:
             raise ValueError("Highball/bottle is not ready. Open Highball, finish setup, and refresh Settings.")
         return selected, runtime
 
+    def install_bettercrewlink(self, receipt, announce=lambda message: None):
+        """Run the bundled installer in the game's bottle, without replacing existing installs."""
+        registration = receipt.get("registration") or {}
+        bottle = registration.get("bottle")
+        if receipt.get("gameID") != "among-us" or not registration.get("complete") or not bottle:
+            raise ValueError("Add Among Us to Highball first, then retry BetterCrewLink setup.")
+        self.ready(bottle)
+        if self.gui_running():
+            raise ValueError("Close Highball before adding BetterCrewLink, then retry.")
+        root = Path(receipt["installPath"]).resolve(strict=True)
+        matches = [p for p in root.rglob("*") if p.name.casefold() == "better-crewlink-setup-3.2.2.exe"
+                   and p.is_file() and not p.is_symlink() and p.resolve().is_relative_to(root)]
+        if len(matches) != 1:
+            raise ValueError("Expected exactly one bundled Better-CrewLink-Setup-3.2.2.exe in the installed Among Us folder. Reinstall the combined archive or check its contents.")
+        if Path(bottle).name != bottle or bottle in {".", ".."}:
+            raise ValueError("Invalid Highball environment name.")
+        drive = (Path(self.home) / "bottles" / bottle / "drive_c").resolve(strict=True)
+        pins = parse_pins(self.command(["pin", "list", bottle]))
+        game_pin = pins.get(str(registration.get("pin", "")).casefold())
+        game_executable = registration.get("executable")
+        if not game_pin or not game_executable:
+            raise ValueError("The Among Us Highball entry is missing. Add the game again before installing BetterCrewLink.")
+        game_target = (root / safe_path(game_executable)).resolve(strict=True)
+        if not game_target.is_relative_to(root) or not game_target.is_file() or not same_external_path(game_pin["path"], game_target):
+            raise ValueError("The Among Us Highball entry no longer points to this game. Fix that entry before installing BetterCrewLink.")
+        if "bettercrewlink" in pins:
+            raise ValueError("A BetterCrewLink Highball entry already exists. It was not changed.")
+        announce("Checking the Highball environment for an existing BetterCrewLink installation…")
+        for registry in (drive.parent / "user.reg", drive.parent / "system.reg"):
+            if registry.is_file() and re.search(r"better[\s_-]*crew[\s_-]*link", registry.read_text(errors="replace"), re.I):
+                raise ValueError(f"The {bottle} environment already contains BetterCrewLink registry records. Existing installations were not changed; check Highball before proceeding.")
+        existing = []
+        for current, directories, files in os.walk(drive, followlinks=False):
+            directories[:] = [d for d in directories if not (Path(current) / d).is_symlink()]
+            existing.extend(Path(current) / name for name in directories + files
+                            if "bettercrewlink" in re.sub(r"[^a-z0-9]", "", name.casefold()))
+        if existing:
+            raise ValueError(f"Existing BetterCrewLink files were found at {existing[0]}. They were not changed; use the existing installation or choose another environment for Among Us.")
+        announce("Opening the bundled BetterCrewLink setup in the same Highball environment. Complete its installer window and wait for it to finish…")
+        try:
+            self.command(["run", bottle, str(matches[0])], timeout=1800)
+        except subprocess.TimeoutExpired as exc:
+            raise ValueError("BetterCrewLink setup did not finish within 30 minutes. Check and close any remaining setup window in Highball before retrying; no entry was added.") from exc
+        announce("Installer exited. Looking for the installed BetterCrewLink executable…")
+        candidates = []
+        for current, directories, files in os.walk(drive, followlinks=False):
+            directories[:] = [d for d in directories if not (Path(current) / d).is_symlink()]
+            for name in files:
+                candidate = Path(current) / name
+                parts = [p.casefold() for p in candidate.relative_to(drive).parts]
+                standard_install = (parts[0] in {"program files", "program files (x86)"} or
+                                    (len(parts) >= 7 and parts[0] == "users" and
+                                     parts[2:5] == ["appdata", "local", "programs"]))
+                if (re.sub(r"[^a-z0-9]", "", name.casefold()) == "bettercrewlinkexe"
+                        and standard_install
+                        and not candidate.is_symlink() and candidate.is_file()
+                        and candidate.resolve().is_relative_to(drive)):
+                    candidates.append(candidate.resolve())
+        if len(candidates) != 1:
+            raise ValueError("Setup exited, but exactly one installed BetterCrewLink.exe could not be found in the environment's standard Windows program folders. Check the installer and any custom install location; no entry was added.")
+        target = candidates[0]
+        announce("Registering the installed BetterCrewLink app in Highball…")
+        self.command(["pin", "add", bottle, "BetterCrewLink", str(target)])
+        saved = parse_pins(self.command(["pin", "list", bottle])).get("bettercrewlink")
+        if not saved:
+            raise ValueError("Highball did not confirm the BetterCrewLink entry. Check Highball before retrying.")
+        stored = saved["path"]
+        saved_path = Path(stored) if stored.startswith("/") else drive / stored
+        if not target.is_file() or saved_path.resolve() != target:
+            raise ValueError("Highball did not confirm the installed BetterCrewLink executable path. Check its entry before retrying.")
+        return str(target)
+
     def _readiness_report(self):
         if self.inspector:
             return self.inspector()

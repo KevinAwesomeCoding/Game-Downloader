@@ -48,6 +48,9 @@ final class AppModel: ObservableObject {
     @Published var downloadEstimates: [String: String] = [:]
     @Published var actionMessage: String?
     @Published var actionLogPath: String?
+    @Published var itchClientID = UserDefaults.standard.string(forKey: "itchClientID") ?? "d9148c070f56eba6b00ae58b3cf9621a" {
+        didSet { UserDefaults.standard.set(itchClientID, forKey: "itchClientID") }
+    }
     @Published var operationBusy = false
     @Published var rarAvailable = false
     @Published var updateNotice = UpdateNoticeState()
@@ -1038,6 +1041,13 @@ struct ContentView: View {
                                         if job.registered {
                                             Button("Play in Highball") { model.runHighball(job, launch: true) }.disabled(model.operationBusy)
                                             Text(job.bottle ?? "").font(.caption).foregroundStyle(.secondary)
+                                        if job.game.id == "among-us" {
+                                            Button("Set up itch.io login") { model.setupItchLogin(job) }
+                                                .disabled(model.operationBusy)
+                                            Button("Install BetterCrewLink") { model.installBetterCrewLink(job) }
+                                                .disabled(model.operationBusy)
+                                                .help("Run the setup bundled with Among Us in the same Highball environment.")
+                                        }
                                         Button("Clean download files") { cleanupTarget = job }
                                             .disabled(model.operationBusy)
                                             .help("Remove verified archive copies; keep the installed game and its receipt.")
@@ -1182,6 +1192,14 @@ struct ContentView: View {
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }
                 readinessCard
+                GroupBox("Among Us itch.io login") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField("itch.io OAuth client ID", text: $model.itchClientID)
+                        Text("Game Installer includes its login client. The sign-in button opens itch.io and preserves any existing game login. A custom client must use callback http://127.0.0.1:34567/callback.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Link("itch.io OAuth setup", destination: URL(string: "https://itch.io/docs/api/oauth")!)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }
                 GroupBox("Game launch bottle") {
                     VStack(alignment: .leading, spacing: 10) {
                         Picker("Highball bottle", selection: $model.selectedBottle) {
@@ -1619,11 +1637,9 @@ private struct GameDetailsSheet: View {
             HStack {
                 Button("Choose folder…", action: model.chooseInstallFolder)
                 Spacer()
-                if game.id == "among-us", let setupURL = URL(string: "https://github.com/OhMyGuus/BetterCrewLink/releases/download/v3.2.2/Better-CrewLink-Setup-3.2.2.exe") {
-                    Button("Download BetterCrewLink setup") {
-                        NSWorkspace.shared.open(setupURL)
-                    }
-                    .help("Downloads the Windows setup separately. Highball installation and voice compatibility are not yet verified.")
+                if game.id == "among-us" {
+                    Text("After adding the game, install bundled BetterCrewLink from Downloads.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
                 Button(selectedEdition?.isSteamEntry == true ? "Open in Windows Steam" : (model.hasRecordedHighballRecipe(for: selectedEdition?.id ?? "") ? "Download & add to Highball" : "Download & install")) {
                     if let selectedEdition { onInstall(selectedEdition) }

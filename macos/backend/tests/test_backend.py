@@ -531,6 +531,57 @@ class HighballTests(TemporaryTest):
         self.assertIn(["pin", "set", "Disposable", "Game Installer · Fixture", "env", "WINEDLLOVERRIDES=winmm=native,builtin"], self.commands)
         self.assertFalse(any(command[0] == "bottle" for command in self.commands))
 
+    def test_bundled_crewlink_requires_installer_and_verifies_pin(self):
+        drive = self.root / "Highball/bottles/Disposable/drive_c"
+        drive.mkdir(parents=True)
+        setup = self.game / "Better-CrewLink-Setup-3.2.2.exe"
+        setup.write_bytes(b"fixture")
+        receipt = dict(self.receipt, gameID="among-us", registration={
+            "complete": True, "bottle": "Disposable", "pin": "Among Us", "executable": "Game.exe"})
+        target = drive / "users/test/AppData/Local/Programs/BetterCrewLink/BetterCrewLink.exe"
+        commands = []
+        pinned = [False]
+        def command(args, timeout=30):
+            commands.append(args)
+            if args[:2] == ["pin", "list"]:
+                return "Among Us\t" + str(self.game / "Game.exe") + "\n" + (
+                    "BetterCrewLink\t" + str(target.relative_to(drive)) + "\n" if pinned[0] else "")
+            if args[0] == "run":
+                target.parent.mkdir(parents=True)
+                target.write_bytes(b"installed fixture")
+            if args[:2] == ["pin", "add"]:
+                pinned[0] = True
+            return "ok"
+        self.client.command = command
+        self.assertEqual(self.client.install_bettercrewlink(receipt), str(target.resolve()))
+        self.assertIn(["run", "Disposable", str(setup.resolve())], commands)
+        self.assertIn(["pin", "add", "Disposable", "BetterCrewLink", str(target.resolve())], commands)
+        with self.assertRaisesRegex(ValueError, "already exists"):
+            self.client.install_bettercrewlink(receipt)
+
+    def test_bundled_crewlink_does_not_run_over_existing_files(self):
+        drive = self.root / "Highball/bottles/Disposable/drive_c"
+        drive.mkdir(parents=True)
+        (drive / "BetterCrewLink.exe").write_bytes(b"existing")
+        (self.game / "Better-CrewLink-Setup-3.2.2.exe").write_bytes(b"fixture")
+        receipt = dict(self.receipt, gameID="among-us", registration={
+            "complete": True, "bottle": "Disposable", "pin": "Among Us", "executable": "Game.exe"})
+        self.client.command = Mock(return_value="Among Us\t" + str(self.game / "Game.exe") + "\n")
+        with self.assertRaisesRegex(ValueError, "Existing BetterCrewLink"):
+            self.client.install_bettercrewlink(receipt)
+        self.assertFalse(any(call.args[0][0] == "run" for call in self.client.command.call_args_list))
+
+    def test_bundled_crewlink_missing_installed_executable_is_not_success(self):
+        (self.root / "Highball/bottles/Disposable/drive_c").mkdir(parents=True)
+        (self.game / "Better-CrewLink-Setup-3.2.2.exe").write_bytes(b"fixture")
+        receipt = dict(self.receipt, gameID="among-us", registration={
+            "complete": True, "bottle": "Disposable", "pin": "Among Us", "executable": "Game.exe"})
+        self.client.command = Mock(side_effect=lambda args, **kwargs:
+                                   "Among Us\t" + str(self.game / "Game.exe") + "\n" if args[0] == "pin" else "ok")
+        with self.assertRaisesRegex(ValueError, "could not be found"):
+            self.client.install_bettercrewlink(receipt)
+        self.assertFalse(any(call.args[0][:2] == ["pin", "add"] for call in self.client.command.call_args_list))
+
     def test_unknown_build_engine_dependency_or_renderer_does_not_mutate(self):
         for failure in ["hash", "engine", "dependency", "renderer"]:
             with self.subTest(failure=failure):

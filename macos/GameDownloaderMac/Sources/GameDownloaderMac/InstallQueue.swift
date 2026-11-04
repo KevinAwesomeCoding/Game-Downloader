@@ -445,6 +445,42 @@ extension AppModel {
         beginOperation(args, jobID: job.id, bottle: job.targetBottle ?? selectedBottle)
     }
 
+    func installBetterCrewLink(_ job: InstallJob) {
+        guard !operationBusy, operationSession == nil, installSession == nil,
+              job.registered, let bottle = job.bottle, !bottle.isEmpty else {
+            actionMessage = "Add Among Us to Highball first and wait for other actions to finish."
+            return
+        }
+        operationBusy = true
+        actionMessage = "Preparing bundled BetterCrewLink setup…"
+        Task { @MainActor in
+            do {
+                let wasRunning = try await HighballLifecycle.closeForConfiguration()
+                beginOperation(["bettercrewlink", "--job", Self.supportFolder.appending(path: "\(job.id).json").path],
+                               jobID: nil, bottle: bottle, completion: {
+                    HighballLifecycle.reopenIfNeeded(wasRunning)
+                }, allowReservedBusy: true)
+            } catch {
+                operationBusy = false
+                actionMessage = "Could not prepare BetterCrewLink setup: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    func setupItchLogin(_ job: InstallJob) {
+        guard job.registered, let bottle = job.bottle, !bottle.isEmpty else {
+            actionMessage = "Add Among Us to Highball before setting up itch.io login."
+            return
+        }
+        let client = itchClientID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !client.isEmpty else {
+            actionMessage = "Add your itch.io OAuth client ID in Settings first."
+            return
+        }
+        beginOperation(["itch-login", "--job", Self.supportFolder.appending(path: "\(job.id).json").path,
+                        "--itch-client-id", client], jobID: nil, bottle: bottle)
+    }
+
     private func addAutomaticallyToHighball(_ job: InstallJob) {
         guard operationSession == nil else {
             updateJob(job.id) { $0.message = "Installed. Highball is busy; retry adding it when ready." }
