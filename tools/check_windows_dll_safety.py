@@ -51,8 +51,19 @@ def check(executable: Path, fixture: Path) -> None:
         info.lpParameters = "--check-download-browser"
         info.lpDirectory = str(executable.parent)
         info.nShow = 0
-        if not shell_execute(ctypes.byref(info)):
-            raise ctypes.WinError()
+        # The packaged application requests elevation for normal interactive
+        # use. CI only needs its early browser-check path; run that path as the
+        # current user so ShellExecuteEx does not wait on an unattended UAC UI.
+        previous_compat_layer = os.environ.get("__COMPAT_LAYER")
+        os.environ["__COMPAT_LAYER"] = "RunAsInvoker"
+        try:
+            if not shell_execute(ctypes.byref(info)):
+                raise ctypes.WinError()
+        finally:
+            if previous_compat_layer is None:
+                os.environ.pop("__COMPAT_LAYER", None)
+            else:
+                os.environ["__COMPAT_LAYER"] = previous_compat_layer
         try:
             kernel = ctypes.windll.kernel32
             kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
