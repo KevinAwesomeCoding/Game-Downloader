@@ -27,7 +27,7 @@ build_windows:
     GIT_CONFIG_NOSYSTEM: "1"
     GIT_CONFIG_GLOBAL: "NUL"
   tags:
-    - saas-windows-medium-amd64
+    - game-downloader-windows-local
   needs:
     - job: release_info
       artifacts: true
