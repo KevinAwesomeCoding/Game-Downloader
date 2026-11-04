@@ -65,7 +65,10 @@ def validate_result(result, source):
 
 
 def helper_command():
-    root = Path(__file__).resolve().parent
+    # Preserve mapped-drive aliases used by Windows builds. Resolving a SUBST
+    # path expands it back to the runner's long checkout path and can push the
+    # bundled Playwright browser beyond Windows' process-launch path limit.
+    root = Path(__file__).absolute().parent
     name = "HostResolver.exe" if sys.platform == "win32" else "HostResolver"
     bundled = root / "HostResolver" / name
     if bundled.is_file():

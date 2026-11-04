@@ -85,6 +85,9 @@ def check(executable: Path, fixture: Path) -> None:
 if __name__ == "__main__":
     if os.name != "nt":
         raise SystemExit("This check requires Windows.")
-    fixture_path = Path(sys.argv[1]).resolve()
+    # Keep the short R: alias from the Windows CI build instead of expanding
+    # it to the runner's long checkout path; Playwright launches Chromium from
+    # a deeply nested directory beneath the packaged app.
+    fixture_path = Path(sys.argv[1]).absolute()
     for executable_path in sys.argv[2:]:
-        check(Path(executable_path).resolve(), fixture_path)
+        check(Path(executable_path).absolute(), fixture_path)
