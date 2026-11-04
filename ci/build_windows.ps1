@@ -5,6 +5,8 @@ $ErrorActionPreference = 'Stop'
 if (Test-Path 'R:\') { throw 'Build drive R: is already in use.' }
 subst R: $env:CI_PROJECT_DIR
 if ($LASTEXITCODE -ne 0) { throw 'Could not create the short build drive.' }
+$originalLocation = Get-Location
+try {
 Set-Location 'R:\'
 
 $python = (Get-Command py -ErrorAction SilentlyContinue) ? 'py' : 'python'
@@ -64,3 +66,7 @@ $folder = Start-Process -FilePath dist/GameInstaller/GameInstaller.exe -Argument
 if ($folder.ExitCode -ne 0) { throw 'Folder build browser check failed.' }
 $single = Start-Process -FilePath dist/GameInstaller-windows-x64.exe -ArgumentList '--check-download-browser' -Wait -PassThru
 if ($single.ExitCode -ne 0) { throw 'Single-file build browser check failed.' }
+} finally {
+    Set-Location $originalLocation
+    subst R: /D
+}
