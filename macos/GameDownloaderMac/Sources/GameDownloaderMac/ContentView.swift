@@ -1619,6 +1619,12 @@ private struct GameDetailsSheet: View {
             HStack {
                 Button("Choose folder…", action: model.chooseInstallFolder)
                 Spacer()
+                if game.id == "among-us", let setupURL = URL(string: "https://github.com/OhMyGuus/BetterCrewLink/releases/download/v3.2.2/Better-CrewLink-Setup-3.2.2.exe") {
+                    Button("Download BetterCrewLink setup") {
+                        NSWorkspace.shared.open(setupURL)
+                    }
+                    .help("Downloads the Windows setup separately. Highball installation and voice compatibility are not yet verified.")
+                }
                 Button(selectedEdition?.isSteamEntry == true ? "Open in Windows Steam" : (model.hasRecordedHighballRecipe(for: selectedEdition?.id ?? "") ? "Download & add to Highball" : "Download & install")) {
                     if let selectedEdition { onInstall(selectedEdition) }
                 }

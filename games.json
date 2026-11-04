@@ -177,11 +177,12 @@
     "name": "Among Us",
     "source": "https://online-fix.me/games/shooter/16450-among-us-po-seti.html",
     "description": "A 4–15 player party game of teamwork and betrayal, playable online or locally.",
-    "version": "17.3I",
-    "size": "711 MB",
+    "version": "18i / TOU-Mira 1.7.3",
+    "size": "945 MB download",
     "players": "4-15 players",
     "thumbnail": "https://cdn.cloudflare.steamstatic.com/steam/apps/945360/header.jpg",
-    "zipUrl": "https://archive.org/download/among-us-to-u-mod/Among%20Us%20ToU%20Mod.zip",
+    "zipUrl": "https://archive.org/download/among-us-18i-tou-mira-1.7.3-better-crew-link/Among-Us-18i-TOU-Mira-1.7.3-BetterCrewLink.zip",
+    "previousZipUrl": "https://archive.org/download/among-us-to-u-mod/Among%20Us%20ToU%20Mod.zip",
     "zipBackupUrl": "",
     "fixZipUrl": "",
     "fixBackupUrl": "",
@@ -192,10 +193,10 @@
       "gpu": "Intel HD Graphics 4600"
     },
     "macCompatibility": {
-      "tier": "Runs with a recipe",
+      "tier": "Unverified",
       "riskLevel": "Standard",
-      "reasoning": "The game opened in the recorded Highball test. A full play session and online features were not verified.",
-      "confidence": "Medium",
+      "reasoning": "This v18i TOU-Mira build has not been tested in Highball; multiplayer and BetterCrewLink are unverified.",
+      "confidence": "Low",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
     "requirementsPlatform": "Windows"
