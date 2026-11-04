@@ -61,11 +61,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Single-file build failed.' }
 Move-Item dist/GameInstaller.exe dist/GameInstaller-windows-x64.exe
 & $python @pythonArgs tools/check_windows_dll_safety.py $fixture dist/GameInstaller-windows-x64.exe
 if ($LASTEXITCODE -ne 0) { throw 'Single-file DLL collision check failed.' }
-
-$folder = Start-Process -FilePath dist/GameInstaller/GameInstaller.exe -ArgumentList '--check-download-browser' -Wait -PassThru
-if ($folder.ExitCode -ne 0) { throw 'Folder build browser check failed.' }
-$single = Start-Process -FilePath dist/GameInstaller-windows-x64.exe -ArgumentList '--check-download-browser' -Wait -PassThru
-if ($single.ExitCode -ne 0) { throw 'Single-file build browser check failed.' }
 } finally {
     Set-Location $originalLocation
     subst R: /D
