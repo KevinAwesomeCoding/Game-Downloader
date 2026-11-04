@@ -77,6 +77,8 @@ async def download_page(context, source, provider):
         response = await page.goto(source, wait_until="domcontentloaded", timeout=40_000)
         if response and response.status in (404, 410):
             raise ResolutionError("The file host reports that this file is unavailable.")
+        if response and response.status == 403:
+            raise ResolutionError("The file host blocked the download browser (HTTP 403). Open the link in a regular browser or try another source.")
     except ResolutionError:
         raise
     except Exception:

@@ -15,7 +15,7 @@ import unittest
 from unittest.mock import Mock, AsyncMock, patch
 
 from download_support import Downloader, Stopped, atomic_json, download_host_name, fetch_with_backup
-from host_resolver import ResolutionError, single_file
+from host_resolver import ResolutionError, download_page, single_file
 from host_resolver_client import ResolutionStopped, provider_for, resolve_source, validate_result
 
 
@@ -41,6 +41,15 @@ class Opener:
 class HostedTests(unittest.TestCase):
     source = "https://gofile.io/d/fixture"
     payload = b"Rar!" + b"a" * 190000
+
+    def test_blocked_host_reports_error_without_retries(self):
+        page = Mock()
+        page.goto = AsyncMock(return_value=types.SimpleNamespace(status=403))
+        context = Mock()
+        context.new_page = AsyncMock(return_value=page)
+        with self.assertRaisesRegex(ResolutionError, "HTTP 403"):
+            asyncio.run(download_page(context, "https://bzzhr.to/example", "bzzhr"))
+        page.goto.assert_awaited_once()
 
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
