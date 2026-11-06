@@ -1,5 +1,6 @@
 import io
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -13,6 +14,23 @@ from itch_login import sign_in
 
 
 class ItchLoginTests(unittest.TestCase):
+    def test_copyable_link_survives_browser_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "user/AppData/LocalLow/Innersloth/Among Us/itch"
+            destination.parents[4].mkdir()
+            links = []
+            def receive_link(url):
+                links.append(url)
+                params = parse_qs(urlsplit(url).query)
+                callback = params["redirect_uri"][0] + "?" + urlencode({"state": params["state"][0], "code": "test-code"})
+                threading.Thread(target=lambda: urlopen(callback).read(), daemon=True).start()
+            def exchange(request, timeout):
+                return io.BytesIO(json.dumps({"access_token": "fixture-secret"}).encode())
+            sign_in("fixture-client", destination, opener=lambda _: False,
+                    authorization_url=receive_link, exchange=exchange)
+            self.assertEqual(len(links), 1)
+            self.assertEqual(destination.read_text(), "fixture-secret")
+
     def test_clean_login_callback_and_token_storage(self):
         with tempfile.TemporaryDirectory() as directory:
             destination = Path(directory) / "user/AppData/LocalLow/Innersloth/Among Us/itch"
@@ -30,7 +48,8 @@ class ItchLoginTests(unittest.TestCase):
                 return io.BytesIO(json.dumps({"access_token": "fixture-secret"}).encode())
             sign_in("fixture-client", destination, opener=open_browser, exchange=exchange)
             self.assertEqual(destination.read_text(), "fixture-secret")
-            self.assertEqual(destination.stat().st_mode & 0o777, 0o600)
+            if os.name != "nt":
+                self.assertEqual(destination.stat().st_mode & 0o777, 0o600)
             with self.assertRaisesRegex(ValueError, "already exists"):
                 sign_in("fixture-client", destination, opener=lambda _: self.fail("browser opened"))
             self.assertEqual(destination.read_text(), "fixture-secret")

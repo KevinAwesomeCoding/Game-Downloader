@@ -3471,6 +3471,7 @@ class GameCard(QFrame):
 # ---------------------------------------------------------------------------
 class ItchLoginSignals(QObject):
     finished = pyqtSignal(str, bool)
+    authorization_url = pyqtSignal(str)
 
 
 class ItchLoginTask(QRunnable):
@@ -3482,7 +3483,8 @@ class ItchLoginTask(QRunnable):
         try:
             from pathlib import Path
             destination = Path.home() / "AppData/LocalLow/Innersloth/Among Us/itch"
-            itch_sign_in("d9148c070f56eba6b00ae58b3cf9621a", destination)
+            itch_sign_in("d9148c070f56eba6b00ae58b3cf9621a", destination,
+                         authorization_url=self.signals.authorization_url.emit)
         except Exception as exc:
             self.signals.finished.emit(str(exc), False)
         else:
@@ -3710,9 +3712,24 @@ class InstallDialog(QDialog):
             return
         task = ItchLoginTask()
         app._itch_login_task = task
+        def show_link(url):
+            dialog = QMessageBox(None)
+            dialog.setWindowTitle("itch.io login")
+            dialog.setText("Complete sign-in in your browser. If it did not open, copy the link below and open it on this computer.")
+            dialog.setDetailedText(url)
+            copy_button = dialog.addButton("Copy login link", QMessageBox.ButtonRole.ActionRole)
+            dialog.addButton("Close", QMessageBox.ButtonRole.RejectRole)
+            copy_button.clicked.connect(lambda: QApplication.clipboard().setText(url))
+            app._itch_login_dialog = dialog
+            dialog.show()
         def finished(message, success):
             app._itch_login_task = None
+            dialog = getattr(app, "_itch_login_dialog", None)
+            if dialog is not None:
+                dialog.close()
+                app._itch_login_dialog = None
             (QMessageBox.information if success else QMessageBox.warning)(None, "itch.io login", message)
+        task.signals.authorization_url.connect(show_link)
         task.signals.finished.connect(finished)
         QThreadPool.globalInstance().start(task)
 

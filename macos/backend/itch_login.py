@@ -35,7 +35,7 @@ def token_destination(highball, receipt):
 
 
 def sign_in(client_id, destination, notify=lambda message: None, opener=webbrowser.open,
-            exchange=urlopen, timeout=300):
+            exchange=urlopen, timeout=300, authorization_url=None):
     if not re.fullmatch(r"[A-Za-z0-9_-]{8,128}", client_id or ""):
         raise ValueError("Set your own itch.io OAuth client ID in Settings first.")
     destination = Path(destination)
@@ -73,7 +73,14 @@ def sign_in(client_id, destination, notify=lambda message: None, opener=webbrows
                            "response_type": "code", "code_challenge": challenge,
                            "code_challenge_method": "S256", "state": state})
         notify("Approve Game Installer in your browser; waiting for itch.io…")
-        if not opener("https://itch.io/user/oauth?" + query):
+        url = "https://itch.io/user/oauth?" + query
+        if authorization_url is not None:
+            authorization_url(url)
+        try:
+            opened = opener(url)
+        except Exception:
+            opened = False
+        if not opened and authorization_url is None:
             raise ValueError("Could not open the browser for itch.io sign-in.")
         deadline = time.monotonic() + timeout
         while server.result is None and time.monotonic() < deadline:
