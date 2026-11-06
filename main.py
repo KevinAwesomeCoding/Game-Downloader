@@ -53,6 +53,7 @@ from update_support import (UpdateNoticeState, UpdateRelease, compatible_release
                             windows_update_script)
 from search_support import matches_game_search
 from macos.backend.itch_login import sign_in as itch_sign_in
+from desktop_profile import desktop_profile
 try:
     from PyQt6.QtCore import (
         Qt, QObject, QThread, QThreadPool, QRunnable, QSize, QRect, QPoint,
@@ -3482,13 +3483,24 @@ class ItchLoginTask(QRunnable):
     def run(self):
         try:
             from pathlib import Path
-            destination = Path.home() / "AppData/LocalLow/Innersloth/Among Us/itch"
+            destination = Path(desktop_profile()) / "AppData/LocalLow/Innersloth/Among Us/itch"
             itch_sign_in("d9148c070f56eba6b00ae58b3cf9621a", destination,
                          authorization_url=self.signals.authorization_url.emit)
         except Exception as exc:
             self.signals.finished.emit(str(exc), False)
         else:
             self.signals.finished.emit("Login saved. Launch Among Us to verify sign-in.", True)
+
+
+def default_game_directory():
+    saved = load_prefs().get("install_path", "").strip()
+    if saved:
+        return saved
+    try:
+        return os.path.join(desktop_profile(), "Games")
+    except (OSError, RuntimeError):
+        _log.exception("Could not identify the desktop user; require an install folder")
+        return ""
 
 
 class InstallDialog(QDialog):
@@ -3591,8 +3603,7 @@ class InstallDialog(QDialog):
         dest_row = QHBoxLayout()
         self.dest_edit = QLineEdit()
         self.dest_edit.setPlaceholderText("Choose a folder to install into…")
-        _saved = load_prefs().get("install_path", "")
-        self.dest_edit.setText(_saved or os.path.join(os.path.expanduser("~"), "Games"))
+        self.dest_edit.setText(default_game_directory())
         dest_row.addWidget(self.dest_edit)
         self.browse_btn = QPushButton("Browse…")
         self.browse_btn.clicked.connect(self._browse)
@@ -3756,8 +3767,7 @@ class InstallDialog(QDialog):
 
         # Storage is checked against the drive we'll install to. dest_edit
         # doesn't exist yet, so resolve the same default path it will show.
-        default_dest = (load_prefs().get("install_path", "")
-                        or os.path.join(os.path.expanduser("~"), "Games"))
+        default_dest = default_game_directory()
         path_for_storage = self._patch_target or default_dest
         result = evaluate_requirements(self.game.requirements, path_for_storage)
 
