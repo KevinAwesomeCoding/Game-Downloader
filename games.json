@@ -1715,7 +1715,8 @@
     },
     "requirementsPlatform": "Windows",
     "morePlayers": {
-      "zipUrl": "https://archive.org/download/schedule-i-0.4.7f-12-12-player/Schedule-I-0.4.7f12-12-player.zip",
+      "zipUrl": "https://archive.org/download/schedule-i-0.4.7f-12-12-player/Schedule-I-0.4.7f12-12-player-lobby-fix.zip",
+      "previousUnpatchedZipUrl": "https://archive.org/download/schedule-i-0.4.7f-12-12-player/Schedule-I-0.4.7f12-12-player.zip",
       "previous12PlayerZipUrl": "https://archive.org/download/schedule-i-12-player-test/Schedule-I-12-player-test.zip",
       "version": "0.4.7f12",
       "description": "Configured for up to 12 players including the host. The lobby displayed 1/12; additional-player connections and Mac compatibility are unverified. Everyone needs the mod.",
