@@ -165,7 +165,7 @@ _ulog = _make_updater_logger()
 def app_dir() -> str:
     """Directory of the running app (works for source and PyInstaller exe)."""
     if getattr(sys, "frozen", False):
-        return os.path.dirname(sys.executable)
+        return os.path.dirname(os.environ.get("GAMEINSTALLER_LAUNCHER", sys.executable))
     return os.path.dirname(os.path.abspath(__file__))
 
 
@@ -4792,7 +4792,7 @@ class UpdateDialog(QDialog):
             self._new_exe, sys.executable,
         )
         try:
-            _launch_update_bat(self._new_exe, sys.executable)
+            _launch_update_bat(self._new_exe, os.environ.get("GAMEINSTALLER_LAUNCHER", sys.executable))
         except Exception as exc:
             # Step 9 — exception during replacement.
             _ulog.exception("[9] Exception during _launch_update_bat — full traceback:")
