@@ -45,7 +45,7 @@ $main = $main -replace '(?m)^VERSION = ".*"$', ('VERSION = "' + $env:RELEASE_TAG
 Set-Content main.py -Value $main -Encoding utf8 -NoNewline
 
 $common = @('--windowed', '--uac-admin', '--noupx', '--version-file', 'version_info.txt',
-    '--collect-all', 'PyQt6', '--hidden-import', 'PyQt6.sip',
+    '--hidden-import', 'PyQt6.sip',
     '--add-data', 'build/host-resolver/HostResolver;HostResolver',
     '--add-data', 'games.json;.', '--add-data', 'bin/7z.exe;bin', '--add-data', 'bin/7z.dll;bin',
     '--runtime-hook', 'tools/windows_dll_safety_hook.py', '--name', 'GameInstaller')
