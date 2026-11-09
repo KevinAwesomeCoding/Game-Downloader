@@ -551,6 +551,52 @@ final class AppModel: ObservableObject {
             }
         }
     }
+
+    func moveGamesFolder() {
+        let panel = NSOpenPanel()
+        panel.title = "Move Games To"
+        panel.message = "Choose the destination folder. Installed game folders will be moved there."
+        panel.prompt = "Move Games"
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: installFolder, isDirectory: true).deletingLastPathComponent()
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+
+        let source = URL(fileURLWithPath: installFolder, isDirectory: true).standardizedFileURL
+        let target = destination.standardizedFileURL
+        guard source != target else { return }
+        do {
+            let manager = FileManager.default
+            let entries = try manager.contentsOfDirectory(at: source, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])
+            let gameFolders = try entries.filter { entry in
+                let values = try entry.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                return values.isDirectory == true && values.isSymbolicLink != true
+            }
+            guard !gameFolders.contains(where: { target.path == $0.standardizedFileURL.path || target.path.hasPrefix($0.standardizedFileURL.path + "/") }) else {
+                throw NSError(domain: "GameDownloader", code: 2, userInfo: [NSLocalizedDescriptionKey: "Choose a folder outside the current games folder."])
+            }
+            for folder in gameFolders {
+                let targetFolder = target.appending(path: folder.lastPathComponent, directoryHint: .isDirectory)
+                guard !manager.fileExists(atPath: targetFolder.path) else {
+                    throw NSError(domain: "GameDownloader", code: 1, userInfo: [NSLocalizedDescriptionKey: "The destination already contains a folder named ‘\(folder.lastPathComponent)’. No games were moved."])
+                }
+            }
+            let probe = target.appending(path: ".game-installer-access-\(UUID().uuidString)")
+            try Data("access check".utf8).write(to: probe, options: .atomic)
+            try manager.removeItem(at: probe)
+            for folder in gameFolders {
+                try manager.moveItem(at: folder, to: target.appending(path: folder.lastPathComponent, directoryHint: .isDirectory))
+            }
+            installFolder = target.path
+            gameFolderAccessGranted = true
+            gameFolderAccessMessage = nil
+            UserDefaults.standard.set(true, forKey: "gameFolderAccessGranted")
+            scanOwnedGames()
+        } catch {
+            gameFolderAccessMessage = "Could not move the games: \(error.localizedDescription)"
+        }
+    }
 }
 
 struct OwnedGameInstallation: Identifiable {
@@ -1118,10 +1164,22 @@ struct ContentView: View {
                     Text("Games found in your selected Games folder.").font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer()
+                Menu {
+                    Button("Choose folder to view…", action: model.chooseInstallFolder)
+                    Button("Move games to folder…", action: model.moveGamesFolder)
+                } label: {
+                    Label("Folder", systemImage: "folder")
+                }
+                .menuStyle(.borderlessButton)
                 Button { model.scanOwnedGames() } label: {
                     Label("Scan folder", systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.bordered)
+            }
+            Text("Current folder: \(model.installFolder)")
+                .font(.caption.monospaced()).foregroundStyle(.secondary).textSelection(.enabled)
+            if let message = model.gameFolderAccessMessage {
+                Text(message).font(.callout).foregroundStyle(.orange).textSelection(.enabled)
             }
             if model.ownedInstallations.isEmpty {
                 ContentUnavailableView("No downloaded catalog games found", systemImage: "folder",
