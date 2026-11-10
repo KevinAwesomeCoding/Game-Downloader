@@ -39,6 +39,29 @@ enum AppUpdater {
     }
     private static let endpoint = URL(string: "https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json")!
     private static let expectedBundleID = "com.kevinawesomecoding.GameInstaller"
+    static let protectedInstallMessage = "macOS is running a protected copy of Game Installer. Move Game Installer to /Applications (or your personal ~/Applications folder), open it there, then retry the update. No update was downloaded."
+
+    static func isTranslocated(_ appURL: URL) -> Bool {
+        appURL.standardizedFileURL.pathComponents.contains("AppTranslocation")
+    }
+
+    static func preflight(appURL: URL, requiredBytes: Int64,
+                          storageURL: URL? = nil,
+                          availableBytes: (URL) -> Int64?,
+                          canReplaceBundle: (URL) -> Bool) throws {
+        guard !isTranslocated(appURL) else {
+            throw UpdateError.manualInstallRequired(protectedInstallMessage)
+        }
+        let parent = appURL.deletingLastPathComponent()
+        guard canReplaceBundle(appURL) else {
+            throw UpdateError.manualInstallRequired(protectedInstallMessage)
+        }
+        for location in [parent, FileManager.default.temporaryDirectory] + (storageURL.map { [$0] } ?? []) {
+            if let available = availableBytes(location), available < requiredBytes {
+                throw UpdateError.insufficientDiskSpace(required: requiredBytes, available: available)
+            }
+        }
+    }
 
     static func consumeStatus() -> String? {
         guard Bundle.main.bundleIdentifier == expectedBundleID else { return nil }
@@ -49,7 +72,7 @@ enum AppUpdater {
         try? FileManager.default.removeItem(at: support)
         switch status.trimmingCharacters(in: .whitespacesAndNewlines) {
         case "installed": return "Game Installer was updated and restarted successfully."
-        case "failed": return "The update could not be applied; the previous app was reopened. The update is still available to retry."
+        case "failed": return "The update could not be applied. The previous app was restored and remains available; the update is still available to retry."
         default: return nil
         }
     }
@@ -115,14 +138,12 @@ enum AppUpdater {
         let app = Bundle.main.bundleURL
         let parent = app.deletingLastPathComponent()
         let fm = FileManager.default
-        let probe = parent.appending(path: ".game-installer-update-check-\(UUID().uuidString)")
-        do {
-            try Data().write(to: probe, options: .atomic)
-            try fm.removeItem(at: probe)
-        } catch {
-            try? fm.removeItem(at: probe)
-            throw UpdateError.manualInstallRequired("Game Installer is in a protected folder. Open the release page and replace the app manually.")
-        }
+        let requiredBytes = try requiredUpdateSpace(for: app)
+        let support = try fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            .appending(path: "Game-Downloader/Updates", directoryHint: .isDirectory)
+        try fm.createDirectory(at: support, withIntermediateDirectories: true)
+        try preflight(appURL: app, requiredBytes: requiredBytes, storageURL: support,
+                      availableBytes: availableDiskSpace(at:), canReplaceBundle: canReplaceUpdateBundle(_:))
 
         let request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 120)
         await report("Downloading update…", 0)
@@ -140,9 +161,6 @@ enum AppUpdater {
         await report("Checking app archive…", nil)
         try validateZip(temporary)
 
-        let support = try fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-            .appending(path: "Game-Downloader/Updates", directoryHint: .isDirectory)
-        try fm.createDirectory(at: support, withIntermediateDirectories: true)
         let statusFile = support.appending(path: "update-status.txt")
         try? fm.removeItem(at: statusFile)
         let archive = support.appending(path: "update-\(UUID().uuidString).zip")
@@ -162,6 +180,35 @@ enum AppUpdater {
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
         process.arguments = [scriptURL.path]
         try process.run()
+    }
+
+    private static func requiredUpdateSpace(for app: URL) throws -> Int64 {
+        let enumerator = FileManager.default.enumerator(at: app, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles])
+        var installedSize: Int64 = 0
+        while let item = enumerator?.nextObject() as? URL {
+            installedSize += Int64((try? item.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+        }
+        // Keep room for the archive, expanded app, and previous app while staging.
+        return max(512 * 1024 * 1024, installedSize * 2 + 128 * 1024 * 1024)
+    }
+
+    private static func availableDiskSpace(at url: URL) -> Int64? {
+        let values = try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey, .volumeAvailableCapacityKey])
+        return values?.volumeAvailableCapacityForImportantUsage ?? values?.volumeAvailableCapacity.map(Int64.init)
+    }
+
+    private static func canReplaceUpdateBundle(_ app: URL) -> Bool {
+        let parent = app.deletingLastPathComponent()
+        guard FileManager.default.isWritableFile(atPath: app.path) else { return false }
+        let probe = parent.appending(path: ".game-installer-update-check-\(UUID().uuidString)")
+        do {
+            try Data().write(to: probe, options: .atomic)
+            try FileManager.default.removeItem(at: probe)
+            return true
+        } catch {
+            try? FileManager.default.removeItem(at: probe)
+            return false
+        }
     }
 
     private static func download(_ request: URLRequest,
@@ -192,7 +239,6 @@ enum AppUpdater {
           echo failed > "$STATUS"
           rm -rf "$STAGE" "$ZIP"
           rm -f "$0"
-          open "$APP" >/dev/null 2>&1 || true
           exit 1
         }
         mkdir -p "$STAGE" || fail_update
@@ -218,7 +264,13 @@ enum AppUpdater {
           rm -rf "$PREVIOUS" "$STAGE" "$ZIP"
           open "$APP"
         else
-          mv "$PREVIOUS" "$APP" || true
+          if [ -e "$APP" ]; then rm -rf "$APP"; fi
+          if ! mv "$PREVIOUS" "$APP"; then
+            echo "failed:previous-app-preserved-at:$PREVIOUS" > "$STATUS"
+            rm -rf "$STAGE"
+            rm -f "$0"
+            exit 1
+          fi
           fail_update
         fi
         rm -f "$0"
@@ -291,6 +343,7 @@ enum UpdateError: LocalizedError {
     case invalidChecksum
     case invalidArchive
     case manualInstallRequired(String)
+    case insufficientDiskSpace(required: Int64, available: Int64)
 
     var errorDescription: String? {
         switch self {
@@ -298,6 +351,8 @@ enum UpdateError: LocalizedError {
         case .invalidChecksum: return "The SHA-256 checksum did not match. The downloaded update was rejected."
         case .invalidArchive: return "The downloaded update is not a valid app archive. It was not installed."
         case .manualInstallRequired(let message): return message
+        case .insufficientDiskSpace(let required, let available):
+            return "There isn’t enough free disk space to install this update. Free at least \(ByteCountFormatter.string(fromByteCount: required - available, countStyle: .file)) and try again. The update has not been downloaded or installed."
         }
     }
 }

@@ -101,7 +101,14 @@ extension AppModel {
         do {
             try FileManager.default.createDirectory(at: Self.supportFolder, withIntermediateDirectories: true)
             try JSONEncoder().encode(jobs).write(to: Self.supportFolder.appending(path: "queue.json"), options: .atomic)
-        } catch { actionMessage = "Could not save the queue: \(error.localizedDescription)" }
+        } catch {
+            let failure = error as NSError
+            if (failure.domain == NSPOSIXErrorDomain && failure.code == Int(ENOSPC)) || failure.code == NSFileWriteOutOfSpaceError {
+                actionMessage = "The disk is full, so Game Installer could not save its queue. Free disk space, then restart Game Installer to continue. Existing queue data was kept."
+            } else {
+                actionMessage = "Could not save the queue: \(error.localizedDescription)"
+            }
+        }
     }
 
     func enqueue(_ game: Game) {

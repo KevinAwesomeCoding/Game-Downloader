@@ -12,5 +12,9 @@ let package = Package(
             name: "GameDownloaderMac",
             resources: [.copy("Resources")]
         ),
+        .testTarget(
+            name: "GameDownloaderMacTests",
+            dependencies: ["GameDownloaderMac"]
+        ),
     ]
 )
