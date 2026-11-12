@@ -1,5 +1,36 @@
 [
   {
+    "id": "trail-and-error",
+    "steamAppId": "4322960",
+    "name": "Trail & Error",
+    "source": "https://online-fix.me/games/adventures/18161-trail-and-error-po-seti.html",
+    "description": "A cooperative survival game where players manage supplies and guide a physics-based wagon across a hazardous frontier.",
+    "version": "Build 08072026",
+    "size": "1.62 GB download",
+    "players": "Online co-op; player limit unverified",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4322960/81a851808036064147ef2db9b2c58a7e1f50b0e6/header.jpg?t=1783275716",
+    "zipUrl": "https://gofile.io/d/BUhne1",
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/x8hNLZ",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 10 (64-bit)",
+      "cpu": "Core i7-3820 or equivalent",
+      "ram": "8 GB",
+      "gpu": "GTX 1060 or RX 6600 XT",
+      "directx": "Version 11",
+      "storage": "5 GB"
+    },
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "The Windows build has not been tested in Highball. Steam does not list a native macOS version.",
+      "confidence": "Low",
+      "classifiedAt": "2026-11-12"
+    },
+    "requirementsPlatform": "Windows"
+  },
+  {
     "id": "gang-beasts",
     "steamAppId": "285900",
     "name": "Gang Beasts",
