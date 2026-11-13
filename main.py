@@ -57,14 +57,14 @@ from desktop_profile import desktop_profile
 try:
     from PyQt6.QtCore import (
         Qt, QObject, QThread, QThreadPool, QRunnable, QSize, QRect, QPoint,
-        QTimer, pyqtSignal, pyqtSlot,
+        QTimer, QVariantAnimation, pyqtSignal, pyqtSlot,
     )
-    from PyQt6.QtGui import QPixmap, QImage
+    from PyQt6.QtGui import QPixmap, QImage, QPainter, QPainterPath, QCursor, QColor, QFont, QFontDatabase
     from PyQt6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QLabel, QPushButton, QVBoxLayout,
         QHBoxLayout, QScrollArea, QFrame, QStackedWidget, QDialog, QLineEdit,
         QProgressBar, QFileDialog, QMessageBox, QSizePolicy, QLayout, QCheckBox,
-        QComboBox, QPlainTextEdit,
+        QComboBox, QPlainTextEdit, QMenu, QGraphicsOpacityEffect, QGraphicsBlurEffect,
     )
 except ImportError as _qt_err:
     _msg = (
@@ -916,6 +916,8 @@ class Game:
         self.size = str(raw.get("size", "")).strip()
         self.players = str(raw.get("players", "")).strip()
         self.thumbnail = str(raw.get("thumbnail", "")).strip()
+        color = raw.get("cardColor", "")
+        self.card_color = color if isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color) else ""
         # Primary and backup link lists are independently normalized. Backup
         # entries correspond by index to the primary volumes; they are never
         # concatenated into the primary list because that means multipart data.
@@ -3347,14 +3349,36 @@ def _build_compat_reasoning(game: "Game") -> "QLabel | None":
 # ---------------------------------------------------------------------------
 # Game card widget
 # ---------------------------------------------------------------------------
+def artwork_accent(image):
+    """Select a prominent chromatic hue from a small image sample."""
+    fallback = QColor('#2dd4bf')
+    if image is None or image.isNull():
+        return fallback
+    sample = image.scaled(32, 32, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation)
+    bins = [0.0] * 24
+    for y in range(sample.height()):
+        for x in range(sample.width()):
+            color = sample.pixelColor(x, y)
+            hue, saturation, value, alpha = color.getHsv()
+            if alpha < 128 or hue < 0 or saturation < 60 or value < 45 or value > 245:
+                continue
+            bins[hue // 15] += (saturation / 255.0) * (value / 255.0)
+    best = max(range(len(bins)), key=bins.__getitem__)
+    return QColor.fromHsv(best * 15 + 7, 150, 190) if bins[best] >= 3 else fallback
+
+
 class GameCard(QFrame):
     CARD_W = 280
     THUMB_H = 130
 
-    def __init__(self, game: Game, on_click, *, installed=False):
+    def __init__(self, game: Game, on_click, *, installed=False, on_choose=None):
         super().__init__()
         self.game = game
         self._on_click = on_click
+        self._on_choose = on_choose
+        self._installed = installed
+        self._accent = QColor(game.card_color or '#2dd4bf')
+        self._card_hovered = False
         self.setObjectName("GameCard")
         self.setFixedWidth(self.CARD_W)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -3364,12 +3388,21 @@ class GameCard(QFrame):
         root.setContentsMargins(0, 0, 0, 12)
         root.setSpacing(10)
 
-        self.thumb = QLabel()
+        self.thumb_container = QWidget(self)
+        self.thumb_container.setFixedSize(self.CARD_W, self.THUMB_H)
+        self.thumb = QLabel(self.thumb_container)
+        self.thumb.setFixedSize(self.CARD_W, self.THUMB_H)
         self.thumb.setObjectName("Thumb")
         self.thumb.setFixedHeight(self.THUMB_H)
         self.thumb.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.thumb.setText("Loading image…")
-        root.addWidget(self.thumb)
+        root.addWidget(self.thumb_container)
+        self._normal_art = None
+        self._hovered = False
+        self._hover_progress = 0.0
+        self._hover_fade = QVariantAnimation(self)
+        self._hover_fade.setDuration(180)
+        self._hover_fade.valueChanged.connect(self._on_hover_progress)
 
         body = QVBoxLayout()
         body.setContentsMargins(14, 0, 14, 0)
@@ -3380,35 +3413,31 @@ class GameCard(QFrame):
         title.setWordWrap(True)
         body.addWidget(title)
 
-        desc = QLabel(game.description)
-        desc.setObjectName("CardDesc")
-        desc.setWordWrap(True)
-        body.addWidget(desc)
-
-        # macCompatibility tier badge (publish-time data, no live computation)
-        _compat_badge = _build_compat_badge(game)
-        if _compat_badge is not None:
-            body.addWidget(_compat_badge)
+        if not installed:
+            desc = QLabel(game.description)
+            desc.setObjectName("CardDesc")
+            desc.setWordWrap(True)
+            body.addWidget(desc)
 
         meta_bits = []
-        if game.version:
+        if game.version and not installed:
             meta_bits.append(f"v{game.version}")
         meta_bits.append(game.size if game.size else "Size unknown")
-        if game.has_fix:
+        if game.has_fix and not installed:
             meta_bits.append("+ patch")
         meta = QLabel("  •  ".join(meta_bits))
         meta.setObjectName("CardMeta")
         body.addWidget(meta)
 
 
-        if game.players:
+        if game.players and not installed:
             players_lbl = QLabel(f"👥 {game.players}")
             players_lbl.setObjectName("CardPlayers")
             players_lbl.setWordWrap(True)
             body.addWidget(players_lbl)
 
         if installed:
-            badge = QLabel("● Folder found · click to open")
+            badge = QLabel("● Click to play · right-click for options")
             badge.setObjectName("BadgeAvailable")
         elif game.is_patch:
             badge = QLabel("⚙ Fix / Patch")
@@ -3448,6 +3477,8 @@ class GameCard(QFrame):
         self._apply_image(image)
 
     def _apply_image(self, image):
+        self._accent = QColor(self.game.card_color) if self.game.card_color else artwork_accent(image)
+        self._update_card_color()
         pix = QPixmap.fromImage(image).scaled(
             self.CARD_W, self.THUMB_H,
             Qt.AspectRatioMode.KeepAspectRatioByExpanding,
@@ -3455,19 +3486,117 @@ class GameCard(QFrame):
         )
         x = max(0, (pix.width() - self.CARD_W) // 2)
         y = max(0, (pix.height() - self.THUMB_H) // 2)
-        self.thumb.setPixmap(pix.copy(x, y, self.CARD_W, self.THUMB_H))
+        cropped = pix.copy(x, y, self.CARD_W, self.THUMB_H)
+        rounded = QPixmap(self.CARD_W, self.THUMB_H)
+        rounded.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(rounded)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        clip = QPainterPath()
+        clip.addRoundedRect(0, 0, self.CARD_W, self.THUMB_H, 12, 12)
+        painter.setClipPath(clip)
+        painter.drawPixmap(0, 0, cropped)
+        painter.end()
+        self._normal_art = rounded
+        self._render_hover()
 
     def _show_placeholder(self):
+        self._accent = QColor(self.game.card_color or '#2dd4bf')
+        self._update_card_color()
+        self._normal_art = None
         self.thumb.setPixmap(QPixmap())
         self.thumb.setText(self.game.name)
         self.thumb.setProperty("placeholder", True)
         self.thumb.style().unpolish(self.thumb)
         self.thumb.style().polish(self.thumb)
+        self._render_hover()
+
+    def _update_card_color(self):
+        accent = self._accent
+        background = accent.darker(145)
+        if 0.2126 * background.red() + 0.7152 * background.green() + 0.0722 * background.blue() > 130:
+            background = accent.darker(185)
+        self.setStyleSheet(f"#GameCard {{ background-color: {background.name()}; border: 1px solid {background.lighter(120).name()}; border-radius: 14px; }} #GameCard:hover {{ border: 1px solid {accent.lighter(125).name()}; }}")
+        self.update()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if not self._card_hovered:
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        for inset, alpha in ((1, 180), (2, 95), (3, 60), (4, 38), (5, 22)):
+            color = QColor(self._accent)
+            color.setAlpha(alpha)
+            painter.setPen(color)
+            painter.drawRoundedRect(self.rect().adjusted(inset, inset, -inset - 1, -inset - 1), 12, 12)
+        painter.end()
+
+    def _set_hovered(self, hovered):
+        if self._card_hovered != hovered:
+            self._card_hovered = hovered
+            self.update()
+        if self._installed and self._hovered != hovered:
+            self._hovered = hovered
+            self._hover_fade.stop()
+            self._hover_fade.setStartValue(self._hover_progress)
+            self._hover_fade.setEndValue(1.0 if hovered else 0.0)
+            self._hover_fade.start()
+
+    def _on_hover_progress(self, value):
+        self._hover_progress = float(value)
+        self._render_hover()
+
+    def _render_hover(self):
+        if self._hover_progress <= 0:
+            if self._normal_art is not None:
+                self.thumb.setPixmap(self._normal_art)
+            else:
+                self.thumb.setPixmap(QPixmap())
+                self.thumb.setText(self.game.name)
+            return
+        if self._normal_art is not None:
+            art = self._normal_art.copy()
+            blurred = self._normal_art.scaled(35, 16, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation).scaled(self.CARD_W, self.THUMB_H, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        else:
+            art = QPixmap(self.CARD_W, self.THUMB_H)
+            art.fill(QColor('#0b0f1a'))
+        painter = QPainter(art)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        clip = QPainterPath()
+        clip.addRoundedRect(0, 0, self.CARD_W, self.THUMB_H, 12, 12)
+        painter.setClipPath(clip)
+        painter.setOpacity(self._hover_progress)
+        if self._normal_art is not None:
+            painter.drawPixmap(0, 0, blurred)
+        painter.fillRect(art.rect(), QColor(5, 10, 20, 150))
+        painter.setPen(QColor('white'))
+        painter.setFont(QFont('Arial', 16, QFont.Weight.Bold))
+        painter.drawText(art.rect(), Qt.AlignmentFlag.AlignCenter, '▶  PLAY')
+        painter.end()
+        self.thumb.setPixmap(art)
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self._on_click(self.game)
         super().mouseReleaseEvent(event)
+
+    def enterEvent(self, event):
+        self._set_hovered(True)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._set_hovered(False)
+        super().leaveEvent(event)
+
+    def contextMenuEvent(self, event):
+        if self._installed and self._on_choose:
+            menu = QMenu(self)
+            choose = menu.addAction("Choose game executable…")
+            if menu.exec(event.globalPos()) == choose:
+                self._on_choose(self.game)
+        else:
+            super().contextMenuEvent(event)
 
 
 # ---------------------------------------------------------------------------
@@ -3536,7 +3665,7 @@ class InstallDialog(QDialog):
         title.setObjectName("DialogTitle")
         title_row.addWidget(title)
         title_row.addStretch()
-        self.fix_only_btn = QPushButton("Download Just Fix")
+        self.fix_only_btn = QPushButton("Download fix only")
         self.fix_only_btn.setObjectName("FixOnlyButton")
         self.fix_only_btn.setVisible(game.has_fix)
         self.fix_only_btn.clicked.connect(self._start_fix_only)
@@ -3569,15 +3698,9 @@ class InstallDialog(QDialog):
             self.edition_note.setWordWrap(True)
             root.addWidget(self.edition_note)
 
-        # macCompatibility tier badge + reasoning (publish-time data, read-only)
-        _compat_badge = _build_compat_badge(game)
-        self._compat_badge = _compat_badge
-        if _compat_badge is not None:
-            root.addWidget(_compat_badge)
-        _compat_reasoning = _build_compat_reasoning(game)
-        self._compat_reasoning = _compat_reasoning
-        if _compat_reasoning is not None:
-            root.addWidget(_compat_reasoning)
+        # Keep compatibility metadata in the catalog without displaying it here.
+        self._compat_badge = None
+        self._compat_reasoning = None
 
         meta_bits = []
         if game.version:
@@ -3680,7 +3803,7 @@ class InstallDialog(QDialog):
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.clicked.connect(self._on_cancel_clicked)
         btn_row.addWidget(self.cancel_btn)
-        install_label = "Apply Fix" if patch_target else "Execute / Install"
+        install_label = "Apply fix" if patch_target else "Install game"
         self.install_btn = QPushButton(install_label)
         self.install_btn.setObjectName("PrimaryButton")
         self.install_btn.clicked.connect(self._start_install)
@@ -3829,7 +3952,7 @@ class InstallDialog(QDialog):
             self._edition_meta.setText("   •   ".join(details))
         self.fix_only_btn.setVisible(self.game.has_fix)
         self.install_btn.setEnabled(self.game.is_available)
-        self.install_btn.setText("Execute / Install" if self.game.is_available else "Coming Soon")
+        self.install_btn.setText("Install game" if self.game.is_available else "Coming Soon")
         self._update_hint()
 
     def _update_hint(self):
@@ -4581,10 +4704,16 @@ class DownloadsPage(QWidget):
         bar = QFrame()
         bar.setObjectName("DownloadsBar")
         brow = QHBoxLayout(bar)
-        brow.setContentsMargins(24, 14, 24, 14)
+        brow.setContentsMargins(24, 24, 24, 18)
+        headings = QVBoxLayout()
+        headings.setSpacing(4)
         title = QLabel("Downloads")
-        title.setObjectName("AppTitle")
-        brow.addWidget(title)
+        title.setObjectName("LibraryHeading")
+        headings.addWidget(title)
+        subtitle = QLabel("Track your installs and manage finished downloads.")
+        subtitle.setObjectName("UpdatedLabel")
+        headings.addWidget(subtitle)
+        brow.addLayout(headings)
         brow.addStretch(1)
         self.clear_btn = QPushButton("Clear finished")
         self.clear_btn.setObjectName("SpacewarButton")
@@ -4599,7 +4728,7 @@ class DownloadsPage(QWidget):
         self.list_layout = QVBoxLayout(container)
         self.list_layout.setContentsMargins(24, 18, 24, 18)
         self.list_layout.setSpacing(14)
-        self.empty_label = QLabel("No downloads yet.\nPick a game from the Library to start one.")
+        self.empty_label = QLabel("No downloads yet\nPick a game from the library to start an install.")
         self.empty_label.setObjectName("SubInfo")
         self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.list_layout.addWidget(self.empty_label)
@@ -4818,7 +4947,7 @@ class MainWindow(QMainWindow):
 
         central = QWidget()
         self.setCentralWidget(central)
-        outer = QVBoxLayout(central)
+        outer = QHBoxLayout(central)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
@@ -4844,6 +4973,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.content_page)
         self.stack.addWidget(self.settings_page)
         self.stack.addWidget(self.downloads_page)
+        self.stack.currentChanged.connect(self._sync_navigation)
 
         self.load_manifest()
         # Let the first window paint, then check without holding up the GUI.
@@ -4944,9 +5074,10 @@ class MainWindow(QMainWindow):
     def _build_header(self):
         header = QFrame()
         header.setObjectName("Header")
+        header.setFixedWidth(210)
         header_layout = QVBoxLayout(header)
-        header_layout.setContentsMargins(24, 12, 24, 12)
-        header_layout.setSpacing(8)
+        header_layout.setContentsMargins(16, 24, 16, 20)
+        header_layout.setSpacing(10)
 
         title_box = QVBoxLayout()
         title_box.setSpacing(2)
@@ -4955,11 +5086,11 @@ class MainWindow(QMainWindow):
         title_box.addWidget(title)
         self.updated_label = QLabel("")
         self.updated_label.setObjectName("UpdatedLabel")
+        self.updated_label.setWordWrap(True)
         title_box.addWidget(self.updated_label)
         header_layout.addLayout(title_box)
-        lay = QHBoxLayout()
-        lay.setSpacing(5)
-        header_layout.addLayout(lay)
+        header_layout.addSpacing(16)
+        lay = header_layout
 
         self.library_btn = QPushButton("Library")
         self.library_btn.setObjectName("NavButton")
@@ -4987,6 +5118,7 @@ class MainWindow(QMainWindow):
         self.check_updates_btn = QPushButton("Updates")
         self.check_updates_btn.setObjectName("NavButton")
         self.check_updates_btn.clicked.connect(self._update_button_clicked)
+        lay.addStretch(1)
         lay.addWidget(self.check_updates_btn)
 
         self.spacewar_btn = QPushButton("Get Spacewar")
@@ -5009,6 +5141,20 @@ class MainWindow(QMainWindow):
         self.refresh_btn.clicked.connect(lambda: self.load_manifest(manual=True))
         lay.addWidget(self.refresh_btn)
         return header
+
+    def _sync_navigation(self, *_args):
+        page = self.stack.currentWidget()
+        owned = page is self.content_page and self._library_filter.currentText() == "Installed games"
+        if page is self.content_page:
+            self._library_heading.setText("Your games" if owned else "Your library")
+            self._library_subtitle.setText("Play and manage games in your selected folder." if owned else "Find, install, and manage your games.")
+        for button, selected in ((self.library_btn, page is self.content_page and not owned),
+                                 (self.owned_btn, owned),
+                                 (self.downloads_btn, page is self.downloads_page),
+                                 (self.settings_btn, page is self.settings_page)):
+            button.setProperty("active", selected)
+            button.style().unpolish(button)
+            button.style().polish(button)
 
     # -- pages --------------------------------------------------------------
     def _build_loading_page(self):
@@ -5057,25 +5203,46 @@ class MainWindow(QMainWindow):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
 
+        intro = QFrame()
+        intro.setObjectName("LibraryIntro")
+        intro_layout = QVBoxLayout(intro)
+        intro_layout.setContentsMargins(24, 24, 24, 4)
+        intro_layout.setSpacing(4)
+        self._library_heading = QLabel("Your library")
+        self._library_heading.setObjectName("LibraryHeading")
+        intro_layout.addWidget(self._library_heading)
+        self._library_subtitle = QLabel("Find, install, and manage your games.")
+        self._library_subtitle.setObjectName("UpdatedLabel")
+        intro_layout.addWidget(self._library_subtitle)
+        lay.addWidget(intro)
+
         search_row = QWidget()
         sr_lay = QHBoxLayout(search_row)
-        sr_lay.setContentsMargins(24, 14, 24, 10)
+        sr_lay.setContentsMargins(24, 14, 24, 6)
         self._search_bar = QLineEdit()
         self._search_bar.setPlaceholderText("Search games...")
         self._search_bar.setClearButtonEnabled(True)
         self._search_bar.textChanged.connect(self._on_search_changed)
         sr_lay.addWidget(self._search_bar)
+        lay.addWidget(search_row)
+
+        controls_row = QWidget()
+        controls_lay = QHBoxLayout(controls_row)
+        controls_lay.setContentsMargins(24, 0, 24, 10)
+        controls_lay.setSpacing(8)
         self._library_filter = QComboBox()
         self._library_filter.addItems(["All games", "Installed games", "Name A–Z", "Name Z–A", "Newest first", "Installed first", "Size: smallest first", "Size: largest first", "Players: fewest first", "Players: most first"])
         self._library_filter.currentIndexChanged.connect(lambda _: self._on_search_changed(self._search_bar.text()))
-        sr_lay.addWidget(self._library_filter)
+        self._library_filter.currentIndexChanged.connect(self._sync_navigation)
+        controls_lay.addWidget(self._library_filter)
+        controls_lay.addStretch(1)
         self._games_folder_btn = QPushButton("Games folder…")
         self._games_folder_btn.clicked.connect(self._choose_games_folder)
-        sr_lay.addWidget(self._games_folder_btn)
+        controls_lay.addWidget(self._games_folder_btn)
         self._move_games_btn = QPushButton("Move games…")
         self._move_games_btn.clicked.connect(self._move_games_folder)
-        sr_lay.addWidget(self._move_games_btn)
-        lay.addWidget(search_row)
+        controls_lay.addWidget(self._move_games_btn)
+        lay.addWidget(controls_row)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -5084,8 +5251,20 @@ class MainWindow(QMainWindow):
         container = QWidget()
         self.cards_layout = FlowLayout(container, margin=24, spacing=18)
         scroll.setWidget(container)
+        scroll.verticalScrollBar().valueChanged.connect(lambda _value: self._refresh_card_hover_after_scroll(scroll))
         lay.addWidget(scroll)
         return page
+
+    def _refresh_card_hover_after_scroll(self, scroll):
+        cursor = QCursor.pos()
+        in_view = scroll.viewport().rect().contains(scroll.viewport().mapFromGlobal(cursor))
+        for index in range(self.cards_layout.count()):
+            card = self.cards_layout.itemAt(index).widget()
+            if not isinstance(card, GameCard):
+                continue
+            hovered = in_view and card.rect().contains(card.mapFromGlobal(cursor))
+            card._set_hovered(hovered)
+        scroll.viewport().update()
 
     def _build_settings_page(self):
         page = QScrollArea()
@@ -5097,8 +5276,13 @@ class MainWindow(QMainWindow):
         lay.setSpacing(12)
 
         title = QLabel("Settings")
-        title.setObjectName("AppTitle")
+        title.setObjectName("LibraryHeading")
         lay.addWidget(title)
+
+        subtitle = QLabel("Manage your catalog, installs, and shortcuts.")
+        subtitle.setObjectName("UpdatedLabel")
+        lay.addWidget(subtitle)
+        lay.addSpacing(12)
 
         catalog_title = QLabel("Game catalog")
         catalog_title.setObjectName("SectionTitle")
@@ -5120,13 +5304,16 @@ class MainWindow(QMainWindow):
                     self.catalog_source_combo.setCurrentIndex(index)
                     break
         self.catalog_source_combo.currentIndexChanged.connect(self._on_catalog_source_changed)
+        self.catalog_source_combo.setMaximumWidth(850)
         lay.addWidget(self.catalog_source_combo)
 
         self.catalog_url_edit = QLineEdit(catalog_prefs.get("catalog_url", CONFIG["manifest_url"]))
         self.catalog_url_edit.setPlaceholderText("https://pastebin.com/raw/…")
+        self.catalog_url_edit.setMaximumWidth(850)
         lay.addWidget(self.catalog_url_edit)
         self.catalog_save_url_btn = QPushButton("Save link and refresh")
         self.catalog_save_url_btn.setObjectName("SpacewarButton")
+        self.catalog_save_url_btn.setMaximumWidth(260)
         self.catalog_save_url_btn.clicked.connect(self._save_catalog_url)
         lay.addWidget(self.catalog_save_url_btn)
 
@@ -5141,15 +5328,18 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.catalog_file_label)
         self.catalog_choose_file_btn = QPushButton("Choose local games.json…")
         self.catalog_choose_file_btn.setObjectName("NavButton")
+        self.catalog_choose_file_btn.setMaximumWidth(260)
         self.catalog_choose_file_btn.clicked.connect(self._choose_catalog_file)
         lay.addWidget(self.catalog_choose_file_btn)
 
         self.catalog_json_edit = QPlainTextEdit()
         self.catalog_json_edit.setPlaceholderText("Paste a games.json array here. You can edit it before applying.")
         self.catalog_json_edit.setMaximumHeight(180)
+        self.catalog_json_edit.setMaximumWidth(850)
         lay.addWidget(self.catalog_json_edit)
         self.catalog_apply_paste_btn = QPushButton("Apply pasted JSON")
         self.catalog_apply_paste_btn.setObjectName("PrimaryButton")
+        self.catalog_apply_paste_btn.setMaximumWidth(260)
         self.catalog_apply_paste_btn.clicked.connect(self._apply_pasted_catalog)
         lay.addWidget(self.catalog_apply_paste_btn)
         self.catalog_status_label = QLabel("")
@@ -5199,6 +5389,7 @@ class MainWindow(QMainWindow):
         # --- Retroactive: shortcuts for games installed earlier -------------
         self.bulk_shortcut_btn = QPushButton("Create shortcuts for installed games")
         self.bulk_shortcut_btn.setObjectName("SpacewarButton")
+        self.bulk_shortcut_btn.setMaximumWidth(300)
         self.bulk_shortcut_btn.clicked.connect(self._on_bulk_shortcuts_clicked)
         lay.addWidget(self.bulk_shortcut_btn)
 
@@ -5651,11 +5842,15 @@ class MainWindow(QMainWindow):
         self._populate_cards(filtered)
 
     def _show_library(self):
+        self._library_heading.setText("Your library")
+        self._library_subtitle.setText("Find, install, and manage your games.")
         self._library_filter.setCurrentIndex(0)
         self._on_search_changed(self._search_bar.text())
         self.stack.setCurrentWidget(self.content_page)
 
     def _show_owned_games(self):
+        self._library_heading.setText("Your games")
+        self._library_subtitle.setText("Play and manage games in your selected folder.")
         self._library_filter.setCurrentText("Installed games")
         self._on_search_changed(self._search_bar.text())
         self.stack.setCurrentWidget(self.content_page)
@@ -5805,9 +6000,44 @@ class MainWindow(QMainWindow):
         owned = self._library_filter.currentText() == "Installed games"
         for game in games:
             if owned:
-                self.cards_layout.addWidget(GameCard(game, lambda g: os.startfile(os.path.join(default_game_directory(), g.safe_folder_name)), installed=True))
+                self.cards_layout.addWidget(GameCard(game, self._launch_owned_game, installed=True, on_choose=self._choose_owned_executable))
             else:
                 self.cards_layout.addWidget(GameCard(game, self._open_install))
+
+    def _choose_owned_executable(self, game):
+        root = os.path.abspath(os.path.join(default_game_directory(), game.safe_folder_name))
+        path, _ = QFileDialog.getOpenFileName(self, f"Choose executable for {game.name}", root, "Windows applications (*.exe)")
+        if not path:
+            return None
+        if not os.path.isfile(path) or not path.lower().endswith('.exe'):
+            QMessageBox.warning(self, "Invalid executable", "Choose an existing Windows executable.")
+            return None
+        prefs = load_prefs()
+        try:
+            inside = os.path.commonpath([root, os.path.abspath(path)]).casefold() == root.casefold()
+        except ValueError:
+            inside = False
+        prefs.setdefault("owned_game_executables", {})[game.safe_folder_name] = os.path.relpath(path, root) if inside else os.path.abspath(path)
+        if save_prefs(prefs) is False:
+            QMessageBox.warning(self, "Could not save", "The executable choice could not be saved.")
+            return None
+        return path
+
+    def _launch_owned_game(self, game):
+        root = os.path.abspath(os.path.join(default_game_directory(), game.safe_folder_name))
+        choice = load_prefs().get("owned_game_executables", {}).get(game.safe_folder_name)
+        path = os.path.abspath(os.path.join(root, choice)) if choice else find_main_executable(root, game.name)
+        if path and not choice and _NON_GAME_EXE_RE.search(os.path.basename(path)):
+            path = None
+        if not path or not os.path.isfile(path):
+            if QMessageBox.question(self, "Choose game executable", "The game executable could not be found. Choose it now?") != QMessageBox.StandardButton.Yes:
+                return
+            path = self._choose_owned_executable(game)
+        if path:
+            try:
+                subprocess.Popen([path], cwd=os.path.dirname(path))
+            except OSError as exc:
+                QMessageBox.warning(self, "Could not launch game", str(exc))
 
     def _open_install(self, game: Game):
         _log.debug(
@@ -5875,8 +6105,8 @@ class MainWindow(QMainWindow):
 # ---------------------------------------------------------------------------
 STYLE = """
 QWidget {
-    background-color: #0f1320;
-    color: #e6e9f0;
+    background-color: #0c111c;
+    color: #e8edf5;
     font-family: 'Segoe UI', sans-serif;
     font-size: 14px;
 }
@@ -5884,22 +6114,22 @@ QWidget {
    id-selectors below re-add their own backgrounds. */
 QLabel { background-color: transparent; }
 
-#Header { background-color: #141a2b; border-bottom: 1px solid #232b40; }
-#AppTitle { font-size: 22px; font-weight: 700; color: #ffffff; }
-#UpdatedLabel { color: #8b93a7; font-size: 12px; }
+#Header { background-color: #121b2a; border-right: 1px solid #29374b; }
+#AppTitle { font-size: 22px; font-weight: 700; color: #f7fafc; }
+#LibraryHeading { font-size: 28px; font-weight: 700; color: #f7fafc; }
+#UpdatedLabel { color: #a4b2c4; font-size: 12px; }
 
 #Scroll { border: none; }
 
 #GameCard {
-    background-color: #171d2e;
-    border: 1px solid #232b40;
+    background-color: #172132;
+    border: 1px solid #2a3a4d;
     border-radius: 14px;
 }
-#GameCard:hover { border: 1px solid #2dd4bf; background-color: #1c2336; }
+#GameCard:hover { border: 1px solid #5de2cc; background-color: #1d2c3c; }
 #Thumb {
     background-color: #0b0f1a;
-    border-top-left-radius: 14px;
-    border-top-right-radius: 14px;
+    border-radius: 12px;
     color: #6b7280;
 }
 #Thumb[placeholder="true"] {
@@ -5985,6 +6215,7 @@ QLabel { background-color: transparent; }
 #SysCheckTip { color: #8b93a7; font-size: 11px; background: transparent; }
 
 #DialogTitle { font-size: 20px; font-weight: 700; color: #ffffff; }
+#SectionTitle { color: #e8edf5; font-size: 16px; font-weight: 700; margin-top: 8px; }
 #SectionLabel { font-size: 13px; font-weight: 600; color: #c4cad8; margin-top: 4px; }
 #SmallLabel { color: #8b93a7; font-size: 12px; }
 #StatusLabel { color: #c4cad8; font-size: 13px; }
@@ -5994,7 +6225,7 @@ QLabel { background-color: transparent; }
 #BigInfo { font-size: 34px; font-weight: 700; color: #ffffff; }
 #SubInfo { color: #aeb4c6; font-size: 15px; }
 
-QLineEdit {
+QLineEdit, QComboBox, QPlainTextEdit {
     background-color: #0b0f1a;
     border: 1px solid #232b40;
     border-radius: 8px;
@@ -6002,16 +6233,23 @@ QLineEdit {
     selection-background-color: #2dd4bf;
     selection-color: #06231f;
 }
-QLineEdit:focus { border: 1px solid #2dd4bf; }
+QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus { border: 1px solid #5de2cc; }
+QComboBox QAbstractItemView { background-color: #172132; color: #e8edf5; selection-background-color: #28554f; border: 1px solid #34495c; }
+QCheckBox { spacing: 9px; color: #e8edf5; }
+QCheckBox::indicator { width: 16px; height: 16px; border: 1px solid #8192a7; border-radius: 4px; background: #0b0f1a; }
+QCheckBox::indicator:checked { background: #2dd4bf; border: 1px solid #5de2cc; }
+QCheckBox::indicator:focus { border: 2px solid #80f1df; }
 
 QPushButton {
     background-color: #232b40;
     border: 1px solid #2e3750;
-    border-radius: 8px;
-    padding: 8px 16px;
+    border-radius: 10px;
+    padding: 9px 16px;
     color: #e6e9f0;
 }
 QPushButton:hover { background-color: #2e3750; }
+QPushButton:pressed { background-color: #34465a; }
+QPushButton:focus { border: 1px solid #5de2cc; }
 QPushButton:disabled { color: #6b7280; background-color: #171d2e; }
 
 #PrimaryButton {
@@ -6051,9 +6289,10 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 #NavButton {
     background-color: transparent; color: #c4cad8;
     border: 1px solid #232a42; border-radius: 8px;
-    padding: 7px 14px; font-weight: 600;
+    padding: 10px 14px; font-weight: 600; font-size: 14px; text-align: left;
 }
 #NavButton:hover { background-color: #1a2036; color: #ffffff; }
+#NavButton[active="true"] { background-color: #1b3b3c; color: #80f1df; border: 1px solid #3f9e91; }
 #UpdateAvailable {
     background-color: #78420f; color: #ffdf9a; border: 1px solid #f59e0b;
     border-radius: 8px; padding: 7px 14px; font-weight: 700;
@@ -6061,9 +6300,9 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 #UpdateAvailable:hover { background-color: #965313; }
 
 /* Downloads page */
-#DownloadsBar { background-color: #11152340; border-bottom: 1px solid #1c2336; }
+#DownloadsBar { background-color: #121b2a; border-bottom: 1px solid #29374b; }
 #DownloadCard {
-    background-color: #161b2e; border: 1px solid #232a42; border-radius: 12px;
+    background-color: #172132; border: 1px solid #2a3a4d; border-radius: 14px;
 }
 #DownloadName { font-size: 16px; font-weight: 700; color: #ffffff; }
 
@@ -6075,11 +6314,27 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 """
 
 
+def app_style():
+    """Register bundled fonts, falling back to fonts available on the system."""
+    font_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "fonts")
+    for filename in ("Manrope.ttf", "Outfit.ttf"):
+        if QFontDatabase.addApplicationFont(os.path.join(font_dir, filename)) < 0:
+            _log.warning("Could not load bundled font %s", filename)
+    families = set(QFontDatabase.families())
+    body = next((font for font in ("Manrope", "Segoe UI", "Arial") if font in families), "sans-serif")
+    display = next((font for font in ("Outfit", "Bahnschrift", "Segoe UI", "Arial") if font in families), body)
+    return STYLE.replace("'Segoe UI', sans-serif", f"'{body}'") + (
+        f"\n#AppTitle, #LibraryHeading, #DialogTitle, #BigInfo "
+        f"{{ font-family: '{display}'; font-weight: 700; }}\n"
+        f"#CardTitle, #DownloadName, #SectionTitle {{ font-family: '{body}'; font-weight: 700; }}\n"
+    )
+
+
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName(CONFIG["window_title"])
     app.setStyle("Fusion")
-    app.setStyleSheet(STYLE)
+    app.setStyleSheet(app_style())
 
     # Let in-flight thumbnail fetches finish before the interpreter tears down,
     # so Qt-pool threads are never running Python during finalizations much hehe

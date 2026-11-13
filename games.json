@@ -35,7 +35,8 @@
       "ram": "4 GB",
       "gpu": "Nvidia 8800 GT, AMD 5670, or Intel HD 3000",
       "storage": "2 GB"
-    }
+    },
+    "cardColor": "#d05a8d"
   },
   {
     "id": "mimesis",
@@ -71,7 +72,8 @@
       "zipUrl": "https://archive.org/download/mimesis-0.2.6-six-player-experimental/MIMESIS-0.2.6-six-player-experimental.zip",
       "version": "0.2.6",
       "description": "Experimental six-player mod; lobby, interface, and Mac compatibility are unverified. Startup reported a lobby patch warning."
-    }
+    },
+    "cardColor": "#376f9d"
   },
   {
     "id": "human-fall-flat",
@@ -109,7 +111,8 @@
       "gpu": "AMD Radeon R9 M390",
       "storage": "500 MB",
       "additionalNotes": "Requires a two-button mouse or controller."
-    }
+    },
+    "cardColor": "#5791a7"
   },
   {
     "id": "gamble-with-your-friends",
@@ -140,7 +143,8 @@
       "confidence": "Medium",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#ea8a43"
   },
   {
     "id": "meccha-chameleon",
@@ -169,7 +173,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-26T20:05:45-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#b96858"
   },
   {
     "id": "among-us",
@@ -199,7 +204,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#8456a0"
   },
   {
     "id": "hardware-store-simulator",
@@ -230,7 +236,8 @@
       "confidence": "Medium",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#e58a36"
   },
   {
     "id": "liars-bar",
@@ -261,7 +268,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#b83d3c"
   },
   {
     "id": "backseat-drivers",
@@ -293,7 +301,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#55abd1"
   },
   {
     "id": "night-shippers",
@@ -324,7 +333,8 @@
       "confidence": "Medium",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#c99b2d"
   },
   {
     "id": "rewind-99",
@@ -354,7 +364,8 @@
       "confidence": "Medium",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#a767ad"
   },
   {
     "id": "cut-that-wire",
@@ -385,7 +396,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#66aabf"
   },
   {
     "id": "golf-gambit",
@@ -416,7 +428,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#55a64b"
   },
   {
     "id": "keep-talking-and-nobody-explodes",
@@ -453,7 +466,8 @@
       "gpu": "256 MB or higher",
       "storage": "1 GB",
       "additionalNotes": "Requires a printed Bomb Defusal Manual or a separate web-enabled device. VR is not supported on macOS."
-    }
+    },
+    "cardColor": "#73757d"
   },
   {
     "id": "knights-end",
@@ -484,7 +498,8 @@
       "confidence": "Medium",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#a72e2c"
   },
   {
     "id": "mage-arena",
@@ -515,7 +530,8 @@
       "confidence": "Medium",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#444a8e"
   },
   {
     "id": "jackbox-party-pack-11",
@@ -552,7 +568,8 @@
       "ram": "4 GB",
       "gpu": "GeForce 500 series or Radeon 5000 series or greater",
       "storage": "3 GB"
-    }
+    },
+    "cardColor": "#9c55b9"
   },
   {
     "id": "repo",
@@ -583,7 +600,8 @@
       "confidence": "Medium",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#c99835"
   },
   {
     "id": "buckshot-roulette",
@@ -614,7 +632,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#80604a"
   },
   {
     "id": "midnight-heist",
@@ -644,7 +663,8 @@
       "confidence": "Medium",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#657583"
   },
   {
     "id": "backrooms-rec",
@@ -675,7 +695,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#a59c45"
   },
   {
     "id": "lethal-company",
@@ -705,7 +726,8 @@
       "confidence": "Medium",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#c92b2f"
   },
   {
     "id": "airport-security-sucks",
@@ -736,7 +758,8 @@
       "confidence": "Medium",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#347cc2"
   },
   {
     "id": "game-of-life-2",
@@ -765,7 +788,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#59b9d7"
   },
   {
     "id": "fears-to-fathom-scratch-creek",
@@ -796,7 +820,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#455d87"
   },
   {
     "id": "funnel-runners",
@@ -826,7 +851,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#4d82b4"
   },
   {
     "id": "forest-escape-last-train",
@@ -857,7 +883,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#7f493d"
   },
   {
     "id": "backrooms-rescue-expedition",
@@ -888,7 +915,8 @@
       "confidence": "Medium",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#9b9067"
   },
   {
     "id": "happys-humble-burger-cult",
@@ -919,7 +947,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#b34343"
   },
   {
     "id": "scamper",
@@ -949,7 +978,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#85878b"
   },
   {
     "id": "pyramidion",
@@ -980,7 +1010,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-27T15:39:11-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#d89647"
   },
   {
     "id": "shift-at-midnight",
@@ -1011,7 +1042,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#6d7446"
   },
   {
     "id": "big-walk",
@@ -1045,7 +1077,8 @@
       "os": "macOS 15",
       "cpu": "Apple Silicon M1 or newer",
       "ram": "16 GB"
-    }
+    },
+    "cardColor": "#af744d"
   },
   {
     "id": "party-animals",
@@ -1076,7 +1109,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#b79c58"
   },
   {
     "id": "happy-wheels",
@@ -1107,7 +1141,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-26T18:19:44-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#a16f98"
   },
   {
     "id": "dub-together",
@@ -1138,7 +1173,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#d8844a"
   },
   {
     "id": "how-to-fish",
@@ -1168,7 +1204,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-27T16:43:24-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#74a6c4"
   },
   {
     "id": "machine-party",
@@ -1199,7 +1236,8 @@
       "confidence": "Medium",
       "classifiedAt": "2026-10-27T16:01:27-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#8c5c48"
   },
   {
     "id": "mimic-party",
@@ -1227,7 +1265,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-27T15:59:27-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#d25475"
   },
   {
     "id": "bombanana",
@@ -1265,7 +1304,8 @@
       "gpu": "Apple M1 integrated GPU or Intel Iris Plus Graphics 640 or equivalent",
       "storage": "600 MB",
       "additionalNotes": "Broadband internet connection; built-in audio is sufficient."
-    }
+    },
+    "cardColor": "#7263b9"
   },
   {
     "id": "scam-with-your-friends",
@@ -1296,7 +1336,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#45a83c"
   },
   {
     "id": "how-to-train-your-cock",
@@ -1323,7 +1364,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-27T15:40:14-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#65afc1"
   },
   {
     "id": "lucid-cats",
@@ -1354,7 +1396,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-26T20:05:45-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#a6323d"
   },
   {
     "id": "mogged-looksmaxx-or-die",
@@ -1385,7 +1428,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-26T00:04:22.121095-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#795e52"
   },
   {
     "id": "needle-in-a-haystack",
@@ -1417,7 +1461,8 @@
       "confidence": "Medium",
       "classifiedAt": "2026-10-26T20:05:45-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#d39f46"
   },
   {
     "id": "cheaters-table",
@@ -1447,7 +1492,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-26T20:05:45-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#b62f29"
   },
   {
     "id": "supermarket-chaos",
@@ -1478,7 +1524,8 @@
       "confidence": "High",
       "classifiedAt": "2026-10-26T20:05:45-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#4780bd"
   },
   {
     "id": "stick-it-to-the-stickman",
@@ -1519,7 +1566,8 @@
       "gpu": "Apple M1 Max",
       "storage": "6 GB available space",
       "additionalNotes": "Low Quality setting, in 1080p, producing 30 FPS"
-    }
+    },
+    "cardColor": "#e28132"
   },
   {
     "id": "trailmakers",
@@ -1552,7 +1600,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-27T17:18:43-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#d69238"
   },
   {
     "id": "over-the-hill",
@@ -1576,7 +1625,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-27T21:57:05-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#61b4c7"
   },
   {
     "id": "long-drive-north",
@@ -1606,7 +1656,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-27T22:37:49-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#6f98b3"
   },
   {
     "id": "stardew-valley",
@@ -1644,10 +1695,12 @@
       "ram": "2 GB",
       "gpu": "256 MB video memory, OpenGL 2",
       "storage": "500 MB available space"
-    }
+    },
+    "cardColor": "#57a75b"
   },
   {
     "id": "schedule-i",
+    "cardColor": "#9055bd",
     "steamAppId": "3164500",
     "name": "Schedule I",
     "source": "https://online-fix.me/games/adventures/17729-schedule-i-po-seti.html",
@@ -1722,7 +1775,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-30T00:00:00-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#748b9d"
   },
   {
     "id": "we-are-so-dead",
@@ -1753,7 +1807,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-31T00:00:00-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#739241"
   },
   {
     "id": "oh-deer",
@@ -1783,7 +1838,8 @@
       "confidence": "Low",
       "classifiedAt": "2026-10-31T00:00:00-05:00"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#a77a40"
   },
   {
     "id": "peak",
@@ -1826,7 +1882,8 @@
       "zipUrl": "https://archive.org/download/peak-2.4.b-six-player/PEAK-2.4.b-six-player.zip",
       "version": "2.4.b",
       "description": "Six-player mod on the older 2.4.b Steam build; may require Steam ownership. Multiplayer and Mac compatibility are unverified."
-    }
+    },
+    "cardColor": "#a976c5"
   },
   {
     "id": "trail-and-error",
@@ -1857,6 +1914,7 @@
       "confidence": "Low",
       "classifiedAt": "2026-11-12"
     },
-    "requirementsPlatform": "Windows"
+    "requirementsPlatform": "Windows",
+    "cardColor": "#b48a53"
   }
 ]

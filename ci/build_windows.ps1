@@ -47,7 +47,7 @@ Set-Content main.py -Value $main -Encoding utf8 -NoNewline
 $common = @('--windowed', '--uac-admin', '--noupx', '--version-file', 'version_info.txt',
     '--hidden-import', 'PyQt6.sip',
     '--add-data', 'build/host-resolver/HostResolver;HostResolver',
-    '--add-data', 'games.json;.', '--add-data', 'bin/7z.exe;bin', '--add-data', 'bin/7z.dll;bin',
+    '--add-data', 'games.json;.', '--add-data', 'assets/fonts;assets/fonts', '--add-data', 'bin/7z.exe;bin', '--add-data', 'bin/7z.dll;bin',
     '--runtime-hook', 'tools/windows_dll_safety_hook.py', '--name', 'GameInstaller')
 
 & $python @pythonArgs -m PyInstaller --onedir --contents-directory . @common main.py

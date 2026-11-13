@@ -9,8 +9,10 @@ if sys.platform != "win32":
     raise unittest.SkipTest("Windows installer owned-games UI tests")
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-from PyQt6.QtWidgets import QApplication, QMessageBox
-from main import Game, MainWindow
+from PyQt6.QtWidgets import QApplication, QMessageBox, QGraphicsBlurEffect
+from PyQt6.QtCore import QEvent, QPointF
+from PyQt6.QtGui import QEnterEvent, QImage, QColor
+from main import Game, GameCard, MainWindow, artwork_accent
 
 
 class OwnedGamesTests(unittest.TestCase):
@@ -47,9 +49,78 @@ class OwnedGamesTests(unittest.TestCase):
     def test_owned_view_discovers_and_filters_folder(self):
         with patch("main.default_game_directory", return_value=str(self.source)):
             self.window._show_owned_games()
+            self.assertEqual(self.window._library_heading.text(), "Your games")
+            self.assertTrue(self.window.owned_btn.property("active"))
             self.assertEqual(self.window.cards_layout.count(), 1)
             self.window._search_bar.setText("not present")
             self.assertEqual(self.window.cards_layout.itemAt(0).widget().text(), "No installed games found in the selected games folder.")
+
+    def test_search_remains_usable_at_minimum_window_width(self):
+        self.window.resize(900, 600)
+        self.window._show_library()
+        self.window.show()
+        self.app.processEvents()
+        self.assertGreaterEqual(self.window._search_bar.width(), 200)
+
+    def test_navigation_tracks_pages_and_filter(self):
+        self.window._show_library()
+        self.assertTrue(self.window.library_btn.property("active"))
+        self.window._library_filter.setCurrentText("Installed games")
+        self.assertTrue(self.window.owned_btn.property("active"))
+        self.assertEqual(self.window._library_heading.text(), "Your games")
+        self.window.stack.setCurrentWidget(self.window.settings_page)
+        self.assertTrue(self.window.settings_btn.property("active"))
+        self.assertFalse(self.window.owned_btn.property("active"))
+        self.window.stack.setCurrentWidget(self.window.downloads_page)
+        self.assertTrue(self.window.downloads_btn.property("active"))
+
+    def test_owned_card_animates_blur_and_keeps_overlay_separate(self):
+        with patch("main.default_game_directory", return_value=str(self.source)):
+            self.window._show_owned_games()
+            card = self.window.cards_layout.itemAt(0).widget()
+            self.assertIsNone(card.thumb.graphicsEffect())
+            card.enterEvent(QEnterEvent(QPointF(), QPointF(), QPointF()))
+            self.assertTrue(card._hovered)
+            self.assertEqual(card._hover_fade.endValue(), 1.0)
+            card._on_hover_progress(0.5)
+            self.assertFalse(card.thumb.pixmap().isNull())
+            card.leaveEvent(QEvent(QEvent.Type.Leave))
+            self.assertFalse(card._hovered)
+            self.assertEqual(card._hover_fade.endValue(), 0.0)
+
+    def test_artwork_color_and_neutral_fallback(self):
+        image = QImage(32, 32, QImage.Format.Format_ARGB32)
+        image.fill(QColor("#e62a24"))
+        accent = artwork_accent(image)
+        self.assertTrue(accent.hue() < 30 or accent.hue() > 330)
+        image.fill(QColor("#888888"))
+        self.assertEqual(artwork_accent(image).name(), "#2dd4bf")
+
+    def test_catalog_color_overrides_artwork_and_survives_missing_image(self):
+        game = Game({"id": "test-purple", "name": "Test", "cardColor": "#9055bd"})
+        card = GameCard(game, lambda _: None)
+        image = QImage(32, 32, QImage.Format.Format_ARGB32)
+        image.fill(QColor("red"))
+        card._apply_image(image)
+        self.assertEqual(card._accent.name(), "#9055bd")
+        card._show_placeholder()
+        self.assertEqual(card._accent.name(), "#9055bd")
+        self.assertEqual(Game({"cardColor": "invalid"}).card_color, "")
+
+    def test_launches_detected_executable_with_game_working_directory(self):
+        with patch("main.default_game_directory", return_value=str(self.source)), \
+             patch("main.load_prefs", return_value={}), patch("main.subprocess.Popen") as launch:
+            self.window._launch_owned_game(self.game)
+        launch.assert_called_once_with([str(self.folder / "game.exe")], cwd=str(self.folder))
+
+    def test_missing_executable_can_be_cancelled(self):
+        (self.folder / "game.exe").unlink()
+        with patch("main.default_game_directory", return_value=str(self.source)), \
+             patch("main.load_prefs", return_value={}), \
+             patch("main.QMessageBox.question", return_value=QMessageBox.StandardButton.No), \
+             patch("main.subprocess.Popen") as launch:
+            self.window._launch_owned_game(self.game)
+        launch.assert_not_called()
 
     def test_moves_game_and_updates_folder(self):
         warning, save = self.run_move()
