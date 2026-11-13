@@ -296,8 +296,10 @@ def save_prefs(data: dict):
         os.makedirs(d, exist_ok=True)
         with open(os.path.join(d, "prefs.json"), "w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2)
+        return True
     except OSError:
-        pass
+        _log.exception("Could not save preferences")
+        return False
 
 
 def user_catalog_path() -> str:
@@ -3349,7 +3351,7 @@ class GameCard(QFrame):
     CARD_W = 280
     THUMB_H = 130
 
-    def __init__(self, game: Game, on_click):
+    def __init__(self, game: Game, on_click, *, installed=False):
         super().__init__()
         self.game = game
         self._on_click = on_click
@@ -3405,7 +3407,10 @@ class GameCard(QFrame):
             players_lbl.setWordWrap(True)
             body.addWidget(players_lbl)
 
-        if game.is_patch:
+        if installed:
+            badge = QLabel("● Folder found · click to open")
+            badge.setObjectName("BadgeAvailable")
+        elif game.is_patch:
             badge = QLabel("⚙ Fix / Patch")
             badge.setObjectName("BadgeFix")
         elif game.is_available:
@@ -4923,10 +4928,10 @@ class MainWindow(QMainWindow):
     def _refresh_update_button(self):
         update = self._update_notice.release
         if update is None:
-            self.check_updates_btn.setText("Check for updates")
+            self.check_updates_btn.setText("Updates")
             self.check_updates_btn.setObjectName("NavButton")
         else:
-            self.check_updates_btn.setText(f"Update available · {update.tag}")
+            self.check_updates_btn.setText("Update available")
             self.check_updates_btn.setObjectName("UpdateAvailable")
         self.check_updates_btn.style().unpolish(self.check_updates_btn)
         self.check_updates_btn.style().polish(self.check_updates_btn)
@@ -4939,8 +4944,9 @@ class MainWindow(QMainWindow):
     def _build_header(self):
         header = QFrame()
         header.setObjectName("Header")
-        lay = QHBoxLayout(header)
-        lay.setContentsMargins(24, 16, 24, 16)
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(24, 12, 24, 12)
+        header_layout.setSpacing(8)
 
         title_box = QVBoxLayout()
         title_box.setSpacing(2)
@@ -4950,14 +4956,21 @@ class MainWindow(QMainWindow):
         self.updated_label = QLabel("")
         self.updated_label.setObjectName("UpdatedLabel")
         title_box.addWidget(self.updated_label)
-        lay.addLayout(title_box)
-        lay.addStretch(1)
+        header_layout.addLayout(title_box)
+        lay = QHBoxLayout()
+        lay.setSpacing(5)
+        header_layout.addLayout(lay)
 
         self.library_btn = QPushButton("Library")
         self.library_btn.setObjectName("NavButton")
         self.library_btn.clicked.connect(
-            lambda: self.stack.setCurrentWidget(self.content_page))
+            self._show_library)
         lay.addWidget(self.library_btn)
+
+        self.owned_btn = QPushButton("Owned")
+        self.owned_btn.setObjectName("NavButton")
+        self.owned_btn.clicked.connect(self._show_owned_games)
+        lay.addWidget(self.owned_btn)
 
         self.downloads_btn = QPushButton("Downloads")
         self.downloads_btn.setObjectName("NavButton")
@@ -4971,7 +4984,7 @@ class MainWindow(QMainWindow):
             lambda: self.stack.setCurrentWidget(self.settings_page))
         lay.addWidget(self.settings_btn)
 
-        self.check_updates_btn = QPushButton("Check for updates")
+        self.check_updates_btn = QPushButton("Updates")
         self.check_updates_btn.setObjectName("NavButton")
         self.check_updates_btn.clicked.connect(self._update_button_clicked)
         lay.addWidget(self.check_updates_btn)
@@ -5052,6 +5065,16 @@ class MainWindow(QMainWindow):
         self._search_bar.setClearButtonEnabled(True)
         self._search_bar.textChanged.connect(self._on_search_changed)
         sr_lay.addWidget(self._search_bar)
+        self._library_filter = QComboBox()
+        self._library_filter.addItems(["All games", "Installed games", "Name A–Z", "Name Z–A", "Newest first", "Installed first", "Size: smallest first", "Size: largest first", "Players: fewest first", "Players: most first"])
+        self._library_filter.currentIndexChanged.connect(lambda _: self._on_search_changed(self._search_bar.text()))
+        sr_lay.addWidget(self._library_filter)
+        self._games_folder_btn = QPushButton("Games folder…")
+        self._games_folder_btn.clicked.connect(self._choose_games_folder)
+        sr_lay.addWidget(self._games_folder_btn)
+        self._move_games_btn = QPushButton("Move games…")
+        self._move_games_btn.clicked.connect(self._move_games_folder)
+        sr_lay.addWidget(self._move_games_btn)
         lay.addWidget(search_row)
 
         scroll = QScrollArea()
@@ -5520,7 +5543,7 @@ class MainWindow(QMainWindow):
         self._teardown_manifest_thread()
         self._current_games = games
         self._search_bar.clear()
-        self._populate_cards(games)
+        self._on_search_changed("")
         stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
         self.updated_label.setText(f"Last updated {stamp}  ·  {source}")
         self.stack.setCurrentWidget(self.content_page)
@@ -5599,7 +5622,167 @@ class MainWindow(QMainWindow):
              if matches_game_search(g.name, g.description, q)]
             if q else self._current_games
         )
+        mode = self._library_filter.currentText()
+        if mode == "Installed games":
+            base = default_game_directory()
+            editions = [edition for game in filtered for edition in
+                        ([game, game.more_players_game()] if game.more_players else [game])]
+            filtered = [g for g in editions if self._is_installed_game(base, g)]
+        elif mode == "Name A–Z":
+            filtered = sorted(filtered, key=lambda g: g.name.casefold())
+        elif mode == "Name Z–A":
+            filtered = sorted(filtered, key=lambda g: g.name.casefold(), reverse=True)
+        elif mode == "Newest first":
+            filtered = list(reversed(filtered))
+        elif mode == "Installed first":
+            base = default_game_directory()
+            filtered = sorted(filtered, key=lambda g: not (self._is_installed_game(base, g) or
+                (g.more_players and self._is_installed_game(base, g.more_players_game()))))
+        elif mode.startswith("Size:") or mode.startswith("Players:"):
+            def metric(game):
+                if mode.startswith("Size:"):
+                    match = re.search(r"(\d+(?:\.\d+)?)\s*(TB|GB|MB|KB)\b", game.size, re.I)
+                    return float(match.group(1)) * {"KB": 1, "MB": 1024, "GB": 1024**2, "TB": 1024**3}[match.group(2).upper()] if match else None
+                values = [int(n) for n in re.findall(r"\d+", game.players)]
+                return max(values) if values else None
+            reverse = "largest" in mode or "most" in mode
+            known = [(g, metric(g)) for g in filtered]
+            filtered = [g for g, v in sorted((pair for pair in known if pair[1] is not None), key=lambda pair: pair[1], reverse=reverse)] + [g for g, v in known if v is None]
         self._populate_cards(filtered)
+
+    def _show_library(self):
+        self._library_filter.setCurrentIndex(0)
+        self._on_search_changed(self._search_bar.text())
+        self.stack.setCurrentWidget(self.content_page)
+
+    def _show_owned_games(self):
+        self._library_filter.setCurrentText("Installed games")
+        self._on_search_changed(self._search_bar.text())
+        self.stack.setCurrentWidget(self.content_page)
+
+    @staticmethod
+    def _is_installed_game(base, game):
+        if not base:
+            return False
+        path = os.path.join(base, game.safe_folder_name)
+        try:
+            return os.path.isdir(path) and not os.path.islink(path) and bool(os.listdir(path))
+        except OSError:
+            return False
+
+    def _choose_games_folder(self):
+        folder = QFileDialog.getExistingDirectory(self, "Choose games folder", default_game_directory())
+        if not folder:
+            return
+        prefs = load_prefs()
+        prefs["install_path"] = folder
+        if save_prefs(prefs) is False:
+            QMessageBox.warning(self, "Could not select games folder", "The folder preference could not be saved.")
+            return
+        self._on_search_changed(self._search_bar.text())
+
+    def _move_games_folder(self):
+        if any(c.state in ("queued", "running") for c in self.download_manager.cards):
+            QMessageBox.warning(self, "Downloads active", "Wait for active downloads to finish before moving games.")
+            return
+        source = default_game_directory()
+        if not source or not os.path.isdir(source):
+            QMessageBox.warning(self, "Games folder unavailable", "Choose an existing games folder first.")
+            return
+        source = os.path.abspath(source)
+        target = QFileDialog.getExistingDirectory(self, "Choose destination for installed games", source)
+        if not target:
+            return
+        target = os.path.abspath(target)
+        if os.path.normcase(target) == os.path.normcase(source):
+            return
+        games = [edition for g in self._current_games for edition in
+                 ([g, g.more_players_game()] if g.more_players else [g])]
+        names = list(dict.fromkeys(g.safe_folder_name for g in games if self._is_installed_game(source, g)))
+        if not names:
+            QMessageBox.information(self, "No games found", "No installed catalog games were found in the current folder.")
+            return
+        try:
+            cross_drive = os.path.splitdrive(source)[0].casefold() != os.path.splitdrive(target)[0].casefold()
+            if not cross_drive and any(os.path.normcase(os.path.commonpath([os.path.realpath(target), os.path.realpath(os.path.join(source, n))])) == os.path.normcase(os.path.realpath(os.path.join(source, n))) for n in names):
+                raise ValueError("Choose a destination outside the game folders being moved.")
+            conflicts = [n for n in names if os.path.lexists(os.path.join(target, n))]
+            if conflicts:
+                raise ValueError("Destination already contains: " + ", ".join(conflicts))
+            if cross_drive:
+                self._copy_games_between_drives(source, target, names)
+                return
+            answer = QMessageBox.question(self, "Move games", f"Move {len(names)} game folders to:\n{target}\n\nExisting shortcuts and Defender exclusions may need to be updated.")
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+            moved = []
+            try:
+                for name in names:
+                    os.rename(os.path.join(source, name), os.path.join(target, name))
+                    moved.append(name)
+            except OSError as exc:
+                failures = []
+                for name in reversed(moved):
+                    try:
+                        os.rename(os.path.join(target, name), os.path.join(source, name))
+                    except OSError:
+                        failures.append(name)
+                raise OSError(f"Move failed: {exc}. " + ("Could not restore: " + ", ".join(failures) if failures else "Moved folders were restored.")) from exc
+            prefs = load_prefs()
+            prefs["install_path"] = target
+            if save_prefs(prefs) is False:
+                raise OSError(f"The games were moved to {target}, but the folder preference could not be saved. Select that folder manually.")
+            self._on_search_changed(self._search_bar.text())
+            QMessageBox.information(self, "Games moved", f"Moved {len(names)} game folders to:\n{target}")
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, "Could not move games", str(exc))
+
+    def _copy_games_between_drives(self, source, target, names):
+        # Keep originals as recoverable backups; never delete user game data.
+        answer = QMessageBox.question(self, "Copy games to another drive",
+            f"Copy {len(names)} game folders to:\n{target}\n\n"
+            "The original folders will remain as backups. Existing shortcuts and Defender exclusions will not be updated.")
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        staged = tempfile.mkdtemp(prefix="game-installer-copy-", dir=target)
+        published = []
+        try:
+            def digest(path):
+                h = hashlib.sha256()
+                with open(path, "rb") as stream:
+                    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                        h.update(chunk)
+                return h.digest()
+
+            for name in names:
+                original = os.path.join(source, name)
+                for root, dirs, files in os.walk(original, followlinks=False):
+                    if any(os.path.islink(os.path.join(root, entry)) or (getattr(os.lstat(os.path.join(root, entry)), "st_file_attributes", 0) & 0x400) for entry in dirs + files):
+                        raise ValueError(f"{name} contains a symbolic link or junction; no games were moved.")
+                copy = os.path.join(staged, name)
+                shutil.copytree(original, copy)
+                for root, dirs, files in os.walk(original):
+                    for filename in files:
+                        path = os.path.join(root, filename)
+                        counterpart = os.path.join(copy, os.path.relpath(path, original))
+                        if digest(path) != digest(counterpart):
+                            raise ValueError(f"Verification failed for {name}; originals were retained.")
+            for name in names:
+                destination = os.path.join(target, name)
+                if os.path.lexists(destination):
+                    raise FileExistsError(f"Destination already exists: {destination}")
+                os.rename(os.path.join(staged, name), destination)
+                published.append(name)
+            prefs = load_prefs()
+            prefs["install_path"] = target
+            if save_prefs(prefs) is False:
+                raise OSError(f"The copies were created in {target}, but the folder preference could not be saved. Select that folder manually.")
+            self._on_search_changed(self._search_bar.text())
+            QMessageBox.information(self, "Games copied", f"Copied {len(names)} game folders to:\n{target}\n\nOriginals remain in:\n{source}")
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, "Copy incomplete", f"{exc}\nOriginals remain in {source}. Published copies: {', '.join(published) or 'none'}. Temporary files: {staged}")
+            return
+        os.rmdir(staged)
 
     def _populate_cards(self, games):
         while self.cards_layout.count():
@@ -5610,14 +5793,21 @@ class MainWindow(QMainWindow):
 
         if not games:
             searching = self._search_bar.text().strip() if hasattr(self, "_search_bar") else ""
-            msg = "No games match your search." if searching else "No games are available right now."
+            if hasattr(self, "_library_filter") and self._library_filter.currentText() == "Installed games":
+                msg = "No installed games found in the selected games folder."
+            else:
+                msg = "No games match your search." if searching else "No games are available right now."
             placeholder = QLabel(msg)
             placeholder.setObjectName("SubInfo")
             self.cards_layout.addWidget(placeholder)
             return
 
+        owned = self._library_filter.currentText() == "Installed games"
         for game in games:
-            self.cards_layout.addWidget(GameCard(game, self._open_install))
+            if owned:
+                self.cards_layout.addWidget(GameCard(game, lambda g: os.startfile(os.path.join(default_game_directory(), g.safe_folder_name)), installed=True))
+            else:
+                self.cards_layout.addWidget(GameCard(game, self._open_install))
 
     def _open_install(self, game: Game):
         _log.debug(
