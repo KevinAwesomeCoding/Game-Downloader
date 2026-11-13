@@ -1,8 +1,12 @@
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+
+if sys.platform != "win32":
+    raise unittest.SkipTest("Windows installer owned-games UI tests")
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtWidgets import QApplication, QMessageBox
