@@ -624,11 +624,9 @@ def launch_steam_client() -> bool:
 # ---------------------------------------------------------------------------
 # Microsoft Defender exclusion helpers
 #
-# Policy: exclusions are OPT-IN. The installer never touches Defender unless
-# the user ticked the box, and when it does it only ever removes paths that it
-# created itself in the same run — a folder that was already excluded before we
-# started belongs to the user and is left alone. That is why every add helper
-# returns the list of paths it actually added instead of a bare bool.
+# The Settings preference controls exclusions for new installs. Temporary
+# exclusions are removed only when added by this installer run; existing paths
+# are left alone. Add helpers return the paths they actually added.
 # ---------------------------------------------------------------------------
 
 def is_admin() -> bool:
@@ -3619,31 +3617,9 @@ class InstallDialog(QDialog):
         self.dest_edit.textChanged.connect(self._update_hint)
         self._update_hint()
 
-        # Optional Defender exclusion — OFF by default so the installer leaves
-        # Defender exactly as it found it unless the user opts in.
-        self.defender_check = QCheckBox(
-            "Add this install folder to Microsoft Defender exclusions "
-            "(recommended for cracked games)"
-        )
-        self.defender_check.setChecked(
-            bool(load_prefs().get("defender_exclusion_default", False))
-        )
-        root.addWidget(self.defender_check)
-        self.defender_warn = QLabel(
-            "⚠  Off by default. When ticked, this folder and %TEMP% are excluded "
-            "from scanning so crack DLLs are not quarantined mid-install. The "
-            "%TEMP% entry is only removed again afterwards if this installer is "
-            "the one that added it."
-        )
-        self.defender_warn.setObjectName("DefenderWarning")
-        self.defender_warn.setWordWrap(True)
-        root.addWidget(self.defender_warn)
-
         if patch_target:
             self._dest_label.setVisible(False)
             self._dest_row_widget.setVisible(False)
-            self.defender_check.setVisible(False)
-            self.defender_warn.setVisible(False)
             self.final_hint.setText(f"Will apply fix into:  {patch_target}")
 
         # Status + progress bars. With a download manager these live on the
@@ -3894,7 +3870,7 @@ class InstallDialog(QDialog):
         # Hand the job to the download manager and close — it runs in the
         # background on the Downloads page (and applies the Defender exclusion
         # there if requested, just like the old inline pre-step did).
-        wants_exclusion = self.defender_check.isChecked()
+        wants_exclusion = bool(load_prefs().get("defender_exclusion_default", True))
         defender_folders = None
         if wants_exclusion:
             try:
@@ -3907,10 +3883,8 @@ class InstallDialog(QDialog):
                 return
             defender_folders = [target, tempfile.gettempdir()]
 
-        # Remember both choices for next time. The exclusion default stays off
-        # until the user asks for it at least once.
+        # Remember the install location; exclusion preference is managed in Settings.
         prefs = load_prefs()
-        prefs["defender_exclusion_default"] = bool(wants_exclusion)
         if not self._patch_target:
             prefs["install_path"] = self.dest_edit.text().strip()
         save_prefs(prefs)
@@ -4125,7 +4099,6 @@ class InstallDialog(QDialog):
         self.dest_edit.setEnabled(True)
         self.cancel_btn.setEnabled(True)
         self.cancel_btn.setText("Close")
-        self.defender_check.setEnabled(True)
 
     def closeEvent(self, event):
         if self._installing and self.worker is not None:
@@ -5162,6 +5135,25 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.catalog_status_label)
         self._on_catalog_source_changed(self.catalog_source_combo.currentIndex())
 
+        if sys.platform == "win32":
+            self.defender_settings_check = QCheckBox(
+                "Exclude installed game folders from Microsoft Defender scans"
+            )
+            self.defender_settings_check.setChecked(
+                bool(load_prefs().get("defender_exclusion_default", True))
+            )
+            self.defender_settings_check.toggled.connect(self._on_defender_pref_toggled)
+            lay.addWidget(self.defender_settings_check)
+            defender_hint = QLabel(
+                "On by default for new installs. The game folder and its contents "
+                "will not be scanned by Microsoft Defender. The temporary folder "
+                "is excluded during installation if needed. Turning this off does "
+                "not remove existing exclusions. Administrator approval may be required."
+            )
+            defender_hint.setObjectName("SubInfo")
+            defender_hint.setWordWrap(True)
+            lay.addWidget(defender_hint)
+
         self.shortcut_check = QCheckBox(
             "Create a desktop shortcut to the game after installing"
         )
@@ -5358,6 +5350,11 @@ class MainWindow(QMainWindow):
                 subprocess.run(["xdg-open", directory])
         except Exception as exc:
             QMessageBox.warning(self, "Open Folder", f"Could not open folder:\n{exc}")
+
+    def _on_defender_pref_toggled(self, checked):
+        prefs = load_prefs()
+        prefs["defender_exclusion_default"] = bool(checked)
+        save_prefs(prefs)
 
     def _on_shortcut_pref_toggled(self, checked):
         prefs = load_prefs()
