@@ -8,7 +8,7 @@ metadata:
 
 # Game catalog workflow
 
-Use this workflow whenever adding or revising games in `games.json`. Read the root catalog and `macos/GameDownloaderMac/Sources/GameDownloaderMac/Resources/games.json` first. Preserve existing schema and ordering unless the user asks otherwise.
+Use this workflow whenever adding or revising games in `games.json`. Read the root catalog and `macos/GameDownloaderMac/Sources/GameDownloaderMac/Resources/games.json` first. Append new games to the end of both catalogs. Preserve existing schema and the order of existing entries unless the user asks otherwise.
 
 ## 1. Link Acquisition & fetch_download_links.py Integration
 - For new games or batch updates, use **`fetch_download_links.py`** to process and generate the required download and backup links.
