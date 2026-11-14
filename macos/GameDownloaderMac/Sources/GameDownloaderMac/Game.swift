@@ -25,6 +25,8 @@ struct Game: Codable, Identifiable, Hashable {
     let requirements: [String: String]?
     let macRequirements: [String: String]?
     let zipSource: CatalogLinks?
+    let updateSource: CatalogLinks?
+    let updateBackupSource: CatalogLinks?
     let fixSource: CatalogLinks?
     let zipBackupSource: CatalogLinks?
     let fixBackupSource: CatalogLinks?
@@ -36,6 +38,8 @@ struct Game: Codable, Identifiable, Hashable {
         case id, steamAppId, name, description, version, size, players, thumbnail
         case requirementsPlatform, requirements, macRequirements, type
         case zipSource = "zipUrl"
+        case updateSource = "updateZipUrl"
+        case updateBackupSource = "updateZipBackupUrl"
         case fixSource = "fixZipUrl"
         case zipBackupSource = "zipBackupUrl"
         case fixBackupSource = "fixBackupUrl"
@@ -62,7 +66,7 @@ struct Game: Codable, Identifiable, Hashable {
         raw["description"] = edition.description ?? ""
         raw["macCompatibility"] = ["tier": "Unverified", "confidence": "Low",
                                    "reasoning": "The more-players edition has not been tested on Mac."]
-        for key in ["morePlayers", "zipBackupUrl", "fixZipUrl", "fixBackupUrl"] { raw.removeValue(forKey: key) }
+        for key in ["morePlayers", "zipBackupUrl", "updateZipUrl", "updateZipBackupUrl", "fixZipUrl", "fixBackupUrl"] { raw.removeValue(forKey: key) }
         guard let data = try? JSONSerialization.data(withJSONObject: raw) else { return nil }
         return try? JSONDecoder().decode(Game.self, from: data)
     }
