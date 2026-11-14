@@ -916,12 +916,16 @@ class Game:
         self.size = str(raw.get("size", "")).strip()
         self.players = str(raw.get("players", "")).strip()
         self.thumbnail = str(raw.get("thumbnail", "")).strip()
+        executable = raw.get("launchExecutable", "")
+        self.launch_executable = executable if isinstance(executable, str) and re.fullmatch(r"[^\\/:*?\"<>|]+\.exe", executable, re.IGNORECASE) else ""
         color = raw.get("cardColor", "")
         self.card_color = color if isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color) else ""
         # Primary and backup link lists are independently normalized. Backup
         # entries correspond by index to the primary volumes; they are never
         # concatenated into the primary list because that means multipart data.
         self.zip_parts = _normalize_parts(raw.get("zipUrl", ""))
+        self.update_parts = _normalize_parts(raw.get("updateZipUrl", ""))
+        self.update_backup_parts = _normalize_parts(raw.get("updateZipBackupUrl", ""))
         self.fix_parts = _normalize_parts(raw.get("fixZipUrl", ""))
         self.zip_backup_parts = _normalize_parts(raw.get("zipBackupUrl", ""))
         self.fix_backup_parts = _normalize_parts(raw.get("fixBackupUrl", ""))
@@ -976,6 +980,18 @@ class Game:
         invalid = '<>:"/\\|?*'
         cleaned = "".join(c for c in self.name if c not in invalid).strip()
         return cleaned or (self.id or "Game")
+
+
+def game_launch_executable(root, game):
+    """Honor an explicit catalog executable without silently launching a different one."""
+    if not game.launch_executable:
+        return find_main_executable(root, game.name)
+    matches = []
+    for directory, _dirs, files in os.walk(root):
+        for name in files:
+            if name.casefold() == game.launch_executable.casefold():
+                matches.append(os.path.join(directory, name))
+    return matches[0] if len(matches) == 1 else None
 
 
 def parse_manifest(text: str) -> list:
@@ -2055,6 +2071,25 @@ class InstallWorker(QObject):
                 return
             if self._cancelled():
                 return
+
+            # Apply an independent update archive before any repair. It is not
+            # another volume of the base archive and must not be extracted with it.
+            if self.game.update_parts:
+                if len(self.game.update_parts) != 1:
+                    self.error.emit("Multipart game updates are not supported yet.")
+                    return
+                update_archive = self._download_parts(
+                    self.game.update_parts, "Downloading update",
+                    self.fix_download_progress, stage_idx=2, kind="game-update",
+                    fallback_parts=self.game.update_backup_parts)
+                if update_archive is None or self._cancelled():
+                    return
+                if not self._apply_fix(update_archive, self.dest_path,
+                                       self.game.update_parts[0]["url"], stage_idx=3):
+                    return
+                self._remove_parts()
+                if self._cancelled():
+                    return
 
             # The main game is now fully installed to dest_path. Signal this so a
             # later failure (e.g. in the fix stage) can be retried as fix-only —
@@ -4530,7 +4565,7 @@ class DownloadCard(QFrame):
         if not load_prefs().get("create_desktop_shortcut", False):
             return
         try:
-            exe = find_main_executable(install_dir, self.game.name)
+            exe = game_launch_executable(install_dir, self.game)
             if not exe:
                 _log.debug("shortcut: no .exe found under %s", install_dir)
                 return
@@ -6026,7 +6061,7 @@ class MainWindow(QMainWindow):
     def _launch_owned_game(self, game):
         root = os.path.abspath(os.path.join(default_game_directory(), game.safe_folder_name))
         choice = load_prefs().get("owned_game_executables", {}).get(game.safe_folder_name)
-        path = os.path.abspath(os.path.join(root, choice)) if choice else find_main_executable(root, game.name)
+        path = os.path.abspath(os.path.join(root, choice)) if choice else game_launch_executable(root, game)
         if path and not choice and _NON_GAME_EXE_RE.search(os.path.basename(path)):
             path = None
         if not path or not os.path.isfile(path):

@@ -79,7 +79,9 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None):
     if game.get("type") == "fix" or str(game.get("zipUrl", "")).startswith("steam:"):
         raise ValueError("This entry installs through Windows Steam. Use Open in Windows Steam; repair-only installs are not supported yet.")
     main, repairs = parts(game.get("zipUrl")), parts(game.get("fixZipUrl"))
+    updates = parts(game.get("updateZipUrl"))
     main_backups = parts(game.get("zipBackupUrl"))
+    update_backups = parts(game.get("updateZipBackupUrl"))
     repair_backups = parts(game.get("fixBackupUrl"))
     if not main and main_backups:
         main, main_backups = main_backups, []
@@ -87,7 +89,7 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None):
         repairs, repair_backups = repair_backups, []
     if not main:
         raise ValueError("This catalog entry has no download configured.")
-    for label, sources, backups in (("game", main, main_backups), ("repair", repairs, repair_backups)):
+    for label, sources, backups in (("game", main, main_backups), ("update", updates, update_backups), ("repair", repairs, repair_backups)):
         if backups and len(backups) != len(sources):
             raise ValueError(f"The {label} backup links must match the number of archive parts.")
     folder = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", game["name"]).strip().rstrip(".")
@@ -105,7 +107,8 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None):
             marker = json.loads(marker_path.read_text()) if marker_path.is_file() else {}
             if (receipt.get("jobID") == job["id"] and receipt.get("installPath") == str(destination)
                     and marker.get("jobID") == job["id"] and marker.get("mainHashes") == receipt.get("mainHashes")
-                    and marker.get("repairHashes") == receipt.get("repairHashes")):
+                    and marker.get("repairHashes") == receipt.get("repairHashes")
+                    and marker.get("updateHashes", []) == receipt.get("updateHashes", [])):
                 setup = apply_universal_setup({
                     "gameID": game["id"], "installPath": destination,
                     "mainArchives": receipt.get("mainArchiveRecords", []),
@@ -126,7 +129,7 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None):
     all_hashes = []
     all_records = []
     archives = []
-    for label, sources, backups in [("main", main, main_backups), ("repair", repairs, repair_backups)]:
+    for label, sources, backups in [("main", main, main_backups), ("update", updates, update_backups), ("repair", repairs, repair_backups)]:
         hashes, files = [], []
         for index, source in enumerate(sources):
             checkpoint(stop)
@@ -181,20 +184,26 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None):
                     root = part_root
                 else:
                     merge_archive_part(part_root, root)
+        if updates:
+            if len(updates) != 1:
+                raise ValueError("Multipart update archives are not supported yet.")
+            notify("repairing", "Extracting and applying the game update…", done=0, total=0)
+            extract(archives[1][0], staging / "update", stop)
+            merge_repair(staging / "update", root, stop)
         if repairs:
             notify("repairing", "Extracting and applying the catalog repair…", done=0, total=0)
-            extract(archives[1][0], staging / "repair", stop)
+            extract(archives[2][0], staging / "repair", stop)
             merge_repair(staging / "repair", root, stop)
         checkpoint(stop)
         setup = apply_universal_setup({
             "gameID": game["id"], "installPath": root,
-            "mainArchives": all_records[0], "repairArchives": all_records[1],
+            "mainArchives": all_records[0], "repairArchives": all_records[2],
         })
         matched = setup["readyForHighball"]
         receipt = {"jobID": job["id"], "gameID": game["id"], "gameName": game["name"],
                    "thumbnail": game.get("thumbnail"),
-                   "installPath": str(destination), "mainHashes": all_hashes[0], "repairHashes": all_hashes[1],
-                   "mainArchiveRecords": all_records[0], "repairArchiveRecords": all_records[1],
+                   "installPath": str(destination), "mainHashes": all_hashes[0], "updateHashes": all_hashes[1], "repairHashes": all_hashes[2],
+                   "mainArchiveRecords": all_records[0], "updateArchiveRecords": all_records[1], "repairArchiveRecords": all_records[2],
                    "recordedRecipeAvailable": matched, "universalSetup": setup}
         atomic_json(root / ".game-installer-receipt.json", receipt)
         atomic_json(receipt_path, receipt)  # Allows recovery if app exits just after the directory rename.
@@ -226,14 +235,17 @@ def cleanup_downloads(job, cache, notify=emit):
     install_path = Path(receipt["installPath"]).expanduser().resolve()
     marker = json.loads((install_path / ".game-installer-receipt.json").read_text())
     if (marker.get("jobID") != job["id"] or marker.get("mainHashes") != receipt.get("mainHashes")
-            or marker.get("repairHashes") != receipt.get("repairHashes")):
+            or marker.get("repairHashes") != receipt.get("repairHashes")
+            or marker.get("updateHashes", []) != receipt.get("updateHashes", [])):
         raise ValueError("The installed game receipt could not be verified; download files were kept.")
 
     main = parts(job["game"].get("zipUrl")) or parts(job["game"].get("zipBackupUrl"))
+    updates = parts(job["game"].get("updateZipUrl"))
     repairs = parts(job["game"].get("fixZipUrl")) or parts(job["game"].get("fixBackupUrl"))
     expected = []
     for label, sources, expected_hashes in (
             ("main", main, receipt.get("mainHashes", [])),
+            ("update", updates, receipt.get("updateHashes", [])),
             ("repair", repairs, receipt.get("repairHashes", []))):
         if len(sources) != len(expected_hashes):
             raise ValueError("Archive receipt is incomplete; download files were kept.")

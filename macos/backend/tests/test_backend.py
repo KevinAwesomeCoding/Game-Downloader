@@ -439,10 +439,11 @@ class ArchiveTests(TemporaryTest):
         state = self.root / "state"
         cache = state / "fixture-process"
         cache.mkdir(parents=True)
-        game = {"id": "fixture", "name": "Process Fixture", "zipUrl": "https://fixture/main", "fixZipUrl": "https://fixture/repair"}
+        game = {"id": "fixture", "name": "Process Fixture", "zipUrl": "https://fixture/main", "updateZipUrl": "https://fixture/update", "fixZipUrl": "https://fixture/repair"}
         job = {"id": "fixture-process", "game": game, "installFolder": str(self.root / "Games")}
         atomic_json(state / "fixture-process.json", job)
         for label, url, entries in [("main", game["zipUrl"], {"Game.exe": b"fixture never executed", "runtime.dll": b"old"}),
+                                    ("update", game["updateZipUrl"], {"update-only.txt": b"updated", "runtime.dll": b"update"}),
                                     ("repair", game["fixZipUrl"], {"runtime.dll": b"new"})]:
             archive = cache / (label + ".archive")
             with zipfile.ZipFile(archive, "w") as zipped:
@@ -466,6 +467,7 @@ class ArchiveTests(TemporaryTest):
                 process.stdout.close()
                 process.stderr.close()
         self.assertEqual((self.root / "Games/Process Fixture/runtime.dll").read_bytes(), b"new")
+        self.assertEqual((self.root / "Games/Process Fixture/update-only.txt").read_bytes(), b"updated")
         self.assertTrue((cache / "main.archive").exists())
 
     @unittest.skipUnless(Path("/usr/bin/zip").exists(), "requires macOS zip")
