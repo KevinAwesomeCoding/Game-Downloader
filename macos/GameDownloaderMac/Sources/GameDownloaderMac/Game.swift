@@ -21,6 +21,7 @@ struct Game: Codable, Identifiable, Hashable {
     let size: String?
     let players: String?
     let thumbnail: String?
+    let cardColor: String?
     let requirementsPlatform: String?
     let requirements: [String: String]?
     let macRequirements: [String: String]?
@@ -35,7 +36,7 @@ struct Game: Codable, Identifiable, Hashable {
     let morePlayers: MorePlayersEdition?
 
     enum CodingKeys: String, CodingKey {
-        case id, steamAppId, name, description, version, size, players, thumbnail
+        case id, steamAppId, name, description, version, size, players, thumbnail, cardColor
         case requirementsPlatform, requirements, macRequirements, type
         case zipSource = "zipUrl"
         case updateSource = "updateZipUrl"
@@ -50,6 +51,13 @@ struct Game: Codable, Identifiable, Hashable {
     var isSteamEntry: Bool { zipURL?.hasPrefix("steam://") == true }
     var isAvailable: Bool { zipURL != nil }
     var hasFix: Bool { fixSource?.firstURL != nil || fixBackupSource?.firstURL != nil }
+
+    /// Match the catalog color format accepted by the Windows cards.
+    var validCardColor: String? {
+        guard let cardColor, cardColor.count == 7, cardColor.first == "#",
+              cardColor.dropFirst().allSatisfy({ $0.isASCII && $0.isHexDigit }) else { return nil }
+        return cardColor
+    }
 
     /// A separate queue and folder identity keeps the original repair away from the modded archive.
     func morePlayersGame() -> Game? {

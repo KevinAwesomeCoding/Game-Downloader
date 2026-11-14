@@ -9,6 +9,11 @@ enum ModelChecks {
         let json = #"{"id":"fixture","name":"Fixture","zipUrl":[{"url":"https://example.com/a","name":"g.part1.rar"},{"url":"https://example.com/b","name":"g.part2.rar"}],"fixZipUrl":"https://example.com/repair"}"#
         let game = try JSONDecoder().decode(Game.self, from: Data(json.utf8))
         precondition(game.isAvailable && game.hasFix && game.zipURL == "https://example.com/a")
+        let colored = try JSONDecoder().decode(Game.self, from: Data(##"{"id":"colored","name":"Colored","cardColor":"#d05a8d"}"##.utf8))
+        let invalid = try JSONDecoder().decode(Game.self, from: Data(##"{"id":"invalid","name":"Invalid","cardColor":"#zzzzzz"}"##.utf8))
+        precondition(colored.validCardColor == "#d05a8d" && invalid.validCardColor == nil && game.validCardColor == nil)
+        precondition(colored.morePlayersGame() == nil)
+        print("PASS: catalog card colors validate and missing colors fall back")
         var job = InstallJob(id: "fixture-job", game: game, installFolder: "/tmp/fixture")
         job.status = "paused"
         job.done = 65536
@@ -40,7 +45,7 @@ enum ModelChecks {
             let restored = try JSONDecoder().decode(InstallJob.self, from: saved)
             precondition(restored.game == more && restored.game.zipURL == more.zipURL && !restored.game.hasFix)
         }
-        precondition(catalog.first(where: { $0.id == "schedule-i" })?.zipURL == "https://gofile.io/d/5mmWLj8W")
+        precondition(catalog.first(where: { $0.id == "schedule-i" })?.zipURL == "https://archive.org/download/schedule-i-0.4.7f-12-12-player/Schedule-I-0.4.7f12-normal.zip")
         print("PASS: separate edition downloads, repair isolation, and persisted jobs")
     }
 }

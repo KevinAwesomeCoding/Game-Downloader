@@ -1438,10 +1438,63 @@ private enum LibrarySortOrder: String, CaseIterable, Identifiable {
     }
 }
 
+@MainActor
+private enum CardAccent {
+    static let fallback = Color(red: 0.18, green: 0.72, blue: 0.72)
+    private static var artworkColors: [String: Color] = [:]
+
+    static func color(for game: Game) async -> Color {
+        if let hex = game.validCardColor, let value = Int(hex.dropFirst(), radix: 16) {
+            return Color(red: Double((value >> 16) & 255) / 255,
+                         green: Double((value >> 8) & 255) / 255,
+                         blue: Double(value & 255) / 255)
+        }
+        guard let thumbnail = game.thumbnail, let url = URL(string: thumbnail) else { return fallback }
+        if let cached = artworkColors[thumbnail] { return cached }
+        guard let (data, _) = try? await URLSession.shared.data(from: url),
+              let bitmap = NSBitmapImageRep(data: data) else { return fallback }
+        var bins = [Double](repeating: 0, count: 24)
+        for y in 0..<20 {
+            for x in 0..<20 {
+                guard let pixel = bitmap.colorAt(x: x * bitmap.pixelsWide / 20,
+                                                 y: y * bitmap.pixelsHigh / 20)?.usingColorSpace(.deviceRGB),
+                      pixel.alphaComponent >= 0.5 else { continue }
+                var hue: CGFloat = 0
+                var saturation: CGFloat = 0
+                var brightness: CGFloat = 0
+                var alpha: CGFloat = 0
+                pixel.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+                guard saturation >= 0.24, brightness >= 0.18, brightness <= 0.96 else { continue }
+                bins[min(Int(hue * 24), 23)] += Double(saturation * brightness)
+            }
+        }
+        let best = bins.indices.max(by: { bins[$0] < bins[$1] }) ?? 0
+        let result = bins[best] >= 1.2
+            ? Color(NSColor(calibratedHue: CGFloat(best * 15 + 7) / 360,
+                            saturation: 0.65, brightness: 0.82, alpha: 1))
+            : fallback
+        artworkColors[thumbnail] = result
+        return result
+    }
+
+    static func background(_ accent: Color) -> LinearGradient {
+        let rgb = NSColor(accent).usingColorSpace(.deviceRGB) ?? .systemTeal
+        func blend(_ amount: Double) -> Color {
+            Color(red: 0.055 * (1 - amount) + Double(rgb.redComponent) * amount,
+                  green: 0.075 * (1 - amount) + Double(rgb.greenComponent) * amount,
+                  blue: 0.11 * (1 - amount) + Double(rgb.blueComponent) * amount)
+        }
+        return LinearGradient(colors: [blend(0.59), blend(0.38)],
+                              startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+}
+
 private struct OwnedGameCard: View {
     let installation: OwnedGameInstallation
     let play: () -> Void
     let showInFinder: () -> Void
+    @State private var artworkHovered = false
+    @State private var accent = CardAccent.fallback
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -1458,6 +1511,22 @@ private struct OwnedGameCard: View {
                         }
                     }
                     .frame(height: 150).frame(maxWidth: .infinity).clipped()
+                    .overlay {
+                        ZStack {
+                            Color.black.opacity(0.68)
+                            Label("Play", systemImage: "play.fill")
+                                .font(.system(size: 19, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 22).padding(.vertical, 11)
+                                .background(accent.opacity(0.76), in: Capsule())
+                        }
+                        .opacity(artworkHovered ? 1 : 0)
+                        .allowsHitTesting(false)
+                    }
+                    .contentShape(Rectangle())
+                    .onHover { hovering in
+                        withAnimation(.easeInOut(duration: 0.2)) { artworkHovered = hovering }
+                    }
                     HStack(spacing: 10) {
                         VStack(alignment: .leading, spacing: 5) {
                             Text(installation.game.name).font(.system(size: 16, weight: .bold))
@@ -1467,14 +1536,13 @@ private struct OwnedGameCard: View {
                                 .lineLimit(1).minimumScaleFactor(0.85)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        Spacer(minLength: 8)
-                        Image(systemName: "play.circle.fill").font(.system(size: 30)).foregroundStyle(.teal)
                     }
                     .foregroundStyle(.white).padding(13)
                 }
-                .background(Color(red: 0.09, green: 0.115, blue: 0.18), in: RoundedRectangle(cornerRadius: 13))
+                .background(CardAccent.background(accent), in: RoundedRectangle(cornerRadius: 13))
                 .clipShape(RoundedRectangle(cornerRadius: 13))
-                .overlay(RoundedRectangle(cornerRadius: 13).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 13).stroke(accent.opacity(0.34), lineWidth: 1))
+                .shadow(color: accent.opacity(artworkHovered ? 0.25 : 0), radius: 17, y: 5)
             }
             .buttonStyle(.plain)
             .help("Play \(installation.game.name) in Highball")
@@ -1484,12 +1552,16 @@ private struct OwnedGameCard: View {
             }
             .buttonStyle(.bordered).controlSize(.small)
         }
+        .task(id: installation.game.id) { accent = await CardAccent.color(for: installation.game) }
+        .onDisappear { artworkHovered = false }
     }
 }
 
 private struct GameCard: View {
     let game: Game
     let onOpen: () -> Void
+    @State private var accent = CardAccent.fallback
+    @State private var hovered = false
 
     var body: some View {
         Button(action: onOpen) {
@@ -1528,13 +1600,19 @@ private struct GameCard: View {
                 }
                 .padding(13)
             }
-            .background(Color(red: 0.09, green: 0.115, blue: 0.18), in: RoundedRectangle(cornerRadius: 13))
-            .overlay(RoundedRectangle(cornerRadius: 13).stroke(Color.white.opacity(0.08), lineWidth: 1))
+            .background(CardAccent.background(accent), in: RoundedRectangle(cornerRadius: 13))
+            .overlay(RoundedRectangle(cornerRadius: 13).stroke(accent.opacity(hovered ? 0.55 : 0.34), lineWidth: 1))
             .clipShape(RoundedRectangle(cornerRadius: 13))
             .contentShape(RoundedRectangle(cornerRadius: 13))
         }
         .buttonStyle(GameCardButtonStyle())
         .help("View \(game.name)")
+        .shadow(color: accent.opacity(hovered ? 0.25 : 0), radius: 17, y: 5)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) { hovered = hovering }
+        }
+        .task(id: game.id) { accent = await CardAccent.color(for: game) }
+        .onDisappear { hovered = false }
     }
 
     private var artwork: some View {
