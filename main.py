@@ -384,6 +384,68 @@ def cache_set_dir(game_id: str, kind: str, parts, dest_path=None) -> str:
     return d
 
 
+def _download_identity(game):
+    """Fingerprint sources without recording links or credentials in job records."""
+    groups = (game.zip_parts, game.zip_backup_parts, game.update_parts,
+              game.update_backup_parts, game.fix_parts, game.fix_backup_parts)
+    data = json.dumps(groups, sort_keys=True, separators=(',', ':'))
+    return hashlib.sha256(data.encode('utf-8')).hexdigest()
+
+
+def _resume_job_path(game_id, target):
+    key = hashlib.sha256((game_id + '|' + os.path.normcase(os.path.abspath(target))).encode('utf-8')).hexdigest()
+    return os.path.join(_prefs_dir(), 'download-jobs', key + '.json')
+
+
+def _save_resume_job(game, target, fix_only=False, main_done=False):
+    path = _resume_job_path(game.id, target)
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        fd, tmp = tempfile.mkstemp(prefix='.job-', dir=os.path.dirname(path))
+        try:
+            with os.fdopen(fd, 'w', encoding='utf-8') as fh:
+                json.dump({'id': game.id, 'target': os.path.abspath(target),
+                           'fix_only': bool(fix_only), 'main_done': bool(main_done),
+                           'identity': _download_identity(game)}, fh)
+            os.replace(tmp, path)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+    except OSError:
+        _log.exception('Unable to save download resume record')
+
+
+def _remove_resume_job(game, target):
+    try:
+        os.remove(_resume_job_path(game.id, target))
+    except FileNotFoundError:
+        pass
+    except OSError:
+        _log.exception('Unable to remove download resume record')
+
+
+def _legacy_cache_exists(game, target):
+    """Find pre-resume downloads without creating or touching cache files."""
+    root = os.path.join(os.path.dirname(os.path.abspath(target)), '.gameinstaller-cache')
+    for kind, parts in (('main', game.zip_parts + game.zip_backup_parts),
+                        ('game-update', game.update_parts + game.update_backup_parts),
+                        ('fix', game.fix_parts + game.fix_backup_parts)):
+        if not parts:
+            continue
+        urls = '|'.join((p.get('url') or '') for p in parts)
+        identity = os.path.normcase(os.path.abspath(target))
+        key = hashlib.sha1(f'{game.id}|{kind}|{urls}|{identity}'.encode('utf-8')).hexdigest()[:16]
+        folder = os.path.join(root, key)
+        try:
+            with os.scandir(folder) as entries:
+                if any(entry.is_file() and not entry.name.endswith('.json')
+                       and entry.stat().st_size > 0 for entry in entries):
+                    return True
+        except OSError:
+            pass
+    return False
+
+
 def sweep_cache(max_age_days: int = CACHE_MAX_AGE_DAYS):
     """Delete cache subfolders not touched in ``max_age_days`` days. Best-effort;
     called once at startup so abandoned partials don't accumulate forever."""
@@ -2231,10 +2293,13 @@ class InstallWorker(QObject):
         self._update_overall_progress()
 
         if provider_for(url):
-            self._emit_status(status_text, -1)
             # Use the same browser-session and verified transfer engine as the
             # native Mac app. Never append one host's bytes to another's partial.
             target = dest_file + ".backup" if part_suffix == ".backup.part" else dest_file
+            if os.path.isfile(target):
+                self._emit_status(f"Verifying cached file — {status_text}", -1)
+            else:
+                self._emit_status(status_text, -1)
             transfer = {"start": None, "offset": 0}
 
             def hosted_progress(done, total):
@@ -4652,6 +4717,7 @@ class DownloadCard(QFrame):
         """Main game landed on disk. Remember it so a later failure retries the
         fix alone rather than re-downloading and re-extracting the game."""
         self._main_done = True
+        _save_resume_job(self.game, self.target, self.fix_only, main_done=True)
 
     @pyqtSlot(str)
     def _on_success(self, path):
@@ -4665,6 +4731,7 @@ class DownloadCard(QFrame):
             self._set_bar(self.fix_ap_bar, 100)
         self._teardown_thread()
         self.state = "done"
+        _remove_resume_job(self.game, self.target)
         self._set_chip("Done ✓", "Done")
         self.status_label.setText(f"Installed to {path}")
         self.speed_label.setText("")
@@ -4732,8 +4799,9 @@ class DownloadCard(QFrame):
     def _retry(self):
         """Re-queue a failed download. Kept partials resume automatically; if the
         main game was already installed, only the fix is retried."""
-        if self.state not in ("error", "canceled"):
+        if self.state not in ("error", "canceled", "paused"):
             return
+        self.retry_btn.setText("Retry")
         self.retry_btn.setVisible(False)
         self._set_chip("Queued", "Queued")
         self.status_label.setText("Waiting to retry…")
@@ -4762,6 +4830,7 @@ class DownloadCard(QFrame):
             self._set_chip("Canceled", "Canceled")
             self.status_label.setText("Canceled before starting.")
             self.action_btn.setText("Remove")
+            self.retry_btn.setVisible(True)
             self.manager.on_state_changed()
         elif self.state == "running":
             if self.worker is not None:
@@ -4803,6 +4872,10 @@ class DownloadManager(QObject):
         page.clear_btn.clicked.connect(self.clear_finished)
 
     def enqueue(self, game, target, fix_only=False, defender_folders=None):
+        if any(c.game.id == game.id and os.path.normcase(os.path.abspath(c.target)) == os.path.normcase(os.path.abspath(target))
+               and c.state != 'done' for c in self.cards):
+            return
+        _save_resume_job(game, target, fix_only)
         card = DownloadCard(game, target, fix_only, defender_folders, self)
         self.cards.append(card)
         self.page.add_card(card)
@@ -4810,6 +4883,62 @@ class DownloadManager(QObject):
         _log.debug("DownloadManager.enqueue  id=%r  fix_only=%s  target=%r",
                    game.id, fix_only, target)
         self._pump()
+
+    def restore_interrupted(self, games):
+        """Offer explicit resume; do not start downloads when the app opens."""
+        lookup = {g.id: g for g in games}
+        for game in games:
+            if game.more_players:
+                variant = game.more_players_game()
+                lookup[variant.id] = variant
+        records = []
+        directory = os.path.join(_prefs_dir(), 'download-jobs')
+        try:
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    if entry.is_file() and entry.name.endswith('.json'):
+                        try:
+                            with open(entry.path, encoding='utf-8') as fh:
+                                record = json.load(fh)
+                            if isinstance(record, dict):
+                                records.append(record)
+                        except (OSError, ValueError):
+                            _log.warning('Invalid download resume record: %s', entry.path)
+        except FileNotFoundError:
+            pass
+        except OSError:
+            _log.exception('Unable to read download resume records')
+        # Older app versions kept the archives but did not save job metadata.
+        base = default_game_directory()
+        if base:
+            for game in lookup.values():
+                target = os.path.join(base, game.safe_folder_name)
+                if _legacy_cache_exists(game, target):
+                    records.append({'id': game.id, 'target': target,
+                                    'identity': _download_identity(game)})
+        for record in records:
+            game = lookup.get(record.get('id'))
+            target = record.get('target')
+            if not game or not isinstance(target, str) or not os.path.isabs(target):
+                continue
+            if any(c.game.id == game.id and os.path.normcase(os.path.abspath(c.target)) == os.path.normcase(os.path.abspath(target)) for c in self.cards):
+                continue
+            card = DownloadCard(game, target, bool(record.get('fix_only')), None, self)
+            card._main_done = bool(record.get('main_done')) and os.path.isdir(target)
+            card.state = 'paused'
+            card._set_chip('Interrupted', 'Canceled')
+            card.action_btn.setText('Remove')
+            card.retry_btn.setText('Resume')
+            card.retry_btn.setVisible(True)
+            if record.get('identity') != _download_identity(game):
+                card.status_label.setText('The catalog download links changed. The old cache was kept; start a new download to use the current links.')
+                card.retry_btn.setEnabled(False)
+            else:
+                card.status_label.setText('Interrupted download found. Resume verifies cached files and continues where supported.')
+                _save_resume_job(game, target, card.fix_only, card._main_done)
+            self.cards.append(card)
+            self.page.add_card(card)
+            self.page.set_empty(False)
 
     def on_state_changed(self):
         """A card finished/canceled — start the next queued one and refresh."""
@@ -4827,6 +4956,7 @@ class DownloadManager(QObject):
         self.count_changed.emit(active)
 
     def remove_card(self, card):
+        _remove_resume_job(card.game, card.target)
         if card in self.cards:
             self.cards.remove(card)
         self.page.remove_card(card)
@@ -5902,6 +6032,7 @@ class MainWindow(QMainWindow):
     def _on_manifest_loaded(self, games, source):
         self._teardown_manifest_thread()
         self._current_games = games
+        self.download_manager.restore_interrupted(games)
         self._search_bar.clear()
         self._on_search_changed("")
         stamp = datetime.now().strftime("%Y-%m-%d %H:%M")

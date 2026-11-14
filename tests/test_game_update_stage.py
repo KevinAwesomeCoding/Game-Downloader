@@ -16,6 +16,19 @@ from PyQt6.QtWidgets import QApplication, QLabel
 
 
 class UpdateStageTests(unittest.TestCase):
+    def test_cached_hosted_file_reports_verification(self):
+        with tempfile.TemporaryDirectory() as root:
+            archive = Path(root) / 'cached.rar'
+            archive.write_bytes(b'cached')
+            worker = InstallWorker(Game({'name': 'Fixture'}), str(Path(root) / 'game'))
+            statuses = []
+            worker.status.connect(statuses.append)
+            with patch('main.HostedDownloader') as downloader:
+                self.assertTrue(worker._download('https://gofile.io/d/example', str(archive),
+                                                 'Downloading game (part 1/30)', worker.download_progress))
+                downloader.return_value.fetch.assert_called_once()
+            self.assertTrue(any('Verifying cached file' in value for value in statuses))
+
     def test_update_dialog_displays_versions_and_commit(self):
         app = QApplication.instance() or QApplication([])
         release = UpdateRelease('v1.4-20261114-54', 'Generic download text', '', None, None,
