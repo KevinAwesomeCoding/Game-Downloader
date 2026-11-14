@@ -43,6 +43,29 @@ class UpdateStageTests(unittest.TestCase):
             worker.run()
         self.assertEqual(order, ['download-main', 'download-game-update', 'apply-game-update', 'download-fix', 'apply-fix'])
 
+    def test_download_and_extraction_use_destination_volume(self):
+        game = Game({'id': 'fixture', 'name': 'Fixture',
+                     'zipUrl': 'https://example.com/game.zip'})
+        with tempfile.TemporaryDirectory() as root:
+            destination = Path(root) / 'games' / 'fixture'
+            destination.mkdir(parents=True)
+            worker = InstallWorker(game, str(destination))
+            def download(url, path, *args, **kwargs):
+                Path(path).write_bytes(b'archive')
+                return True
+            with patch.object(worker, '_download', side_effect=download):
+                archive = worker._download_parts(game.zip_parts, 'Download',
+                                                 worker.download_progress)
+            staging = Path(worker._new_temp_dir())
+            cache_root = destination.parent / '.gameinstaller-cache'
+            self.assertTrue(Path(archive).is_relative_to(cache_root))
+            self.assertTrue(staging.is_relative_to(cache_root))
+            worker._cleanup_temp()
+            self.assertFalse(staging.exists())
+            self.assertTrue(Path(archive).exists())  # resumable until successful install
+            worker._purge_cache()
+            self.assertFalse(Path(archive).exists())
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -340,14 +340,20 @@ def consume_update_status() -> str:
 # ---------------------------------------------------------------------------
 # Persistent download cache — partially-downloaded archives live here (keyed by
 # game + stage + source URLs) so that a failed or interrupted download can be
-# *resumed* on the next attempt instead of restarting from zero. This is on
-# %LOCALAPPDATA% (not %TEMP%) so it survives reboots; entries are removed when a
-# game finishes installing, and a startup sweep evicts anything left stale.
+# *resumed* on the next attempt instead of restarting from zero. Game downloads
+# live beside the selected destination on the same volume; entries are removed
+# on successful installation. The legacy local-app-data cache is swept at startup.
 # ---------------------------------------------------------------------------
 CACHE_MAX_AGE_DAYS = 14  # stale partials older than this are swept on startup
 
 
-def _cache_root() -> str:
+def _cache_root(dest_path=None) -> str:
+    if dest_path:
+        # Keep large working files on the same volume as the selected game.
+        d = os.path.join(os.path.dirname(os.path.abspath(dest_path)),
+                         ".gameinstaller-cache")
+        os.makedirs(d, exist_ok=True)
+        return d
     base = (os.environ.get("LOCALAPPDATA")
             or os.environ.get("APPDATA")
             or app_dir())
@@ -359,7 +365,7 @@ def _cache_root() -> str:
     return d
 
 
-def cache_set_dir(game_id: str, kind: str, parts) -> str:
+def cache_set_dir(game_id: str, kind: str, parts, dest_path=None) -> str:
     """Return (creating if needed) the folder that holds every volume of one
     download set. Stable across retries for the same game+stage+URLs, so the
     ``.part`` files from an earlier attempt are found and resumed.
@@ -368,8 +374,9 @@ def cache_set_dir(game_id: str, kind: str, parts) -> str:
     7-Zip needs to pair sibling ``.partN.rar`` files during extraction.
     """
     urls = "|".join((p.get("url") or "") for p in (parts or []))
-    key = hashlib.sha1(f"{game_id}|{kind}|{urls}".encode("utf-8")).hexdigest()[:16]
-    d = os.path.join(_cache_root(), key)
+    identity = os.path.normcase(os.path.abspath(dest_path)) if dest_path else ""
+    key = hashlib.sha1(f"{game_id}|{kind}|{urls}|{identity}".encode("utf-8")).hexdigest()[:16]
+    d = os.path.join(_cache_root(dest_path), key)
     try:
         os.makedirs(d, exist_ok=True)
     except OSError:
@@ -1918,7 +1925,7 @@ class InstallWorker(QObject):
 
     # -- temp bookkeeping ---------------------------------------------------
     def _new_temp_dir(self) -> str:
-        path = tempfile.mkdtemp(prefix="gamefix_")
+        path = tempfile.mkdtemp(prefix="gamefix_", dir=_cache_root(self.dest_path))
         self._temp_dirs.append(path)
         return path
 
@@ -2134,6 +2141,7 @@ class InstallWorker(QObject):
             self.error.emit(f"Unexpected error:\n{exc}")
 
         finally:
+            self._cleanup_temp()
             # Belt-and-suspenders: if a mid-install helper returned False and
             # called _cleanup_temp() directly (skipping _finish_cleanup), the
             # flag is still True and the exclusion hasn't been removed yet.
@@ -2505,7 +2513,8 @@ class InstallWorker(QObject):
             return None
         # Include both source sets in the cache identity so a changed backup
         # configuration cannot accidentally reuse another download set.
-        part_dir = cache_set_dir(self.game.id, kind, parts + fallback_parts)
+        part_dir = cache_set_dir(self.game.id, kind, parts + fallback_parts,
+                                 self.dest_path)
         if part_dir not in self._cache_sets:
             self._cache_sets.append(part_dir)
         count = len(parts)
@@ -4929,12 +4938,13 @@ class UpdateDialog(QDialog):
             self.later_btn.setEnabled(True)
             return
         # Step 8 — replacement step: log old path and new path.
+        launcher_path = os.environ.get("GAMEINSTALLER_LAUNCHER", sys.executable)
         _ulog.info(
-            "[8] Replacement step running  new_exe=%r  current_exe=%r",
-            self._new_exe, sys.executable,
+            "[8] Replacement step running  new_exe=%r  current_exe=%r  launcher=%r",
+            self._new_exe, sys.executable, launcher_path,
         )
         try:
-            _launch_update_bat(self._new_exe, os.environ.get("GAMEINSTALLER_LAUNCHER", sys.executable))
+            _launch_update_bat(self._new_exe, launcher_path)
         except Exception as exc:
             # Step 9 — exception during replacement.
             _ulog.exception("[9] Exception during _launch_update_bat — full traceback:")
