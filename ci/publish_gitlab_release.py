@@ -3,6 +3,8 @@
 import hashlib
 import json
 import os
+import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -39,6 +41,7 @@ files.append(manifest)
 
 description = f"""**Version:** {version}
 **Commit:** `{os.environ['CI_COMMIT_SHA']}`
+**Change:** {os.environ.get('CI_COMMIT_TITLE', 'Change details unavailable')}
 
 ### Windows x64
 Download `GameInstaller-windows-x64.exe` for the single-file app. `GameInstaller.zip` contains the folder build for Windows or Highball.
@@ -54,8 +57,30 @@ download flows have not yet been verified and may fail on browser challenges.
 project_url = os.environ["CI_PROJECT_URL"].rstrip("/")
 release_url = f"{project_url}/-/releases/{quote(tag)}"
 release_manifest = Path("dist/release.json")
+def git_output(*args):
+    try:
+        return subprocess.check_output(['git', *args], text=True, encoding='utf-8', errors='replace').splitlines()
+    except (OSError, subprocess.CalledProcessError):
+        return []
+
+# First-parent history keeps release notes aligned with the published main line.
+history = []
+for line in git_output('log', '--first-parent', '-200', '--format=%H%x1f%s', os.environ['CI_COMMIT_SHA']):
+    if '\x1f' in line:
+        sha, title = line.split('\x1f', 1)
+        history.append({'sha': sha, 'title': title})
+tag_commits = {}
+for line in git_output('for-each-ref', '--format=%(refname:short)%09%(*objectname)%09%(objectname)', 'refs/tags'):
+    fields = line.split('\t')
+    if len(fields) == 3 and fields[0].startswith('v'):
+        tag_commits[fields[0]] = fields[1] or fields[2]
 release_manifest.write_text(json.dumps({
     "tag_name": tag,
+    "commit_title": os.environ.get("CI_COMMIT_TITLE", ""),
+    "commit_sha": os.environ["CI_COMMIT_SHA"],
+    "created_at": datetime.now(timezone.utc).isoformat(),
+    "commit_history": history,
+    "tag_commits": tag_commits,
     "html_url": release_url,
     "body": description,
     "assets": [{

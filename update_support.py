@@ -1,6 +1,7 @@
 """Platform-neutral release selection and update-notice state."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 import hashlib
 import os
 import re
@@ -28,6 +29,57 @@ class UpdateRelease:
     download_url: str | None
     sha256: str | None
     manual_reason: str | None = None
+    commit_title: str = ''
+    commit_sha: str = ''
+    created_at: str = ''
+    commit_history: list = field(default_factory=list)
+    tag_commits: dict = field(default_factory=dict)
+
+    @property
+    def display_changes(self) -> str:
+        if self.commit_title:
+            suffix = f' ({self.commit_sha[:8]})' if self.commit_sha else ''
+            return f'Latest release commit: {self.commit_title}{suffix}'
+        return 'Change details are unavailable for this older release.'
+
+    def changes_for(self, installed_tag: str) -> str:
+        base = self.tag_commits.get(installed_tag)
+        if isinstance(base, str):
+            entries = []
+            for item in self.commit_history:
+                if not isinstance(item, dict):
+                    break
+                sha, title = item.get('sha'), item.get('title')
+                if not isinstance(sha, str) or not isinstance(title, str):
+                    break
+                if sha == base:
+                    return 'Changes since your installed version:\n' + ('\n'.join(entries) if entries else 'No newer commits.')
+                entries.append(f'• {title} ({sha[:8]})')
+        return self.display_changes + '\nFull changes since your installed version are unavailable.'
+
+    @property
+    def build_time(self) -> str | None:
+        if not self.created_at:
+            return None
+        try:
+            date = datetime.fromisoformat(self.created_at.replace('Z', '+00:00'))
+            if date.tzinfo is None:
+                return None
+            return date.astimezone().strftime('%B %d, %Y at %I:%M %p %Z')
+        except ValueError:
+            return None
+
+    @property
+    def build_date(self) -> str | None:
+        """Human-readable UTC build date from the generated release tag."""
+        match = re.fullmatch(r'v?\d+(?:\.\d+)*-(\d{8})-\d+', self.tag)
+        if not match:
+            return None
+        try:
+            date = datetime.strptime(match.group(1), '%Y%m%d')
+        except ValueError:
+            return None
+        return f'{date:%B} {date.day}, {date.year} (UTC)'
 
     @property
     def self_updatable(self) -> bool:
@@ -62,6 +114,11 @@ def compatible_release(release: dict, current_version: str, system: str, machine
         download_url=(str(asset.get("browser_download_url")) if asset and asset.get("browser_download_url") else None),
         sha256=digest,
         manual_reason=manual_reason,
+        commit_title=str(release.get('commit_title') or '').strip(),
+        commit_sha=str(release.get('commit_sha') or '').strip(),
+        created_at=str(release.get('created_at') or '').strip(),
+        commit_history=release.get('commit_history') if isinstance(release.get('commit_history'), list) else [],
+        tag_commits=release.get('tag_commits') if isinstance(release.get('tag_commits'), dict) else {},
     )
 
 

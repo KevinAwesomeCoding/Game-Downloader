@@ -5,7 +5,30 @@ stages:
 
 workflow:
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    # Skip pushes that change only catalog files.
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - "**/[!g]*"
+        - "**/g"
+        - "**/g[!a]*"
+        - "**/ga"
+        - "**/ga[!m]*"
+        - "**/gam"
+        - "**/gam[!e]*"
+        - "**/game"
+        - "**/game[!s]*"
+        - "**/games"
+        - "**/games[!.]*"
+        - "**/games."
+        - "**/games.[!j]*"
+        - "**/games.j"
+        - "**/games.j[!s]*"
+        - "**/games.js"
+        - "**/games.js[!o]*"
+        - "**/games.jso"
+        - "**/games.jso[!n]*"
+        - "**/games.json?*"
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE != "push"'
 
 variables:
   GIT_DEPTH: "0"

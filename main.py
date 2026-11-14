@@ -47,7 +47,7 @@ from datetime import datetime
 import requests
 from download_support import (Downloader as HostedDownloader, Stopped as DownloadStopped,
                               canonical_source, choose_faster_source, download_host_name)
-from host_resolver_client import provider_for, helper_command
+from host_resolver_client import provider_for, helper_command, resolve_source
 from update_support import (UpdateNoticeState, UpdateRelease, compatible_release,
                             download_verified_file, schedule_background_check,
                             windows_update_script)
@@ -1865,6 +1865,10 @@ class InstallWorker(QObject):
         self._temp_dirs = []
         self._last_part_paths = []  # volumes from the most recent _download_parts
         self._cache_sets = []       # persistent cache dirs used by this install
+        self._part_sizes = []
+        self._part_cached = []
+        self._part_index = 0
+        self._size_probe_stop = threading.Event()
         # Progress tracking
         self._start_time = None  # time.monotonic()
         self._stage_start = None  # per-stage start time
@@ -1881,6 +1885,7 @@ class InstallWorker(QObject):
     def cancel(self):
         """Thread-safe: request the worker to stop at the next checkpoint."""
         self._cancel.set()
+        self._size_probe_stop.set()
 
     # -- progress helpers ---------------------------------------------------
     @staticmethod
@@ -1903,6 +1908,23 @@ class InstallWorker(QObject):
         hours = minutes / 60
         h, rem = int(hours), int(minutes % 60)
         return f"{h}h {rem}m"
+
+    def _transfer_eta(self, done, total, speed):
+        """Report the current part and whole-set estimate without guessing sizes."""
+        part = self._fmt_time(max(0, total - done) / speed) if total and speed > 0 else None
+        if not self._part_sizes:
+            self.eta_text.emit(f"Part: {part} remaining" if part else "Part: calculating...")
+            return
+        if total and total > 0:
+            self._part_sizes[self._part_index] = total
+        future = self._part_sizes[self._part_index + 1:]
+        remaining = max(0, (total or 0) - done)
+        for index in range(self._part_index + 1, len(self._part_sizes)):
+            size = self._part_sizes[index] or 0
+            cached = self._part_cached[index] if index < len(self._part_cached) else 0
+            remaining += max(0, size - cached)
+        whole = self._fmt_time(remaining / speed) if total and all(future) and speed > 0 else None
+        self.eta_text.emit(f"Part: {part or 'calculating'}  |  Archive set: {whole or 'unknown'}")
 
     def _update_overall_progress(self):
         """Emit overall_progress based on current stage progress."""
@@ -2141,6 +2163,7 @@ class InstallWorker(QObject):
             self.error.emit(f"Unexpected error:\n{exc}")
 
         finally:
+            self._size_probe_stop.set()
             self._cleanup_temp()
             # Belt-and-suspenders: if a mid-install helper returned False and
             # called _cleanup_temp() directly (skipping _finish_cleanup), the
@@ -2190,7 +2213,12 @@ class InstallWorker(QObject):
         # (e.g. part 2 of 3 → 33%..67%), so both the bar and the overall
         # progress advance smoothly across volumes instead of resetting.
         def _emit_pct(pct):
-            scaled = int(round(frac_base * 100 + pct * frac_span))
+            if self._part_sizes and all(self._part_sizes):
+                previous = sum(self._part_sizes[:self._part_index])
+                current = self._part_sizes[self._part_index]
+                scaled = int((previous + current * pct / 100) * 100 / sum(self._part_sizes))
+            else:
+                scaled = int(round(frac_base * 100 + pct * frac_span))
             scaled = max(0, min(100, scaled))
             progress_signal.emit(scaled)
             self._stage_progress[stage_idx] = scaled
@@ -2216,8 +2244,7 @@ class InstallWorker(QObject):
                 elapsed = max(now - transfer["start"], 0.001)
                 speed = (done - transfer["offset"]) / elapsed
                 self.speed_text.emit(f"{speed / 1e6:.1f} MB/s")
-                self.eta_text.emit(f"{self._fmt_time((total - done) / speed)} remaining"
-                                   if total and speed > 0 else "calculating...")
+                self._transfer_eta(done, total, speed)
                 if total:
                     pct = min(100, int(done * 100 / total))
                     _emit_pct(pct)
@@ -2314,7 +2341,7 @@ class InstallWorker(QObject):
                     eta_str = self._fmt_time(eta) if eta > 0 else "calculating..."
                     bytes_str = f"{self._fmt_bytes(done)} / {self._fmt_bytes(total)}"
                     self.speed_text.emit(speed_str)
-                    self.eta_text.emit(f"{eta_str} remaining")
+                    self._transfer_eta(done, total, speed)
                     self._emit_status(status_text, pct, bytes_str)
                     self._update_overall_progress()
                 else:
@@ -2425,7 +2452,7 @@ class InstallWorker(QObject):
                             eta_str = self._fmt_time(eta) if eta > 0 else "calculating..."
                             bytes_str = f"{self._fmt_bytes(done)} / {self._fmt_bytes(total)}"
                             self.speed_text.emit(speed_str)
-                            self.eta_text.emit(f"{eta_str} remaining")
+                            self._transfer_eta(done, total, speed)
                             self._emit_status(status_text, pct, bytes_str)
                             self._update_overall_progress()
                         else:
@@ -2518,8 +2545,87 @@ class InstallWorker(QObject):
         if part_dir not in self._cache_sets:
             self._cache_sets.append(part_dir)
         count = len(parts)
+        # Cached receipts are local; network probes run in the background so
+        # slow hosts cannot delay or block the actual download.
+        from urllib.parse import urlparse
+        self._size_probe_stop.set()
+        self._size_probe_stop = threading.Event()
+        probe_stop = self._size_probe_stop
+        self._part_sizes = [None] * count
+        self._part_cached = [0] * count
+        sizes = self._part_sizes
+        for index, part in enumerate(parts):
+            if self._cancel.is_set():
+                self._abort()
+                return None
+            filename = self._part_filename(part, index, count)
+            cache_path = os.path.join(part_dir, filename)
+            try:
+                with open(cache_path + '.json', encoding='utf-8') as stream:
+                    receipt = json.load(stream)
+                source_set = {part['url']}
+                if fallback_parts:
+                    source_set.add(fallback_parts[index]['url'])
+                size = receipt.get('expected_size') or receipt.get('total')
+                if receipt.get('source') in source_set and isinstance(size, int) and not isinstance(size, bool) and size > 0:
+                    self._part_sizes[index] = size
+                    if receipt.get('complete') and os.path.isfile(cache_path) and os.path.getsize(cache_path) == size:
+                        self._part_cached[index] = size
+                    elif not fallback_parts and (receipt.get('etag') or receipt.get('modified')):
+                        partial = cache_path + '.part'
+                        if os.path.isfile(partial):
+                            self._part_cached[index] = min(size, os.path.getsize(partial))
+                    continue
+            except (OSError, ValueError):
+                pass
+        def probe_sizes():
+            for index, part in enumerate(parts):
+                if probe_stop.is_set() or self._cancel.is_set():
+                    break
+                if sizes[index] is not None:
+                    continue
+                parsed = urlparse(part['url'])
+                try:
+                    if provider_for(part['url']) == 'gofile' and re.fullmatch(r'/d/[A-Za-z0-9]+/?', parsed.path):
+                        deadline = time.monotonic() + 15
+                        metadata = resolve_source(part['url'], stop=lambda: probe_stop.is_set() or self._cancel.is_set() or time.monotonic() >= deadline)
+                        size = metadata.get('size')
+                        if isinstance(size, int) and not isinstance(size, bool) and size > 0:
+                            sizes[index] = size
+                    elif (parsed.scheme == 'https' and not parsed.username and not parsed.password
+                          and parsed.port in (None, 443) and (
+                            (parsed.hostname in ('archive.org', 'www.archive.org') and parsed.path.startswith('/download/') and not parsed.query)
+                            or (parsed.hostname == 'drive.usercontent.google.com' and parsed.path == '/download')
+                            or (parsed.hostname == 'pixeldrain.com' and parsed.path.startswith('/api/file/'))
+                            or (parsed.hostname == 'files.catbox.moe' and parsed.path.count('/') == 1))):
+                        with requests.head(part['url'], allow_redirects=True, timeout=(3, 3)) as response:
+                            length = response.headers.get('Content-Length', '')
+                            content_type = response.headers.get('Content-Type', '').lower()
+                            if response.status_code == 200 and length.isdigit() and int(length) > 0 and not any(x in content_type for x in ('text/html', 'application/json', 'text/plain')):
+                                sizes[index] = int(length)
+                    elif provider_for(part['url']) == 'filekeeper':
+                        deadline = time.monotonic() + 15
+                        metadata = resolve_source(part['url'], stop=lambda: probe_stop.is_set() or self._cancel.is_set() or time.monotonic() >= deadline)
+                        if probe_stop.is_set() or self._cancel.is_set():
+                            break
+                        with requests.Session() as session:
+                            for cookie in metadata['cookies']:
+                                session.cookies.set(cookie['name'], cookie['value'], domain=cookie['domain'], path=cookie.get('path', '/'))
+                            with session.get(metadata['url'], headers={'User-Agent': metadata['user_agent'], 'Referer': part['url'], 'Range': 'bytes=0-0', 'Accept-Encoding': 'identity'}, stream=True, allow_redirects=False, timeout=(3, 5)) as response:
+                                content_range = response.headers.get('Content-Range', '')
+                                match = re.fullmatch(r'bytes 0-0/(\d+)', content_range)
+                                content_type = response.headers.get('Content-Type', '').lower()
+                                if response.status_code == 206 and match and int(match.group(1)) > 0 and not any(x in content_type for x in ('text/html', 'application/json')):
+                                    sizes[index] = int(match.group(1))
+                except Exception:
+                    # Metadata is optional; downloads proceed with unknown ETA.
+                    pass
+        if count > 1:
+            threading.Thread(target=probe_sizes, daemon=True, name='game-size-probe').start()
         local_paths = []
         for index, part in enumerate(parts):
+            self._part_index = index
+            self.eta_text.emit('Part: calculating  |  Archive set: unknown')
             filename = self._part_filename(part, index, count)
             dest = os.path.join(part_dir, filename)
             suffix = f"  (part {index + 1}/{count})" if count > 1 else ""
@@ -2584,6 +2690,7 @@ class InstallWorker(QObject):
             local_paths.append(dest)
 
         self._last_part_paths = local_paths
+        probe_stop.set()
         return self._first_volume(local_paths)
 
     @staticmethod
@@ -4812,15 +4919,32 @@ class UpdateDialog(QDialog):
         root.setContentsMargins(24, 24, 24, 24)
         root.setSpacing(12)
 
-        title = QLabel(f"Version {update.tag} is available")
+        title = QLabel("An update is available")
         title.setObjectName("DialogTitle")
         root.addWidget(title)
 
-        changes = QLabel(update.notes[:6000] if update.notes else "No release notes were provided.")
+        versions = QLabel(f"Installed: {VERSION}\nAvailable: {update.tag}")
+        versions.setObjectName("CardMeta")
+        versions.setWordWrap(True)
+        root.addWidget(versions)
+
+        date_text = update.build_time or update.build_date
+        if date_text:
+            date_label = QLabel(f"Release prepared: {date_text}" if update.build_time
+                                else f"Build date: {date_text}")
+            date_label.setObjectName("CardMeta")
+            root.addWidget(date_label)
+
+        changes = QLabel(update.changes_for(VERSION))
+        changes.setTextFormat(Qt.TextFormat.PlainText)
         changes.setObjectName("CardDesc")
         changes.setWordWrap(True)
-        changes.setMaximumHeight(180)
-        root.addWidget(changes)
+        changes_scroll = QScrollArea()
+        changes_scroll.setWidgetResizable(True)
+        changes_scroll.setMaximumHeight(180)
+        changes_scroll.setMinimumHeight(65)
+        changes_scroll.setWidget(changes)
+        root.addWidget(changes_scroll)
 
         if update.self_updatable and not install_safe:
             sub_text = "Pause or cancel active downloads first. The app can only replace its files after its game-download jobs stop."

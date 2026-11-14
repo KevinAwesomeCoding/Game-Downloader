@@ -61,6 +61,38 @@ class UpdateFlowTests(unittest.TestCase):
         self.assertEqual(update.notes, "Release notes")
         self.assertEqual(update.sha256, self.release["assets"][0]["digest"].removeprefix("sha256:"))
         self.assertTrue(update.self_updatable)
+        self.assertEqual(update.build_date, 'October 27, 2026 (UTC)')
+
+    def test_build_date_unknown_for_unexpected_or_invalid_tags(self):
+        from update_support import UpdateRelease
+        for tag in ('v1.4', 'v1.4-20261399-22', 'v1.4-20261027-beta'):
+            self.assertIsNone(UpdateRelease(tag, '', '', None, None).build_date)
+
+    def test_change_summary_and_prepared_time_from_release(self):
+        self.release.update(commit_title='Fix startup', commit_sha='1234567890abcdef',
+                            created_at='2026-11-14T15:30:00+00:00')
+        update = compatible_release(self.release, 'v1.3', 'Windows', 'AMD64')
+        self.assertEqual(update.display_changes, 'Latest release commit: Fix startup (12345678)')
+        self.assertIsNotNone(update.build_time)
+        self.release['created_at'] = 'bad date'
+        self.assertIsNone(compatible_release(self.release, 'v1.3', 'Windows', 'AMD64').build_time)
+
+    def test_legacy_release_does_not_show_generic_download_instructions(self):
+        update = compatible_release(self.release, 'v1.3', 'Windows', 'AMD64')
+        self.assertIn('unavailable', update.display_changes)
+
+    def test_skipped_releases_show_all_commits_since_installed_tag(self):
+        self.release.update(commit_title='Newest', commit_sha='cccccccc',
+                            commit_history=[{'sha': 'cccccccc', 'title': 'Newest'},
+                                            {'sha': 'bbbbbbbb', 'title': 'Earlier'},
+                                            {'sha': 'aaaaaaaa', 'title': 'Installed'}],
+                            tag_commits={'v1.3': 'aaaaaaaa'})
+        update = compatible_release(self.release, 'v1.3', 'Windows', 'AMD64')
+        changes = update.changes_for('v1.3')
+        self.assertIn('Newest (cccccccc)', changes)
+        self.assertIn('Earlier (bbbbbbbb)', changes)
+        self.assertNotIn('Installed (aaaaaaaa)', changes)
+        self.assertIn('unavailable', update.changes_for('v1.2'))
 
     def test_public_release_manifest(self):
         digest = hashlib.sha256(self.payload).hexdigest()
