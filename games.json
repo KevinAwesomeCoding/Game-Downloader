@@ -1916,5 +1916,69 @@
     },
     "requirementsPlatform": "Windows",
     "cardColor": "#b48a53"
+  },
+  {
+    "id": "finals-week",
+    "steamAppId": "4715160",
+    "name": "Finals Week",
+    "source": "https://online-fix.me/games/adventures/18295-finals-week-po-seti.html",
+    "description": "Work alone or with friends to share answers, avoid the teacher, and survive a week of exams.",
+    "version": "2810_12_2.3",
+    "size": "1.44 GB download",
+    "players": "1–4 players (solo or online co-op)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4715160/48822603a66cebb6299d01b0b4ee551f7cc8763f/header_alt_assets_0.jpg?t=1794601230",
+    "zipUrl": "https://gofile.io/d/I5pvZ4XN",
+    "zipBackupUrl": "https://filekeeper.net/qa20fc39fxar/Finals.Week.v2810_12_2.3-OFME.rar",
+    "fixZipUrl": "https://gofile.io/d/Vg5HAkH3",
+    "fixBackupUrl": "https://filekeeper.net/jnhicdqbsuox/FinalsWeek_Fix_Repair_Steam_Generic.rar",
+    "requirements": {
+      "os": "Windows 10 (64-bit)",
+      "cpu": "Core i7-3820 or equivalent",
+      "ram": "8 GB",
+      "gpu": "Nvidia 970 or equivalent",
+      "directx": "Version 11",
+      "storage": "2 GB"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists Windows support only; this build has not been tested in Highball.",
+      "confidence": "Low",
+      "classifiedAt": "2026-11-13"
+    },
+    "cardColor": "#c57844"
+  },
+  {
+    "id": "whos-cheating",
+    "steamAppId": "5127370",
+    "name": "Who's Cheating?",
+    "source": "https://online-fix.me/games/simulator/18297-whos-cheating-po-seti.html",
+    "description": "Play casino games and bluff with friends while a security guard tries to identify the player cheating.",
+    "version": "0.2.2",
+    "size": "1.05 GB download",
+    "players": "3–8 players (online multiplayer)",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5127370/2337f8b06c1e990fef49d00c3e20cdfb0a8430ae/header.jpg?t=1793163125",
+    "zipUrl": "https://gofile.io/d/hwVdJvyj",
+    "zipBackupUrl": "https://filekeeper.net/83ktdlslwze8/Who%27s.Cheating.v0.2.2-OFME.rar",
+    "fixZipUrl": "https://gofile.io/d/kpdRVqfU",
+    "fixBackupUrl": "https://filekeeper.net/qy3llp7k6eoa/WhosCheating_Fix_Repair_Steam_Generic.rar",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i5-6600K / AMD Ryzen 5 1600",
+      "ram": "16 GB",
+      "gpu": "NVIDIA GeForce GTX 1050 Ti 4GB / AMD Radeon RX 570 4GB",
+      "directx": "Version 11",
+      "storage": "6 GB"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists Windows support only; this build has not been tested in Highball.",
+      "confidence": "Low",
+      "classifiedAt": "2026-11-13"
+    },
+    "cardColor": "#a02b39"
   }
 ]
