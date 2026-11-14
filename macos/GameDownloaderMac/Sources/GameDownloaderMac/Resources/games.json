@@ -801,7 +801,10 @@
     "size": "12.07 GB installed",
     "players": "2 players (online co-op)",
     "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4121170/803663dce78da494e9d061cf6652ade566b96331/header.jpg?t=1781141362",
-    "zipUrl": "https://drive.usercontent.google.com/download?id=1DyQYYpQVWWCMaMtC-DnHv39rzFIYC9HM&export=download&confirm=t, https://drive.usercontent.google.com/download?id=1MIos8hUxmPEUAn8q5kZVFT3YMzJv4yb0&export=download&confirm=t",
+    "zipUrl": [
+      "https://drive.usercontent.google.com/download?id=1DyQYYpQVWWCMaMtC-DnHv39rzFIYC9HM&export=download&confirm=t",
+      "https://drive.usercontent.google.com/download?id=1MIos8hUxmPEUAn8q5kZVFT3YMzJv4yb0&export=download&confirm=t"
+    ],
     "zipBackupUrl": "",
     "fixZipUrl": "https://drive.usercontent.google.com/download?id=1fi1Ht2NHO87sP1Rz6hlgEFnlOCu_f_Ye&export=download&confirm=t",
     "fixBackupUrl": "",
@@ -864,7 +867,10 @@
     "size": "6.01 GB installed",
     "players": "1-4 players (solo or online co-op)",
     "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4090360/b9e41870c9bd8686298faa22d64041e220ec5727/header_alt_assets_2.jpg?t=1784587101",
-    "zipUrl": "https://drive.usercontent.google.com/download?id=1IHcoAvtIxmxak5YjO3147F4whpyza4g2&export=download&confirm=t, https://drive.usercontent.google.com/download?id=11DyP3v2itOvKWA2ONeDBjIs9d4zjgh12&export=download&confirm=t",
+    "zipUrl": [
+      "https://drive.usercontent.google.com/download?id=1IHcoAvtIxmxak5YjO3147F4whpyza4g2&export=download&confirm=t",
+      "https://drive.usercontent.google.com/download?id=11DyP3v2itOvKWA2ONeDBjIs9d4zjgh12&export=download&confirm=t"
+    ],
     "zipBackupUrl": "",
     "fixZipUrl": "https://drive.usercontent.google.com/download?id=1lNHymenbDOvC8IsjF7tgDemJUasi7DvW&export=download&confirm=t",
     "fixBackupUrl": "",
@@ -896,7 +902,10 @@
     "size": "8.18 GB installed",
     "players": "1-4 players (solo or online co-op)",
     "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3267550/84d40a8ae6ff5d504375d5ec616422caf3947f9a/header.jpg?t=1774547275",
-    "zipUrl": "https://drive.usercontent.google.com/download?id=1BMJZr23qAWv8qGoEwvP5Qitr8OhMnSxN&export=download&confirm=t, https://drive.usercontent.google.com/download?id=1Ek8VrvYHmhWTLzztdefrp879Wbe2comd&export=download&confirm=t",
+    "zipUrl": [
+      "https://drive.usercontent.google.com/download?id=1BMJZr23qAWv8qGoEwvP5Qitr8OhMnSxN&export=download&confirm=t",
+      "https://drive.usercontent.google.com/download?id=1Ek8VrvYHmhWTLzztdefrp879Wbe2comd&export=download&confirm=t"
+    ],
     "zipBackupUrl": "",
     "fixZipUrl": "https://drive.usercontent.google.com/download?id=1_8wH7e8QurSQH9K3oBALbharhWiqVmWI&export=download&confirm=t",
     "fixBackupUrl": "",
@@ -928,7 +937,10 @@
     "size": "127 MB installed",
     "players": "1-4 players (solo or online co-op)",
     "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3453910/9cc27ec2c690ca34d4440b9ca8eb03e15b963fb1/header.jpg?t=1784365074",
-    "zipUrl": "https://drive.usercontent.google.com/download?id=1Jr2x4HBkQv-pICukQwcEHl4cUkK0H6NY&export=download&confirm=t, https://drive.usercontent.google.com/download?id=1q4hPZNkwC93y1tfeKIvqGrFuW1NHYkF6&export=download&confirm=t",
+    "zipUrl": [
+      "https://drive.usercontent.google.com/download?id=1Jr2x4HBkQv-pICukQwcEHl4cUkK0H6NY&export=download&confirm=t",
+      "https://drive.usercontent.google.com/download?id=1q4hPZNkwC93y1tfeKIvqGrFuW1NHYkF6&export=download&confirm=t"
+    ],
     "zipBackupUrl": "",
     "fixZipUrl": "https://drive.usercontent.google.com/download?id=1i3V-pcaswQenGMprHHlAWYz9zlFYEK64&export=download&confirm=t",
     "fixBackupUrl": "",
@@ -1090,8 +1102,16 @@
     "size": "11.62 GB installed",
     "players": "Up to 8 players online / 4 local",
     "thumbnail": "https://cdn.akamai.steamstatic.com/steam/apps/1260320/header.jpg",
-    "zipUrl": "https://gofile.io/d/AjEAqkC7, https://gofile.io/d/KR06TfYu, https://gofile.io/d/eELrEPdD",
-    "zipBackupUrl": "https://pixeldrain.com/api/file/VwEWm2An?download, https://pixeldrain.com/api/file/kWXyxY3r?download, https://filekeeper.net/9muckx3jm3nn/Party.Animals.v1.17.2.0-OFME.part3.rar",
+    "zipUrl": [
+      "https://gofile.io/d/AjEAqkC7",
+      "https://gofile.io/d/KR06TfYu",
+      "https://gofile.io/d/eELrEPdD"
+    ],
+    "zipBackupUrl": [
+      "https://pixeldrain.com/api/file/VwEWm2An?download",
+      "https://pixeldrain.com/api/file/kWXyxY3r?download",
+      "https://filekeeper.net/9muckx3jm3nn/Party.Animals.v1.17.2.0-OFME.part3.rar"
+    ],
     "fixZipUrl": "https://gofile.io/d/R2pZgiZh",
     "fixBackupUrl": "https://filekeeper.net/jv1ytnqsduwt/PartyAnimals_Fix_Repair_Steam.rar",
     "requirements": {
