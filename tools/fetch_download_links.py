@@ -4,11 +4,63 @@ from pathlib import Path
 import sys
 import time
 import json
+import base64
+import re
 import urllib.parse
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from host_resolver_client import provider_for
+
+
+def gamebounty_links(url):
+    """Extract public host-page links, without starting downloads."""
+    parts = urllib.parse.urlsplit(url)
+    if (parts.scheme != 'https' or parts.hostname not in ('gamebounty.world', 'www.gamebounty.world', 'mail.gamebounty.world')
+            or parts.username or parts.password or parts.port not in (None, 443)):
+        raise ValueError('Expected an HTTPS GameBounty game page.')
+    response = requests.get(url, timeout=30, allow_redirects=False)
+    response.raise_for_status()
+    if response.status_code != 200:
+        raise ValueError('GameBounty returned a redirect or unexpected response.')
+    class Links(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.links = []
+        def handle_starttag(self, tag, attrs):
+            if tag.lower() == 'a':
+                self.links.append(dict(attrs).get('href', ''))
+    parser = Links()
+    parser.feed(response.text)
+    hosts = {'filesyard.com': 'filesyard', 'vikingfile.com': 'vikingfile',
+             'itsfileditchfiles.st': 'fileditch', 'fileditchfiles.st': 'fileditch',
+             'fileditchfiles.me': 'fileditch', 'gofile.io': 'gofile',
+             'pixeldrain.com': 'pixeldrain', 'filekeeper.net': 'filekeeper',
+             '0807.st': '0807'}
+    result = {}
+    for href in parser.links:
+        link = urllib.parse.urlsplit(urllib.parse.urljoin(url, href))
+        if (link.scheme != 'https' or link.hostname not in ('gamebounty.world', 'www.gamebounty.world', 'api.gamebounty.world', 'mail.gamebounty.world')
+                or link.username or link.password or link.port not in (None, 443)):
+            continue
+        match = re.fullmatch(r'/api/dl/[^/]+/([A-Za-z0-9_-]+)', link.path)
+        if not match:
+            continue
+        try:
+            token = match.group(1)
+            target = base64.b64decode(token + '=' * (-len(token) % 4), altchars=b'-_', validate=True).decode('utf-8')
+            parsed = urllib.parse.urlsplit(target)
+            provider = hosts.get(parsed.hostname)
+            if (provider and parsed.scheme == 'https' and not parsed.username and not parsed.password
+                    and parsed.port in (None, 443)):
+                result.setdefault(provider, [])
+                if target not in result[provider]:
+                    result[provider].append(target)
+        except (ValueError, UnicodeError):
+            continue
+    if not result:
+        raise ValueError('No supported GameBounty host links found.')
+    return result
 
 
 def steamrip_links(url):
@@ -140,8 +192,15 @@ def run_scraper():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Collect game host page links.')
     parser.add_argument('--steamrip', metavar='GAME_URL', help='Collect BZZHR and FileDitch page links')
+    parser.add_argument('--gamebounty', metavar='GAME_URL', help='Collect supported GameBounty host links')
     args = parser.parse_args()
-    if args.steamrip:
+    if args.gamebounty:
+        try:
+            print(json.dumps(gamebounty_links(args.gamebounty), indent=2))
+        except Exception as exc:
+            print(f'Could not extract host page links: {exc}', file=sys.stderr)
+            raise SystemExit(1)
+    elif args.steamrip:
         try:
             print(json.dumps(steamrip_links(args.steamrip), indent=2))
         except Exception as exc:

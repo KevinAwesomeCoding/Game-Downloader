@@ -95,6 +95,9 @@ async def download_page(context, source, provider):
             page.get_by_role("link", name=re.compile(r"^\s*(?:free download|download(?: file| now)?|скачать)\s*$", re.I)),
             page.locator('input[type="submit"][value*="Download" i]'),
         ]
+        if provider == 'filesyard':
+            # The page includes a disabled placeholder and an unrelated button.
+            selectors = [page.locator('button.download-button[data-file-link]')]
         deadline = asyncio.get_running_loop().time() + 45
         while not downloads and asyncio.get_running_loop().time() < deadline:
             clicked = False
@@ -129,7 +132,7 @@ async def resolve(source):
         try:
             last_error = None
             for attempt in range(1, 4):
-                name = {"gofile": "GoFile", "filekeeper": "FileKeeper", "bzzhr": "BZZHR", "fileditch": "FileDitch"}[provider]
+                name = {"gofile": "GoFile", "filekeeper": "FileKeeper", "bzzhr": "BZZHR", "fileditch": "FileDitch", "filesyard": "FilesYard"}[provider]
                 emit("status", message=f"Preparing {name} download ({attempt}/3)…")
                 context = await browser.new_context(accept_downloads=True)
                 try:

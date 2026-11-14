@@ -21,6 +21,8 @@ def provider_for(url):
         return "gofile"
     if host == "filekeeper.net" or host.endswith(".filekeeper.net"):
         return "filekeeper"
+    if host == "filesyard.com" or host.endswith(".filesyard.com"):
+        return "filesyard"
     if any(host == d or host.endswith('.' + d) for d in ('bzzhr.to', 'bzzhr.co', 'buzzheavier.com')):
         return "bzzhr"
     if any(host == d or host.endswith('.' + d) for d in ('fileditchfiles.st', 'fileditchfiles.me', 'itsfileditchfiles.st')):
@@ -31,6 +33,7 @@ def provider_for(url):
 def download_host_allowed(provider, url):
     host = (urlsplit(url).hostname or "").lower()
     domains = {"gofile": ("gofile.io",), "filekeeper": ("filekeeper.net", "fetchio.cc"),
+               "filesyard": ("filesyard.com",),
                "bzzhr": ("bzzhr.to", "bzzhr.co", "buzzheavier.com"),
                "fileditch": ("fileditchfiles.st", "fileditchfiles.me", "itsfileditchfiles.st")}.get(provider, ())
     return any(host == domain or host.endswith("." + domain) for domain in domains)

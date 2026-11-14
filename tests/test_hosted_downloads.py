@@ -39,6 +39,12 @@ class Opener:
 
 
 class HostedTests(unittest.TestCase):
+    def test_filesyard_provider_is_scoped_to_its_domain(self):
+        from host_resolver_client import provider_for, download_host_allowed
+        self.assertEqual(provider_for('https://filesyard.com/f/example'), 'filesyard')
+        self.assertTrue(download_host_allowed('filesyard', 'https://dl.filesyard.com/file'))
+        self.assertFalse(download_host_allowed('filesyard', 'https://filesyard.com.attacker.invalid/file'))
+
     source = "https://gofile.io/d/fixture"
     payload = b"Rar!" + b"a" * 190000
 
@@ -228,6 +234,7 @@ class HostedTests(unittest.TestCase):
         context["HostedDownloader"] = lambda **kwargs: Downloader(Opener(self.response()), resolver=self.resolver, **kwargs)
         exec(compile(ast.Module(body=[method], type_ignores=[]), "main.py", "exec"), context)
         worker = Mock()
+        worker._part_sizes = []
         worker._cancel = threading.Event()
         worker._stage_progress = [0, 0]
         signal = Mock()

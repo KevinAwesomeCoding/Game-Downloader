@@ -1,10 +1,22 @@
 import unittest
+import base64
 from unittest.mock import Mock, patch
 
-from tools.fetch_download_links import steamrip_links
+from tools.fetch_download_links import steamrip_links, gamebounty_links
 
 
 class SteamripLinkTests(unittest.TestCase):
+    @patch('tools.fetch_download_links.requests.get')
+    def test_gamebounty_extracts_multiple_safe_host_links(self, get):
+        def link(target):
+            token = base64.urlsafe_b64encode(target.encode()).decode().rstrip('=')
+            return f'<a href="https://gamebounty.world/api/dl/game/{token}">Download</a>'
+        first = 'https://filesyard.com/f/example'
+        second = 'https://vikingfile.com/f/example'
+        get.return_value = Mock(status_code=200, text=link(first) + link(second) + link('https://vikingfile.com.attacker.invalid/file'))
+        self.assertEqual(gamebounty_links('https://gamebounty.world/game'), {'filesyard': [first], 'vikingfile': [second]})
+        get.assert_called_once_with('https://gamebounty.world/game', timeout=30, allow_redirects=False)
+
     @patch('tools.fetch_download_links.requests.get')
     def test_extracts_host_pages_and_rejects_lookalikes(self, get):
         get.return_value = Mock(status_code=200, text='''

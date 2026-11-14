@@ -1531,17 +1531,17 @@
     "id": "stick-it-to-the-stickman",
     "steamAppId": "2085540",
     "name": "Stick It to the Stickman",
-    "source": "https://ts.bzzhr.to/d/2nobb2f2b022?v=YFhKYFnL3y5zbrgNM0Q2j39oo5O1jFdlP7_DsMuhA7RL0mlNIZDyoVUs5zljhgOWs8uF8dgV0vY4wA57bpxvTZItwToU9yCy5NTRmUASzUAZEH9QHY_sMyV-6mEyzEL1GzLs-_yqFhwHi1dlJJudRJ_CxwDXgXr7sjwyLuLj9N0Layb_Xv8Bpwu_Dq53Y7f5lC0ULZq_lO8hiHcwp0xOHK1QCZqxvA",
+    "source": "https://gamebounty.world/stick-it-to-the-stickman-free-pc-download",
     "description": "A roguelite physics brawler where you climb the corporate ladder by beating, weaponizing, and outmaneuvering your coworkers and superiors.",
     "version": "",
     "size": "5.85 GB installed",
     "players": "Single-player or local co-op",
     "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2085540/bdd8ea4758441c2b3c00475e7c3647d0dc52baec/header.jpg?t=1791165357",
-    "zipUrl": "https://ts.bzzhr.to/d/2nobb2f2b022?v=YFhKYFnL3y5zbrgNM0Q2j39oo5O1jFdlP7_DsMuhA7RL0mlNIZDyoVUs5zljhgOWs8uF8dgV0vY4wA57bpxvTZItwToU9yCy5NTRmUASzUAZEH9QHY_sMyV-6mEyzEL1GzLs-_yqFhwHi1dlJJudRJ_CxwDXgXr7sjwyLuLj9N0Layb_Xv8Bpwu_Dq53Y7f5lC0ULZq_lO8hiHcwp0xOHK1QCZqxvA",
+    "zipUrl": "https://pixeldrain.com/api/file/ZgSdkF6c?download",
     "zipBackupUrl": "",
     "fixZipUrl": "",
     "fixBackupUrl": "",
-    "comment": "User-supplied token-protected download URL; its expiration is unverified and it may need replacing. Archive size is 1,133,765,975 bytes and the extracted size has not been verified.",
+    "comment": "PixelDrain archive responds with 1,170,032,582 bytes; contents and game launch have not been verified.",
     "requirements": {
       "os": "Windows 10 x64 Bit",
       "cpu": "Intel Core i7-6700 / AMD Ryzen 5 1500X",
@@ -1573,17 +1573,23 @@
     "id": "trailmakers",
     "steamAppId": "585420",
     "name": "Trailmakers",
-    "source": "https://store.steampowered.com/app/585420/Trailmakers/",
+    "source": "https://online-fix.me/games/sandbox/16770-trailmakers-po-seti.html",
     "description": "Build modular vehicles to explore sandbox worlds, complete campaign challenges, and race or battle with friends.",
     "version": "",
     "size": "8.35 GB",
     "players": "Solo or 2–8 players online",
     "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/585420/007e3884b218b63a0fdcd10a278bd07e179b4db1/header.jpg?t=1790340872",
-    "zipUrl": "https://ts.bzzhr.to/d/c3090yadsfy2?v=M5sVUMU-8vZUpd9O2bggAqcMhzfbCepVqidkb952VGUObp7sSbKtFyXu8GDVV8zztdiXqubRglbRkg-SNjvKldHXk4M3j4MHiFOLYe1B5GcIgq8z29VZfYhQM0w_--BzHjxuJPhDwLooQiF9sOoBmXAVqSo7fOAIRUzABa_Dmpr8U0VfRswjtouvv5c",
-    "zipBackupUrl": "",
-    "fixZipUrl": "",
-    "fixBackupUrl": "",
-    "comment": "User-supplied token-protected download URL; its expiration is unverified and it may need replacing. Archive size is 8,353,189,704 bytes. Archive version and extracted size have not been verified.",
+    "zipUrl": [
+      "https://gofile.io/d/8xc7fM",
+      "https://gofile.io/d/5riLtR"
+    ],
+    "zipBackupUrl": [
+      "https://pixeldrain.com/api/file/j1xCtnqa?download",
+      "https://pixeldrain.com/api/file/xHRV5LSv?download"
+    ],
+    "fixZipUrl": "https://gofile.io/d/bqKvK2",
+    "fixBackupUrl": "https://pixeldrain.com/api/file/NAAap9hY?download",
+    "comment": "Online-Fix lists version 233.510.856.0 with two game parts and a GDK repair archive; installation and multiplayer are unverified.",
     "requirements": {
       "os": "Windows 10 64 Bit 20H1",
       "cpu": "Intel Core i5-4440 (3.1 GHz quad-core)",
@@ -2300,5 +2306,43 @@
       "gpu": "4 GB or higher",
       "storage": "50 GB"
     }
+  },
+  {
+    "id": "metro-anomaly",
+    "steamAppId": "4612650",
+    "name": "Metro Anomaly",
+    "source": "https://gamebounty.world/metro-anomaly-free-pc-download",
+    "description": "Observe passengers on a subway, identify the anomaly by its behavior, and use your single shot carefully.",
+    "version": "Build 26624333 (source-listed)",
+    "size": "411 MB compressed",
+    "players": "Single-player",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4612650/a2ef62c66b55c6c36eb2e26810cbfdf7b690b3d6/header.jpg?t=1793984609",
+    "zipUrl": "https://filesyard.com/f/tbjCaPcFT3",
+    "zipBackupUrl": "",
+    "fixZipUrl": "",
+    "fixBackupUrl": "",
+    "comment": "FilesYard metadata and a partial transfer were verified; the full archive, installation, and game launch have not been verified. This host requires the updated downloader.",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i3-6100 / AMD Ryzen 3 1200",
+      "ram": "4 GB",
+      "gpu": "NVIDIA GTX 960 / AMD RX 470",
+      "directx": "Version 11"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Native",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists a native macOS release, but this linked Windows archive and its compatibility with Highball have not been tested.",
+      "confidence": "High"
+    },
+    "macRequirements": {
+      "os": "macOS 12 Monterey or later",
+      "cpu": "Apple M1 or Intel Core i5",
+      "ram": "8192 MB",
+      "gpu": "Apple M1 integrated GPU or Metal-compatible GPU",
+      "storage": "1024 MB available space"
+    },
+    "cardColor": "#a47b35"
   }
 ]
