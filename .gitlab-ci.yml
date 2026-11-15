@@ -50,6 +50,7 @@ release_info:
 build_windows:
   stage: build
   rules:
+    - if: '$WINDOWS_ONLY == "true"'
     - if: '$PLATFORM_SPLIT_ENABLED != "true"'
     - changes:
         - "*.py"
@@ -98,6 +99,8 @@ build_windows:
 build_macos:
   stage: build
   rules:
+    - if: '$WINDOWS_ONLY == "true"'
+      when: never
     - if: '$PLATFORM_SPLIT_ENABLED != "true"'
     - changes:
         - "macos/**/*"
