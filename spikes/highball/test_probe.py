@@ -84,6 +84,18 @@ class ProbeTests(unittest.TestCase):
     def test_custom_app_location(self):
         self.assertEqual(detect_app([self.root / "missing", self.app])["version"], REVIEWED_VERSION)
 
+    def test_reviewed_newer_release_checks_capabilities(self):
+        self.info["CFBundleShortVersionString"] = "0.10.26"
+        self.metadata.update(highball_version="0.10.26", source_commit="dbc36ebc67f75944fce0dd7994b060dcd68a67d1")
+        self.write_info()
+        self.write_manifest()
+        self.assertTrue(self.check()["helper_ready"])
+
+    def test_unknown_future_release_is_not_trusted(self):
+        self.metadata.update(highball_version="0.10.99", source_commit="unknown")
+        self.write_manifest()
+        self.assert_blocked("unreviewed_build")
+
     def test_missing_helper_and_no_path_fallback(self):
         self.assert_blocked("helper_missing", helper=None)
 

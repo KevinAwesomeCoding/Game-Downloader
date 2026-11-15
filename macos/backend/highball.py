@@ -1,6 +1,7 @@
 """Supported Highball CLI boundary. Tests inject inspection and process adapters."""
 import json
 import os
+import plistlib
 from pathlib import Path
 import re
 import subprocess
@@ -95,7 +96,14 @@ def same_external_path(stored, actual):
 
 class Highball:
     def __init__(self, helper=None, inspector=None, runner=None, gui_running=None, launcher=None, launch_directory=None):
-        support = Path.home() / "Library/Application Support/Game-Downloader/HighballHelper/0.10.22"
+        try:
+            with open("/Applications/Highball.app/Contents/Info.plist", "rb") as stream:
+                version = plistlib.load(stream).get("CFBundleShortVersionString")
+        except (OSError, ValueError, plistlib.InvalidFileException):
+            version = None
+        if version not in {"0.10.22", "0.10.26"}:
+            version = "0.10.26"
+        support = Path.home() / "Library/Application Support/Game-Downloader/HighballHelper" / version
         self.helper = Path(helper) if helper else support / "highball"
         self.manifest = support / "build-manifest.json"
         self.inspector = inspector
@@ -115,6 +123,13 @@ class Highball:
         if not bottle or any(c in bottle for c in "\t\n\r"):
             raise ValueError("Choose a Highball bottle in Settings first.")
         report = self._readiness_report()
+        interface = report.get("interface") or {}
+        if interface.get("status") == "version_mismatch":
+            actual = (interface.get("app") or {}).get("version", "unknown")
+            raise ValueError(
+                f"Highball {actual} does not match the selected Game Installer helper. "
+                "Update Game Installer for this Highball version or use a matching supported Highball release."
+            )
         runtime = report.get("readiness") or {}
         self.home = runtime.get("home")
         selected = next((b for b in runtime.get("bottles", []) if b["name"] == bottle), None)

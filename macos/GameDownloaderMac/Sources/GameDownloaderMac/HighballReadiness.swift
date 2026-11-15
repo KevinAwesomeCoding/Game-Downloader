@@ -61,7 +61,7 @@ enum HighballReadinessError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .appMissing: return "Highball 0.10.22 was not found in /Applications."
+        case .appMissing: return "Highball is missing or its version is not yet supported by this Game Installer build."
         case .helperMissing: return "The local Highball helper is not installed."
         case .helperVersionMismatch: return "The helper needs the Steam path integration. Install the helper bundled with this Game Installer build."
         case .helperHashMismatch: return "The helper does not match its local build manifest."
@@ -73,8 +73,15 @@ enum HighballReadinessError: LocalizedError {
 }
 
 enum HighballReadiness {
-    static let version = "0.10.22"
-    static let reviewedCommit = "daa2095b9fd4abad0b9db7c57cacbd4d49a9e06e"
+    static let reviewedReleases = [
+        "0.10.22": "daa2095b9fd4abad0b9db7c57cacbd4d49a9e06e",
+        "0.10.26": "dbc36ebc67f75944fce0dd7994b060dcd68a67d1",
+    ]
+    static var version: String {
+        Bundle(url: URL(fileURLWithPath: "/Applications/Highball.app"))?
+            .infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.10.26"
+    }
+    static var reviewedCommit: String { reviewedReleases[version] ?? "" }
 
     static func check() async throws -> ReadinessReport {
         try await Task.detached(priority: .userInitiated) {
@@ -85,7 +92,8 @@ enum HighballReadiness {
     private static func runCheck() throws -> ReadinessReport {
         let app = URL(fileURLWithPath: "/Applications/Highball.app", isDirectory: true)
         guard let appInfo = Bundle(url: app),
-              appInfo.infoDictionary?["CFBundleShortVersionString"] as? String == version else {
+              let installedVersion = appInfo.infoDictionary?["CFBundleShortVersionString"] as? String,
+              reviewedReleases[installedVersion] != nil else {
             throw HighballReadinessError.appMissing
         }
 

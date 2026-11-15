@@ -1,0 +1,280 @@
+diff --git a/Sources/HighballKit/Bottle.swift b/Sources/HighballKit/Bottle.swift
+index 42ad460..47083ea 100644
+--- a/Sources/HighballKit/Bottle.swift
++++ b/Sources/HighballKit/Bottle.swift
+@@ -474,11 +474,13 @@ public struct BottleSettings: Codable, Sendable {
+     /// for every other game on the Wine 11 engines (highball#198). Merged into the launch after
+     /// `environment`, for the game the recipe is for and nothing else.
+     public var gameEnvironment: [String: [String: String]] = [:]
++    /// drive_c-relative or absolute Unix path; nil uses pins and automatic discovery.
++    public var steamExecutableOverride: String?
+     public var pins: [Pin] = []
+     public var recipes: [String] = []
+     public var created: Date = Date()
+ 
+-    enum CodingKeys: String, CodingKey { case formatVersion, name, engineID, renderer, rendererExplicit, windowsVersion, sync, metalHUD, advertiseAVX, dxvkAsync, dlssEnabled, fpsCap, frameGen, frameGenAdaptive, frameGenFlowScale, frameGenPerformance, frameGenForceVsync, commandIsControl, commandIsControlSynced, dpiScale, retinaAt100, dllOverrides, dxvkAppConfig, dllOverridesSynced, engineAppDefaultsSynced, keepFilesInside, externalDrives, environment, gameEnvironment, pins, recipes, created }
++    enum CodingKeys: String, CodingKey { case formatVersion, name, engineID, renderer, rendererExplicit, windowsVersion, sync, metalHUD, advertiseAVX, dxvkAsync, dlssEnabled, fpsCap, frameGen, frameGenAdaptive, frameGenFlowScale, frameGenPerformance, frameGenForceVsync, commandIsControl, commandIsControlSynced, dpiScale, retinaAt100, dllOverrides, dxvkAppConfig, dllOverridesSynced, engineAppDefaultsSynced, keepFilesInside, externalDrives, environment, gameEnvironment, steamExecutableOverride, pins, recipes, created }
+ 
+     /// The variables `gameID`'s recipe scoped to it; empty for a game without any, or with no id.
+     public func environment(forGame gameID: String?) -> [String: String] {
+@@ -538,6 +540,7 @@ public struct BottleSettings: Codable, Sendable {
+         commandIsControlSynced = try c.decodeIfPresent(Bool.self, forKey: .commandIsControlSynced)
+         environment = try c.decodeIfPresent([String: String].self, forKey: .environment) ?? [:]
+         gameEnvironment = try c.decodeIfPresent([String: [String: String]].self, forKey: .gameEnvironment) ?? [:]
++        steamExecutableOverride = try c.decodeIfPresent(String.self, forKey: .steamExecutableOverride)
+         pins = try c.decodeIfPresent([Pin].self, forKey: .pins) ?? []
+         recipes = try c.decodeIfPresent([String].self, forKey: .recipes) ?? []
+         created = try c.decodeIfPresent(Date.self, forKey: .created) ?? Date()
+diff --git a/Sources/HighballKit/SteamExecutable.swift b/Sources/HighballKit/SteamExecutable.swift
+new file mode 100644
+index 0000000..5b200d4
+--- /dev/null
++++ b/Sources/HighballKit/SteamExecutable.swift
+@@ -0,0 +1,80 @@
++import Foundation
++
++/// Steam's location belongs to the environment, shared by the GUI and CLI.
++/// Resolution is read-only: a stale recipe pin is never rewritten.
++public enum SteamExecutable {
++    public struct Resolution: Codable, Sendable {
++        public let path: String
++        public let source: String
++        public var url: URL { URL(fileURLWithPath: path) }
++    }
++
++    public static func validate(_ url: URL, in bottle: Bottle) throws {
++        guard url.lastPathComponent.lowercased() == "steam.exe",
++              PEExportName.isWindowsExecutable(at: url) else {
++            throw HighballError.failed("Steam executable is missing, unreadable, or not a Windows Steam.exe at: \(url.path). Open Highball > Settings > Environments > \(bottle.name) > Environment settings > Advanced > Steam executable. Choose Steam.exe or use automatic detection.")
++        }
++    }
++
++    public static func resolve(in bottle: Bottle) throws -> Resolution {
++        if let override = bottle.settings.steamExecutableOverride {
++            let url = Pin(name: "Steam", path: override).executableURL(driveC: bottle.driveC)
++            try validate(url, in: bottle) // An explicit choice must never silently fall back.
++            return Resolution(path: url.path, source: "override")
++        }
++        let pins = bottle.settings.pins.filter { $0.name.lowercased() == "steam" }
++            + bottle.settings.pins.filter { $0.name.lowercased() != "steam" && WineRunner.isSteamExecutable($0.path) }
++        var attempted: [String] = []
++        for pin in pins {
++            let url = pin.executableURL(driveC: bottle.driveC)
++            attempted.append(url.path)
++            if (try? validate(url, in: bottle)) != nil {
++                return Resolution(path: url.path, source: "pin")
++            }
++        }
++        for directory in ["Program Files (x86)", "Program Files"] {
++            var url = bottle.driveC
++            for component in [directory, "Steam", "steam.exe"] {
++                // Keep actual spelling even on a case-sensitive volume (Steam.exe).
++                let entries = (try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)) ?? []
++                let actual = entries.first { $0.lastPathComponent == component }
++                    ?? entries.sorted { $0.path < $1.path }.first { $0.lastPathComponent.lowercased() == component.lowercased() }
++                url = url.appending(path: actual?.lastPathComponent ?? component)
++            }
++            attempted.append(url.path)
++            if (try? validate(url, in: bottle)) != nil {
++                return Resolution(path: url.path, source: "detected")
++            }
++        }
++        throw HighballError.failed("Windows Steam was not found in \(bottle.name). Attempted paths: \(attempted.joined(separator: "; ")). Open Highball > Settings > Environments > \(bottle.name) > Environment settings > Advanced > Steam executable and choose the existing Steam.exe.")
++    }
++
++    /// Keep the user's pin settings, replacing only the in-memory launch path.
++    public static func pin(in bottle: Bottle) throws -> Pin {
++        let resolved = try resolve(in: bottle)
++        var pin = bottle.settings.pins.first { $0.executableURL(driveC: bottle.driveC).standardizedFileURL == resolved.url.standardizedFileURL }
++            ?? bottle.settings.pins.first { $0.name.lowercased() == "steam" }
++            ?? Pin(name: "Steam", path: resolved.path)
++        pin.path = Pin.storagePath(for: resolved.url, driveC: bottle.driveC)
++        return pin
++    }
++
++    public static func clientPin(in bottle: Bottle, uri: String) throws -> Pin {
++        guard uri == "steam://open/main" || uri.range(of: #"^steam://install/[0-9]+$"#, options: .regularExpression) != nil else {
++            throw HighballError.failed("Unsupported Steam URI: \(uri)")
++        }
++        var pin = try pin(in: bottle)
++        pin.arguments.append(uri)
++        return pin
++    }
++
++    /// An app ID is only a hint. Steam's own install record and the exact folder must agree.
++    /// Ownership and sign-in are still checked by Steam when it handles -applaunch.
++    public static func installedGame(in bottle: Bottle, appID: Int, folder: URL) -> SteamGame? {
++        SteamLibrary.games(in: bottle).first {
++            $0.appid == appID && $0.isFullyInstalled && $0.installedByWindowsSteam
++                && $0.installFolder?.resolvingSymlinksInPath().standardizedFileURL == folder.resolvingSymlinksInPath().standardizedFileURL
++                && (try? folder.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
++        }
++    }
++}
+diff --git a/Sources/HighballKit/SteamLibrary.swift b/Sources/HighballKit/SteamLibrary.swift
+index 8314748..8ac1531 100644
+--- a/Sources/HighballKit/SteamLibrary.swift
++++ b/Sources/HighballKit/SteamLibrary.swift
+@@ -62,13 +62,13 @@ public struct SteamGame: Identifiable, Sendable, Hashable {
+ public enum SteamLibrary {
+     /// Path of the Windows Steam install inside a bottle, if present.
+     public static func steamRoot(of bottle: Bottle) -> URL? {
+-        steamRoot(driveC: bottle.driveC)
++        try? SteamExecutable.resolve(in: bottle).url.deletingLastPathComponent()
+     }
+ 
+     /// Path of the Windows Steam install under a `drive_c` we only have the path of.
+     static func steamRoot(driveC: URL) -> URL? {
+-        let root = driveC.appending(path: "Program Files (x86)/Steam")
+-        return FileManager.default.fileExists(atPath: root.appending(path: "steam.exe").path) ? root : nil
++        let bottle = Bottle(url: driveC.deletingLastPathComponent(), settings: BottleSettings(name: "Steam discovery", engineID: ""))
++        return steamRoot(of: bottle)
+     }
+ 
+     /// All games known to the bottle's Steam library folders: the one inside the environment and
+diff --git a/Sources/HighballKit/SteamRestart.swift b/Sources/HighballKit/SteamRestart.swift
+index 6fb4f19..55815da 100644
+--- a/Sources/HighballKit/SteamRestart.swift
++++ b/Sources/HighballKit/SteamRestart.swift
+@@ -204,7 +204,7 @@ extension WineRunner {
+     /// with a fix that changes the launch environment (measured on an M4, 2026-10-06).
+     public func stopSteam() async throws {
+         guard steamIsRunning() else { return }
+-        let steam = bottle.driveC.appending(path: "Program Files (x86)/Steam/steam.exe")
++        let steam = try SteamExecutable.resolve(in: bottle).url
+         _ = try? await run([steam.path, "-shutdown"], renderer: nil, label: "steam-shutdown")
+         for _ in 0..<300 where runningSteamEnvironment() != nil { try await Task.sleep(for: .milliseconds(100)) }
+         guard runningSteamEnvironment() != nil else { return }
+diff --git a/Sources/HighballKit/Verifier.swift b/Sources/HighballKit/Verifier.swift
+index 2972cea..a68c6bd 100644
+--- a/Sources/HighballKit/Verifier.swift
++++ b/Sources/HighballKit/Verifier.swift
+@@ -60,7 +60,7 @@ public struct Verifier {
+         try? await Task.sleep(for: .seconds(8))
+ 
+         let runner = WineRunner(paths: paths, engine: engine, bottle: bottle)
+-        let steam = bottle.driveC.appending(path: "Program Files (x86)/Steam/steam.exe")
++        let steam = try SteamExecutable.resolve(in: bottle).url
+         log?("[\(game.name)] launching via silent Steam (\(renderer.rawValue))…")
+         // DXMT at info level writes its per-process log like DXVK does; those files, and when
+         // they were written, are what attributes the verdict.
+diff --git a/Sources/HighballKit/WineRunner.swift b/Sources/HighballKit/WineRunner.swift
+index b2061c4..10595a3 100644
+--- a/Sources/HighballKit/WineRunner.swift
++++ b/Sources/HighballKit/WineRunner.swift
+@@ -560,7 +560,7 @@ public struct WineRunner: Sendable {
+     /// exits. Nil when no client runs.
+     public func forwardToRunningSteam(_ arguments: [String], onOutput: (@Sendable (String) -> Void)? = nil) async throws -> LaunchResult? {
+         guard steamIsRunning() else { return nil }
+-        let steam = bottle.driveC.appending(path: "Program Files (x86)/Steam/steam.exe")
++        let steam = try SteamExecutable.resolve(in: bottle).url
+         return try await start(steam, arguments: arguments, onOutput: onOutput)
+     }
+ 
+@@ -574,7 +574,7 @@ public struct WineRunner: Sendable {
+     /// be running. Verified 2026-09-03: silent instance, open/main, Steam window up in seconds.
+     public func showRunningSteam(onOutput: (@Sendable (String) -> Void)? = nil) async throws -> LaunchResult? {
+         guard steamIsRunning() else { return nil }
+-        let steam = bottle.driveC.appending(path: "Program Files (x86)/Steam/steam.exe")
++        let steam = try SteamExecutable.resolve(in: bottle).url
+         return try await start(steam, arguments: ["steam://open/main"], onOutput: onOutput)
+     }
+ 
+diff --git a/Sources/highball/main.swift b/Sources/highball/main.swift
+index 174000d..4590664 100644
+--- a/Sources/highball/main.swift
++++ b/Sources/highball/main.swift
+@@ -7,7 +7,7 @@ struct Highball: AsyncParsableCommand {
+     static let configuration = CommandConfiguration(
+         commandName: "highball",
+         abstract: "Highball — run Windows games on Apple Silicon. Free, open, engine-agnostic.",
+-        subcommands: [Config.self, Engine.self, Bottle.self, Run.self, LibraryCommand.self, Play.self, QuitCommand.self, PinCommand.self, Recipe.self, Tricks.self, Env.self, Epic.self, GOG.self, Report.self, BugReportCommand.self, Verify.self],
++        subcommands: [Config.self, Engine.self, Bottle.self, Run.self, SteamCommand.self, LibraryCommand.self, Play.self, QuitCommand.self, PinCommand.self, Recipe.self, Tricks.self, Env.self, Epic.self, GOG.self, Report.self, BugReportCommand.self, Verify.self],
+         defaultSubcommand: nil
+     )
+ }
+@@ -424,11 +424,11 @@ struct Run: AsyncParsableCommand {
+         if !scoped.isEmpty { print("with the game's own variables: " + scoped.keys.sorted().joined(separator: ", ")) }
+         let result: LaunchResult
+         if let pin = b.settings.pins.first(where: { $0.name.lowercased() == program.lowercased() }) {
+-            var p = pin
++            var p = WineRunner.isSteamExecutable(pin.path) ? try SteamExecutable.pin(in: b) : pin
+             if let renderer { p.renderer = renderer }
+             p.arguments += arguments
+             p.environment.merge(scoped) { _, new in new }
+-            if p.path.lowercased().hasSuffix("steam/steam.exe") {
++            if WineRunner.isSteamExecutable(p.path) {
+                 switch WineRunner.steamInvocation(clientRunning: runner.steamIsRunning(), arguments: p.arguments) {
+                 case .forward:
+                     print("Steam is already running in this bottle; handed it: \(p.arguments.joined(separator: " "))")
+@@ -1102,3 +1102,70 @@ private func moveHomePrinting(from source: URL, to target: URL) throws {
+         if name != last { last = name; print("  \(name)") }
+     }
+ }
++
++struct SteamCommand: AsyncParsableCommand {
++    static let configuration = CommandConfiguration(commandName: "steam", abstract: "Resolve or launch this environment's Windows Steam.", subcommands: [Resolve.self, Launch.self, Game.self])
++
++    struct Resolve: ParsableCommand {
++        @Argument var bottle: String
++        func run() throws {
++            try printJSON(SteamExecutable.resolve(in: BottleStore().get(bottle)))
++        }
++    }
++
++    struct Launch: AsyncParsableCommand {
++        @Argument var bottle: String
++        @Option var uri: String = "steam://open/main"
++        @Flag(help: "Print the resolved request as JSON without launching or changing the environment.") var check = false
++        func run() async throws {
++            let b = try BottleStore().get(bottle)
++            let pin = try SteamExecutable.clientPin(in: b, uri: uri)
++            if check { try printJSON(Request(bottle: b.name, executable: pin.executableURL(driveC: b.driveC).path, arguments: pin.arguments)); return }
++            try await launch(pin, in: b)
++        }
++    }
++
++    struct Game: AsyncParsableCommand {
++        @Argument var bottle: String
++        @Argument var appID: Int
++        @Option(help: "Exact Steam-installed game folder to verify against Steam's own manifest.") var installPath: String
++        @Flag(help: "Report whether Steam records this exact installed game, without launching.") var check = false
++        func run() async throws {
++            let b = try BottleStore().get(bottle)
++            if b.settings.steamExecutableOverride != nil { _ = try SteamExecutable.resolve(in: b) }
++            let installed = SteamExecutable.installedGame(in: b, appID: appID, folder: URL(fileURLWithPath: installPath)) != nil
++            if check { try printJSON(["installed": installed]); return }
++            guard installed else { throw HighballError.failed("Steam does not record app \(appID) as installed at \(installPath) in \(b.name). Install and own the game through Windows Steam; a local copy cannot establish Steam authentication.") }
++            var pin = try SteamExecutable.pin(in: b)
++            pin.arguments += ["-applaunch", String(appID)]
++            let db = GameDB(directories: GameDB.defaultDirectories())
++            pin.environment.merge(b.settings.environment(forGame: db[appID]?.id)) { _, new in new }
++            try await launch(pin, in: b)
++        }
++    }
++
++    struct Request: Codable {
++        let bottle: String
++        let executable: String
++        let arguments: [String]
++    }
++
++    static func printJSON<T: Encodable>(_ value: T) throws {
++        print(String(decoding: try JSONEncoder().encode(value), as: UTF8.self))
++    }
++
++    static func launch(_ pin: Pin, in bottle: HighballKit.Bottle) async throws {
++        let executable = pin.executableURL(driveC: bottle.driveC)
++        // Resolve and validate before preflight can perform any runtime setup.
++        try SteamExecutable.validate(executable, in: bottle)
++        print("Steam executable: \(executable.path)")
++        let engine = try EngineStore().engine(bottle.settings.engineID)
++        let runner = WineRunner(engine: engine, bottle: bottle)
++        await BottleStore.preflight(runner: runner, bottle: bottle) { print($0) }
++        let result: LaunchResult
++        if let forwarded = try await runner.forwardToRunningSteam(pin.arguments) { result = forwarded }
++        else { result = try await runner.startResumingKnownSteamCrash(pin: pin, onOutput: { print($0) }).result }
++        print("exit=\(result.exitStatus) — log: \(result.log.path)")
++        if result.exitStatus != 0 { throw ExitCode(result.exitStatus) }
++    }
++}

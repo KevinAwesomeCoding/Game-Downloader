@@ -17,6 +17,8 @@ from xml.parsers.expat import ExpatError
 
 REVIEWED_VERSION = "0.10.22"
 REVIEWED_COMMIT = "daa2095b9fd4abad0b9db7c57cacbd4d49a9e06e"
+REVIEWED_RELEASES = {REVIEWED_VERSION: REVIEWED_COMMIT,
+                     "0.10.26": "dbc36ebc67f75944fce0dd7994b060dcd68a67d1"}
 BUNDLE_ID = "app.highball.Highball"
 
 # Only these help requests can be executed. No bottle names or game paths enter argv.
@@ -113,10 +115,13 @@ def probe(apps: list[Path] | None = None, helper: Path | None = None,
         metadata = json.loads(manifest.expanduser().read_text(encoding="utf-8"))
         if not isinstance(metadata, dict):
             raise ValueError("manifest must be an object")
+        version = metadata.get("highball_version")
         expected = {
-            "schema_version": 1, "highball_version": REVIEWED_VERSION,
-            "source_commit": REVIEWED_COMMIT, "steam_integration": "steam-path-v1",
+            "schema_version": 1, "highball_version": version,
+            "source_commit": REVIEWED_RELEASES.get(version), "steam_integration": "steam-path-v1",
         }
+        if version not in REVIEWED_RELEASES:
+            return stop("unreviewed_build", "Highball release has not been reviewed for this installer.")
         if any(metadata.get(key) != value for key, value in expected.items()):
             return stop("unreviewed_build", "Build metadata does not match the reviewed upstream release.")
         if app["version"] != metadata["highball_version"]:
@@ -124,7 +129,7 @@ def probe(apps: list[Path] | None = None, helper: Path | None = None,
         digest = _sha256(helper)
         if metadata.get("binary_sha256") != digest:
             return stop("hash_mismatch", "Helper bytes do not match the build manifest.")
-        report["helper"].update(version=metadata["highball_version"], source_commit=REVIEWED_COMMIT,
+        report["helper"].update(version=version, source_commit=REVIEWED_RELEASES[version],
                                 sha256=digest, version_basis="build manifest plus binary hash")
     except (OSError, ValueError) as exc:
         return stop("invalid_manifest", str(exc))

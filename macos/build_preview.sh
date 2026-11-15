@@ -11,7 +11,7 @@ readonly DESTINATION="${APP_DESTINATION:-$HOME/Applications/$APP_DISPLAY_NAME.ap
 
 mkdir -p "$RESOURCES"
 if [[ ! -x "$RESOURCES/HighballHelper/highball" ]] ||
-   ! cmp -s "$ROOT/macos/highball-steam.patch" "$RESOURCES/HighballHelper/highball-steam.patch"; then
+   ! cmp -s "$ROOT/macos/highball-steam-0.10.26.patch" "$RESOURCES/HighballHelper/highball-steam-0.10.26.patch"; then
   bash "$ROOT/macos/package_highball_helper.sh"
 fi
 cp "$ROOT/games.json" "$RESOURCES/games.json"
@@ -125,12 +125,12 @@ from pathlib import Path
 binary = Path(sys.argv[1])
 manifest = {
     "schema_version": 1,
-    "highball_version": "0.10.22",
-    "source_commit": "daa2095b9fd4abad0b9db7c57cacbd4d49a9e06e",
+    "highball_version": "0.10.26",
+    "source_commit": "dbc36ebc67f75944fce0dd7994b060dcd68a67d1",
     "steam_integration": "steam-path-v1",
-    "source_patch_sha256": hashlib.sha256((binary.parent / "highball-steam.patch").read_bytes()).hexdigest(),
+    "source_patch_sha256": hashlib.sha256((binary.parent / "highball-steam-0.10.26.patch").read_bytes()).hexdigest(),
     "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
-    "build": "SwiftPM release build from pinned upstream source plus highball-steam.patch",
+    "build": "SwiftPM release build from pinned upstream source plus highball-steam-0.10.26.patch",
     "signature": "ad-hoc; no Developer ID",
 }
 Path(sys.argv[2]).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

@@ -548,6 +548,12 @@ class HighballTests(TemporaryTest):
         self.client = Highball(helper=self.root / "fake-helper", inspector=lambda: self.report, runner=self.runner,
                                gui_running=lambda: False, launcher=launcher, launch_directory=self.root / "launch-logs")
 
+    def test_version_mismatch_reports_actual_cause(self):
+        self.report = {"interface": {"status": "version_mismatch", "app": {"version": "0.10.26"}}, "readiness": None}
+        with self.assertRaisesRegex(ValueError, r"Highball 0\.10\.26.*selected Game Installer helper"):
+            self.client.ready("Disposable")
+        self.runner.assert_not_called()
+
     def test_recipe_sets_and_verifies_only_explicit_fields(self):
         (self.game / "winmm.dll").write_bytes(b"fixture DLL never executed")
         self.client.register(self.receipt, "Disposable", recipe=self.recipe)

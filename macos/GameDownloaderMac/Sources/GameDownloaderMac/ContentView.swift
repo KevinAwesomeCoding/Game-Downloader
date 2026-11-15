@@ -79,8 +79,8 @@ final class AppModel: ObservableObject {
 
     var highballAppDetected: Bool {
         let app = URL(fileURLWithPath: "/Applications/Highball.app", isDirectory: true)
-        return Bundle(url: app)?.infoDictionary?["CFBundleShortVersionString"] as? String
-            == HighballReadiness.version
+        guard let installed = Bundle(url: app)?.infoDictionary?["CFBundleShortVersionString"] as? String else { return false }
+        return HighballReadiness.reviewedReleases[installed] != nil
     }
 
     var highballSetupComplete: Bool {
@@ -903,7 +903,7 @@ struct ContentView: View {
             Text("Game Installer needs Highball and its matching helper before it can download or install games. This one-time setup makes sure Windows games have an environment to install into.")
                 .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
 
-            setupStep(number: "1", title: "Install and open Highball", detail: "Install Highball 0.10.22, open it, and finish creating a Windows environment.") {
+            setupStep(number: "1", title: "Install and open Highball", detail: "Install a supported Highball version, open it, and finish creating a Windows environment.") {
                 if let url = URL(string: "https://gethighball.com/docs/install/") {
                     NSWorkspace.shared.open(url)
                 }
@@ -1373,7 +1373,7 @@ struct ContentView: View {
                     }
                 } else if let error = model.readinessError {
                     Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                    if error.localizedCaseInsensitiveContains("Highball 0.10.22 was not found") {
+                    if error.localizedCaseInsensitiveContains("Highball is missing") {
                         Text("Install Highball, open it, and press Get started. Highball creates your first Windows environment during setup. Return here and choose Check again when it is ready.")
                             .font(.callout).foregroundStyle(.secondary)
                         Button("Get Highball") {

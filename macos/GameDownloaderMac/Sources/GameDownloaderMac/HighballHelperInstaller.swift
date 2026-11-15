@@ -16,11 +16,11 @@ enum HighballHelperInstaller {
         }
     }
 
-    private static let version = "0.10.22"
-    private static let sourceCommit = "daa2095b9fd4abad0b9db7c57cacbd4d49a9e06e"
+    private static let version = "0.10.26"
+    private static let sourceCommit = "dbc36ebc67f75944fce0dd7994b060dcd68a67d1"
     private static let managedFiles = [
         "highball", "build-manifest.json", "LICENSE.txt",
-        "SOURCE-README.txt", "Highball-0.10.22-source.tar.gz", "highball-steam.patch",
+        "SOURCE-README.txt", "Highball-0.10.26-source.tar.gz", "highball-steam-0.10.26.patch",
     ]
 
     static func install() throws -> String {
@@ -133,7 +133,7 @@ private enum HelperInstallError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .highballVersion:
-            return "Install Highball 0.10.22 before installing its Game Installer helper."
+            return "Install Highball 0.10.26 before installing its Game Installer helper."
         case .resourcesMissing:
             return "The matching Highball helper files are missing from this Mac app. Re-download the Mac app."
         case .provenanceMismatch:

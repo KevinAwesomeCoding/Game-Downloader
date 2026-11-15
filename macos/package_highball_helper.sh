@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-readonly VERSION="0.10.22"
-readonly COMMIT="daa2095b9fd4abad0b9db7c57cacbd4d49a9e06e"
+readonly VERSION="0.10.26"
+readonly COMMIT="dbc36ebc67f75944fce0dd7994b060dcd68a67d1"
 readonly REPOSITORY="https://github.com/gauthierpiarrette/highball.git"
 readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly RESOURCES="$ROOT/macos/GameDownloaderMac/Sources/GameDownloaderMac/Resources"
@@ -40,7 +40,7 @@ if [[ "$actual_commit" != "$COMMIT" ]]; then
   exit 2
 fi
 
-git -C "$TEMPORARY/source" apply "$ROOT/macos/highball-steam.patch"
+git -C "$TEMPORARY/source" apply "$ROOT/macos/highball-steam-0.10.26.patch"
 
 swift build --package-path "$TEMPORARY/source" -c release --product highball
 binary="$TEMPORARY/source/.build/release/highball"
@@ -54,16 +54,16 @@ install -m 755 "$binary" "$DESTINATION/highball"
 install -m 644 "$TEMPORARY/source/LICENSE" "$DESTINATION/LICENSE.txt"
 mkdir -p "$TEMPORARY/archive/Highball-$VERSION"
 git -C "$TEMPORARY/source" archive "$COMMIT" | tar -xf - -C "$TEMPORARY/archive/Highball-$VERSION"
-git -C "$TEMPORARY/archive/Highball-$VERSION" apply "$ROOT/macos/highball-steam.patch"
+git -C "$TEMPORARY/archive/Highball-$VERSION" apply "$ROOT/macos/highball-steam-0.10.26.patch"
 tar -czf "$DESTINATION/Highball-$VERSION-source.tar.gz" -C "$TEMPORARY/archive" "Highball-$VERSION"
-install -m 644 "$ROOT/macos/highball-steam.patch" "$DESTINATION/highball-steam.patch"
+install -m 644 "$ROOT/macos/highball-steam-0.10.26.patch" "$DESTINATION/highball-steam-0.10.26.patch"
 cat > "$DESTINATION/SOURCE-README.txt" <<EOF
 Highball CLI helper, version $VERSION
 
 Upstream base source commit:
 $COMMIT
 
-Local integration patch: highball-steam.patch (Steam path resolution and CLI operation)
+Local integration patch: highball-steam-0.10.26.patch (Steam path resolution and CLI operation)
 Repository: $REPOSITORY
 Source archive: Highball-$VERSION-source.tar.gz
 License: GPL-3.0; see LICENSE.txt
@@ -84,9 +84,9 @@ metadata = {
     "highball_version": sys.argv[3],
     "source_commit": sys.argv[2],
     "steam_integration": "steam-path-v1",
-    "source_patch_sha256": hashlib.sha256((directory / "highball-steam.patch").read_bytes()).hexdigest(),
+    "source_patch_sha256": hashlib.sha256((directory / "highball-steam-0.10.26.patch").read_bytes()).hexdigest(),
     "binary_sha256": hashlib.sha256((directory / "highball").read_bytes()).hexdigest(),
-    "build": "SwiftPM release build from pinned upstream source plus highball-steam.patch",
+    "build": "SwiftPM release build from pinned upstream source plus highball-steam-0.10.26.patch",
     "signature": "SwiftPM ad-hoc; preview build re-signs the bundled binary",
 }
 (directory / "build-manifest.json").write_text(json.dumps(metadata, indent=2) + "\n")
