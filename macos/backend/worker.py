@@ -9,11 +9,15 @@ import shutil
 import sys
 import tempfile
 import threading
+import time
+import urllib.parse
+import urllib.request
 
 from archives import (content_root, extract, extract_rar_volume_set, find_tool,
                       is_rar_volume_set, merge_archive_part, merge_repair, safe_path)
 from downloads import (Downloader, Stopped, atomic_json, checkpoint, download_host_name,
                        fetch_with_backup, parts, sha256)
+from host_resolver_client import provider_for, resolve_source
 from highball import Highball
 from itch_login import sign_in, token_destination
 from universal_setup import apply_universal_setup, recipe_catalog, report_lines
@@ -74,6 +78,88 @@ def publish_directory(source, destination):
         raise OSError(error, "Could not publish installation without replacing an existing path", str(destination))
 
 
+class ArchiveSetProgress:
+    """Track verified sizes across one archive set without inventing unknown sizes."""
+
+    def __init__(self, label, sources, backups, cache, stop):
+        self.label, self.sources, self.backups = label, sources, backups
+        self.sizes = [None] * len(sources)
+        self.cached = [0] * len(sources)
+        self.stop = stop
+        self.lock = threading.Lock()
+        for index, source in enumerate(sources):
+            suffix = f".part{index + 1}.rar" if len(sources) > 1 else ".archive"
+            filename = cache / (label + suffix)
+            try:
+                receipt = json.loads(Path(str(filename) + ".json").read_text())
+                choices = {source["url"]}
+                if backups:
+                    choices.add(backups[index]["url"])
+                size = receipt.get("expected_size") or receipt.get("total")
+                if receipt.get("source") not in choices or type(size) is not int or size <= 0:
+                    continue
+                self.sizes[index] = size
+                if receipt.get("complete") and filename.is_file() and filename.stat().st_size == size:
+                    self.cached[index] = size
+                elif not backups and (receipt.get("etag") or receipt.get("modified")):
+                    partial = Path(str(filename) + ".part")
+                    if partial.is_file():
+                        self.cached[index] = min(size, partial.stat().st_size)
+            except (OSError, ValueError):
+                pass
+        if len(sources) > 1:
+            threading.Thread(target=self._probe, daemon=True, name="mac-archive-size-probe").start()
+
+    def _probe(self):
+        for index, source in enumerate(self.sources):
+            if self.stop():
+                return
+            with self.lock:
+                if self.sizes[index] is not None:
+                    continue
+            url = source["url"]
+            parsed = urllib.parse.urlsplit(url)
+            size = None
+            try:
+                provider = provider_for(url)
+                if provider in ("gofile", "filekeeper"):
+                    deadline = time.monotonic() + 15
+                    metadata = resolve_source(url, stop=lambda: self.stop() or time.monotonic() >= deadline)
+                    size = metadata.get("size")
+                elif (parsed.scheme == "https" and not parsed.username and not parsed.password
+                      and parsed.port in (None, 443) and (
+                          (parsed.hostname in ("archive.org", "www.archive.org") and parsed.path.startswith("/download/") and not parsed.query)
+                          or (parsed.hostname == "drive.usercontent.google.com" and parsed.path == "/download")
+                          or (parsed.hostname == "pixeldrain.com" and parsed.path.startswith("/api/file/"))
+                          or (parsed.hostname == "files.catbox.moe" and parsed.path.count("/") == 1))):
+                    request = urllib.request.Request(url, method="HEAD", headers={"Accept-Encoding": "identity"})
+                    with urllib.request.urlopen(request, timeout=6) as response:
+                        kind = response.headers.get("Content-Type", "").lower()
+                        if response.status == 200 and not any(x in kind for x in ("text/html", "application/json", "text/plain")):
+                            size = int(response.headers.get("Content-Length", "0"))
+            except Exception:
+                pass  # Size metadata is optional; the download must continue.
+            if type(size) is int and size > 0 and not self.stop():
+                with self.lock:
+                    if self.sizes[index] is None:
+                        self.sizes[index] = size
+
+    def fields(self, index, done, total):
+        with self.lock:
+            if total > 0:
+                self.sizes[index] = total
+            sizes = list(self.sizes)
+            cached = list(self.cached)
+        known = all(size is not None for size in sizes)
+        archive_done = (sum(size or 0 for size in sizes[:index]) + max(done, 0)
+                        + sum(cached[index + 1:]))
+        archive_total = sum(sizes) if known else 0
+        remaining = (max((sizes[index] or 0) - done, 0)
+                     + sum(max(size - cached[i], 0) for i, size in enumerate(sizes) if i > index)) if known else 0
+        return {"archiveDone": archive_done, "archiveTotal": archive_total,
+                "archiveRemaining": remaining, "partIndex": index}
+
+
 def install(job, cache, stop=lambda: False, notify=emit, downloader=None):
     game = job["game"]
     if game.get("type") == "fix" or str(game.get("zipUrl", "")).startswith("steam:"):
@@ -130,6 +216,12 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None):
     all_records = []
     archives = []
     for label, sources, backups in [("main", main, main_backups), ("update", updates, update_backups), ("repair", repairs, repair_backups)]:
+        if not sources:
+            all_hashes.append([])
+            all_records.append([])
+            archives.append([])
+            continue
+        progress = ArchiveSetProgress(label, sources, backups, cache, stop)
         hashes, files = [], []
         for index, source in enumerate(sources):
             checkpoint(stop)
@@ -144,9 +236,13 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None):
                        f"Primary {label} link failed; trying backup {index + 1} via {active_host['name']}…",
                        done=0, total=0)
 
-            notify("downloading", f"Downloading {label} archive {index + 1} of {len(sources)} via {active_host['name']}…", done=0, total=0)
-            transfer = downloader or Downloader(stop=stop, progress=lambda done, total: notify(
-                "downloading", f"Downloading {label} {index + 1}/{len(sources)} via {active_host['name']}", done=done, total=total),
+            def report_progress(done, total, part=index):
+                notify("downloading", f"Downloading {label} {part + 1}/{len(sources)} via {active_host['name']}",
+                       done=done, total=total, **progress.fields(part, done, total))
+
+            notify("downloading", f"Downloading {label} archive {index + 1} of {len(sources)} via {active_host['name']}…",
+                   done=0, total=0, **progress.fields(index, 0, 0))
+            transfer = downloader or Downloader(stop=stop, progress=report_progress,
                 status=lambda message: notify("downloading", message, done=0, total=0))
             hashes.append(fetch_with_backup(
                 transfer, source["url"], backup_source, filename,

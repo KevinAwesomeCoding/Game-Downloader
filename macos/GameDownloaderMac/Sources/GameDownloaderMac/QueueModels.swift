@@ -25,6 +25,10 @@ struct WorkerEvent: Decodable {
     let message: String
     let done: Int64?
     let total: Int64?
+    let archiveDone: Int64?
+    let archiveTotal: Int64?
+    let archiveRemaining: Int64?
+    let partIndex: Int?
     let installPath: String?
     let recipeAvailable: Bool?
     let rarAvailable: Bool?

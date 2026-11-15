@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from downloads import Downloader, Stopped, atomic_json, canonical_source, drive_confirmation, parts, sha256
 from archives import extract, merge_repair, safe_path, validate_entries, find_tool
 from highball import Highball, parse_pins, same_external_path
-from worker import install, publish_directory, highball_recipe
+from worker import ArchiveSetProgress, install, publish_directory, highball_recipe
 from universal_setup import apply_universal_setup, recipe_catalog
 import universal_setup
 
@@ -55,6 +55,28 @@ class TemporaryTest(unittest.TestCase):
 class DownloadTests(TemporaryTest):
     payload = b"PK\x03\x04" + bytes(range(256)) * 1200
     url = "https://fixture/no-extension"
+
+    def test_archive_set_counts_cached_parts_and_unknown_sizes(self):
+        sources = [{"url": f"https://fixture/{index}"} for index in range(3)]
+        first = self.root / "main.part1.rar"
+        first.write_bytes(b"a" * 100)
+        Path(str(first) + ".json").write_text(json.dumps({"source": sources[0]["url"], "total": 100, "complete": True}))
+        second = self.root / "main.part2.rar"
+        Path(str(second) + ".json").write_text(json.dumps({"source": sources[1]["url"], "total": 200, "etag": '"v1"'}))
+        Path(str(second) + ".part").write_bytes(b"b" * 50)
+        with patch.object(ArchiveSetProgress, "_probe"):
+            progress = ArchiveSetProgress("main", sources, [], self.root, lambda: False)
+        self.assertEqual(progress.fields(1, 50, 200)["archiveTotal"], 0)
+        progress.sizes[2] = 300
+        fields = progress.fields(1, 75, 200)
+        self.assertEqual(fields["archiveDone"], 175)
+        self.assertEqual(fields["archiveTotal"], 600)
+        self.assertEqual(fields["archiveRemaining"], 425)
+        progress.cached[2] = 30
+        fields = progress.fields(1, 75, 200)
+        self.assertEqual(fields["archiveDone"], 205)
+        self.assertEqual(fields["archiveRemaining"], 395)
+        self.assertEqual(progress.fields(2, 20, 300)["archiveRemaining"], 280)
 
     def partial(self):
         destination = self.root / "main.archive"

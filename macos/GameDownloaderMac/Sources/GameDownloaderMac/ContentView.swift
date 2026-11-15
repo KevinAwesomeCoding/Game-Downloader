@@ -46,6 +46,7 @@ final class AppModel: ObservableObject {
     @Published var jobs: [InstallJob] = []
     @Published var ownedInstallations: [OwnedGameInstallation] = []
     @Published var downloadEstimates: [String: String] = [:]
+    @Published var archiveProgress: [String: (done: Int64, total: Int64)] = [:]
     @Published var actionMessage: String?
     @Published var actionLogPath: String?
     @Published var itchClientID = UserDefaults.standard.string(forKey: "itchClientID") ?? "d9148c070f56eba6b00ae58b3cf9621a" {
@@ -74,7 +75,7 @@ final class AppModel: ObservableObject {
     var activeJobID: String?
     var stopIntents: [String: String] = [:]
     var queueWritable = true
-    private var downloadSamples: [String: (date: Date, bytes: Int64)] = [:]
+    private var downloadSamples: [String: (date: Date, bytes: Int64, partIndex: Int)] = [:]
 
     var highballAppDetected: Bool {
         let app = URL(fileURLWithPath: "/Applications/Highball.app", isDirectory: true)
@@ -262,7 +263,8 @@ final class AppModel: ObservableObject {
         return name.components(separatedBy: invalid).joined().trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "."))
     }
 
-    func updateDownloadEstimate(jobID: String, status: String, done: Int64, total: Int64) {
+    func updateDownloadEstimate(jobID: String, status: String, done: Int64, total: Int64,
+                                archiveRemaining: Int64?, archiveTotal: Int64?, partIndex: Int?) {
         guard status == "downloading", total > 0 else {
             downloadEstimates.removeValue(forKey: jobID)
             downloadSamples.removeValue(forKey: jobID)
@@ -270,8 +272,10 @@ final class AppModel: ObservableObject {
         }
 
         let now = Date()
-        guard let previous = downloadSamples[jobID], done >= previous.bytes else {
-            downloadSamples[jobID] = (now, done)
+        let currentPart = partIndex ?? 0
+        guard let previous = downloadSamples[jobID], previous.partIndex == currentPart,
+              done >= previous.bytes else {
+            downloadSamples[jobID] = (now, done, currentPart)
             downloadEstimates[jobID] = "Calculating time remaining…"
             return
         }
@@ -279,7 +283,7 @@ final class AppModel: ObservableObject {
         guard elapsed >= 1 else { return }
 
         let bytesPerSecond = Double(done - previous.bytes) / elapsed
-        downloadSamples[jobID] = (now, done)
+        downloadSamples[jobID] = (now, done, currentPart)
         guard bytesPerSecond > 0 else {
             downloadEstimates[jobID] = "Waiting for download speed…"
             return
@@ -287,7 +291,14 @@ final class AppModel: ObservableObject {
 
         let secondsRemaining = Double(max(total - done, 0)) / bytesPerSecond
         let speed = ByteCountFormatter.string(fromByteCount: max(Int64(bytesPerSecond), 1), countStyle: .file)
-        downloadEstimates[jobID] = "\(speed)/s • about \(Self.formatDuration(secondsRemaining)) left"
+        let part = "Part: about \(Self.formatDuration(secondsRemaining)) left"
+        let archive: String
+        if let remaining = archiveRemaining, let size = archiveTotal, size > 0 {
+            archive = "Archive set: about \(Self.formatDuration(Double(remaining) / bytesPerSecond)) left"
+        } else {
+            archive = "Archive set: unknown"
+        }
+        downloadEstimates[jobID] = "\(speed)/s • \(part) • \(archive)"
     }
 
     private static func formatDuration(_ seconds: Double) -> String {
@@ -1090,6 +1101,12 @@ struct ContentView: View {
                                             .font(.caption).foregroundStyle(.secondary)
                                         if job.status == "downloading", let estimate = model.downloadEstimates[job.id] {
                                             Text(estimate).font(.caption.weight(.medium)).foregroundStyle(.teal)
+                                        }
+                                        if job.status == "downloading", let setTotal = model.archiveProgress[job.id]?.total,
+                                           let setDone = model.archiveProgress[job.id]?.done, setTotal > 0 {
+                                            ProgressView(value: min(Double(setDone), Double(setTotal)), total: Double(setTotal))
+                                            Text("Archive set: \(ByteCountFormatter.string(fromByteCount: setDone, countStyle: .file)) / \(ByteCountFormatter.string(fromByteCount: setTotal, countStyle: .file))")
+                                                .font(.caption).foregroundStyle(.secondary)
                                         }
                                     } else { ProgressView().progressViewStyle(.linear) }
                                 }

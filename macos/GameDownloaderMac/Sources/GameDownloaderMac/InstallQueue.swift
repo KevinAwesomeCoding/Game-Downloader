@@ -312,10 +312,20 @@ extension AppModel {
                     item.recipeAvailable = event.recipeAvailable ?? item.recipeAvailable
                 }
                 self.updateDownloadEstimate(jobID: job.id, status: event.status,
-                                            done: event.done ?? 0, total: event.total ?? 0)
+                                            done: event.done ?? 0, total: event.total ?? 0,
+                                            archiveRemaining: event.archiveRemaining,
+                                            archiveTotal: event.archiveTotal, partIndex: event.partIndex)
+                if event.status == "downloading", let done = event.archiveDone,
+                   let total = event.archiveTotal, total > 0 {
+                    self.archiveProgress[job.id] = (done, total)
+                } else if event.status != "downloading" || event.archiveTotal == 0 {
+                    self.archiveProgress.removeValue(forKey: job.id)
+                }
             } completion: { [weak self] code, diagnostics in
                 guard let self else { return }
-                self.updateDownloadEstimate(jobID: job.id, status: "finished", done: 0, total: 0)
+                self.updateDownloadEstimate(jobID: job.id, status: "finished", done: 0, total: 0,
+                                            archiveRemaining: nil, archiveTotal: nil, partIndex: nil)
+                self.archiveProgress.removeValue(forKey: job.id)
                 let hadStopIntent = self.stopIntents[job.id] != nil
                 self.updateJob(job.id) { item in
                     if let intent = self.stopIntents.removeValue(forKey: job.id) {
