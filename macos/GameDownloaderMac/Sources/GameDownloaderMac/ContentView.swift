@@ -1034,12 +1034,12 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: 26) {
                         ForEach(filteredGames) { game in
                             GameCard(game: game) { selectedGame = game }
                         }
                     }
-                    .padding(.horizontal, 25).padding(.bottom, 25)
+                    .padding(.horizontal, 25).padding(.top, 16).padding(.bottom, 32)
                 }
             }
             footer
@@ -1187,7 +1187,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: 26) {
                         ForEach(model.ownedInstallations) { installation in
                             OwnedGameCard(installation: installation,
                                           play: { model.playOwnedGame(installation) },
@@ -1195,8 +1195,8 @@ struct ContentView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
-                    .padding(.horizontal, 2)
-                    .padding(.bottom, 24)
+                    .padding(.horizontal, 25)
+                    .padding(.top, 16).padding(.bottom, 32)
                 }
             }
         }
@@ -1493,7 +1493,9 @@ private struct OwnedGameCard: View {
     let installation: OwnedGameInstallation
     let play: () -> Void
     let showInFinder: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var artworkHovered = false
+    @State private var cardHovered = false
     @State private var accent = CardAccent.fallback
 
     var body: some View {
@@ -1541,30 +1543,50 @@ private struct OwnedGameCard: View {
                 }
                 .background(CardAccent.background(accent), in: RoundedRectangle(cornerRadius: 13))
                 .clipShape(RoundedRectangle(cornerRadius: 13))
-                .overlay(RoundedRectangle(cornerRadius: 13).stroke(accent.opacity(0.34), lineWidth: 1))
-                .shadow(color: accent.opacity(artworkHovered ? 0.25 : 0), radius: 17, y: 5)
+                .overlay(RoundedRectangle(cornerRadius: 13)
+                    .stroke(accent.opacity(cardHovered ? 0.56 : 0.34), lineWidth: 1))
             }
             .buttonStyle(.plain)
             .help("Play \(installation.game.name) in Highball")
+            .scaleEffect(cardHovered && !reduceMotion ? 1.035 : 1)
+            .offset(y: cardHovered && !reduceMotion ? -6 : 0)
+            .shadow(color: .black.opacity(cardHovered ? 0.38 : 0.08),
+                    radius: cardHovered ? 22 : 8, y: cardHovered ? 18 : 4)
+            .shadow(color: accent.opacity(cardHovered ? 0.48 : 0.14),
+                    radius: cardHovered ? 29 : 17, y: cardHovered ? 9 : 3)
+            .onHover { cardHovered = $0 }
+            .animation(reduceMotion ? nil : .spring(response: 0.31, dampingFraction: 0.78), value: cardHovered)
 
             Button(action: showInFinder) {
                 Label("Show in Finder", systemImage: "folder")
             }
             .buttonStyle(.bordered).controlSize(.small)
         }
+        .zIndex(cardHovered ? 1 : 0)
         .task(id: installation.game.id) { accent = await CardAccent.color(for: installation.game) }
-        .onDisappear { artworkHovered = false }
+        .onDisappear { artworkHovered = false; cardHovered = false }
     }
 }
 
 private struct GameCard: View {
     let game: Game
     let onOpen: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var accent = CardAccent.fallback
     @State private var hovered = false
+    @State private var opening = false
 
     var body: some View {
-        Button(action: onOpen) {
+        Button {
+            guard !opening else { return }
+            guard !reduceMotion else { onOpen(); return }
+            opening = true
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 170_000_000)
+                onOpen()
+                opening = false
+            }
+        } label: {
             VStack(alignment: .leading, spacing: 0) {
                 artwork
                 VStack(alignment: .leading, spacing: 8) {
@@ -1603,14 +1625,23 @@ private struct GameCard: View {
             .background(CardAccent.background(accent), in: RoundedRectangle(cornerRadius: 13))
             .overlay(RoundedRectangle(cornerRadius: 13).stroke(accent.opacity(hovered ? 0.55 : 0.34), lineWidth: 1))
             .clipShape(RoundedRectangle(cornerRadius: 13))
+            .overlay(RoundedRectangle(cornerRadius: 13).fill(accent.opacity(opening ? 0.26 : 0))
+                .allowsHitTesting(false))
             .contentShape(RoundedRectangle(cornerRadius: 13))
         }
         .buttonStyle(GameCardButtonStyle())
+        .disabled(opening)
         .help("View \(game.name)")
-        .shadow(color: accent.opacity(hovered ? 0.25 : 0), radius: 17, y: 5)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.2)) { hovered = hovering }
-        }
+        .scaleEffect(opening ? 0.985 : (hovered && !reduceMotion ? 1.035 : 1))
+        .offset(y: hovered && !reduceMotion ? -6 : 0)
+        .shadow(color: .black.opacity(hovered ? 0.38 : 0.08),
+                radius: hovered ? 22 : 8, y: hovered ? 18 : 4)
+        .shadow(color: accent.opacity(hovered ? 0.48 : 0.14),
+                radius: hovered ? 29 : 17, y: hovered ? 9 : 3)
+        .onHover { hovered = $0 }
+        .animation(reduceMotion ? nil : .spring(response: 0.31, dampingFraction: 0.78), value: hovered)
+        .animation(.easeOut(duration: 0.17), value: opening)
+        .zIndex(hovered ? 1 : 0)
         .task(id: game.id) { accent = await CardAccent.color(for: game) }
         .onDisappear { hovered = false }
     }
@@ -1724,28 +1755,75 @@ private struct GameDetailsSheet: View {
     @ObservedObject var model: AppModel
     let onInstall: (Game) -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var useMorePlayers = false
+    @State private var accent = CardAccent.fallback
+    @State private var heroAppeared = false
+    @State private var heroImage: NSImage?
 
     private var selectedEdition: Game? {
         useMorePlayers ? game.morePlayersGame() : game
     }
 
+    private var heroURLs: [URL] {
+        var candidates: [URL] = []
+        if let appID = game.steamAppId, !appID.isEmpty,
+           let thumbnail = game.thumbnail, thumbnail.contains("steamstatic.com"),
+           let hero = URL(string: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/\(appID)/library_hero.jpg") {
+            candidates.append(hero)
+        }
+        if let thumbnail = game.thumbnail, thumbnail.contains("/header.jpg"),
+           let largerHeader = URL(string: thumbnail.replacingOccurrences(of: "/header.jpg", with: "/header_2x.jpg")) {
+            candidates.append(largerHeader)
+        }
+        if let thumbnail = game.thumbnail, let original = URL(string: thumbnail) {
+            candidates.append(original)
+        }
+        return candidates
+    }
+
     var body: some View {
         ScrollView {
         VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text(game.name).font(.title.bold()).lineLimit(2).fixedSize(horizontal: false, vertical: true)
-                Spacer()
-                Button { dismiss() } label: { Image(systemName: "xmark.circle.fill").font(.title2).foregroundStyle(.secondary) }
-                    .buttonStyle(.plain)
+            ZStack {
+                LinearGradient(colors: [accent.opacity(0.38), .black.opacity(0.3)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                if !heroAppeared { ProgressView().controlSize(.small) }
+                if heroAppeared {
+                    ZStack(alignment: .bottomLeading) {
+                        if let heroImage {
+                            Image(nsImage: heroImage).resizable().scaledToFill()
+                                .frame(height: 220).frame(maxWidth: .infinity).clipped()
+                        } else {
+                            Image(systemName: "gamecontroller.fill")
+                                .font(.largeTitle).foregroundStyle(.white.opacity(0.55))
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                        LinearGradient(colors: [.clear, accent.opacity(0.18), .black.opacity(0.88)],
+                                       startPoint: .top, endPoint: .bottom)
+                        Text(game.name)
+                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.8), radius: 9, y: 3)
+                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                            .padding(20)
+                    }
+                    .transition(.opacity.combined(with: reduceMotion ? .identity : .offset(y: 12)))
+                }
             }
-            AsyncImage(url: URL(string: game.thumbnail ?? "")) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                LinearGradient(colors: [.gray.opacity(0.35), .black.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    .overlay(Image(systemName: "gamecontroller.fill").font(.largeTitle).foregroundStyle(.white.opacity(0.55)))
+            .frame(height: 220)
+            .clipShape(RoundedRectangle(cornerRadius: 13))
+            .overlay(RoundedRectangle(cornerRadius: 13).stroke(accent.opacity(0.42), lineWidth: 1))
+            .overlay(alignment: .topTrailing) {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark").font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(10)
+                        .background(.black.opacity(0.64), in: Circle())
+                }
+                .buttonStyle(.plain).help("Close game details").padding(13)
             }
-            .frame(height: 180).frame(maxWidth: .infinity).clipShape(RoundedRectangle(cornerRadius: 10))
+            .shadow(color: accent.opacity(0.22), radius: 22, y: 8)
             Text(game.description ?? "No description provided.")
                 .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             if let edition = game.morePlayers, edition.zipUrl.firstURL != nil {
@@ -1813,6 +1891,22 @@ private struct GameDetailsSheet: View {
         .frame(minWidth: 680, idealWidth: 780, maxWidth: 900,
                minHeight: 580, idealHeight: 720, maxHeight: 900)
         .background(Color(red: 0.055, green: 0.071, blue: 0.11))
+        .task(id: game.id) {
+            accent = await CardAccent.color(for: game)
+            for url in heroURLs {
+                var request = URLRequest(url: url)
+                request.timeoutInterval = 6
+                if let (data, response) = try? await URLSession.shared.data(for: request),
+                   (response as? HTTPURLResponse)?.statusCode == 200,
+                   let image = NSImage(data: data) {
+                    heroImage = image
+                    break
+                }
+            }
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.28)) {
+                heroAppeared = true
+            }
+        }
     }
 }
 
