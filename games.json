@@ -2364,5 +2364,54 @@
       "storage": "1024 MB available space"
     },
     "cardColor": "#a47b35"
+  },
+  {
+    "id": "minecraft-dungeons-ii",
+    "steamAppId": "1912410",
+    "name": "Minecraft Dungeons II",
+    "source": "https://online-fix.me/games/officialservers/18302-minecraft-dungeons-ii-po-seti.html",
+    "description": "Battle through the Sift for loot solo or with friends. This package requires Windows 10 1909 or newer, Microsoft Store, Xbox Gaming Services, and manual GDK registration; Mac compatibility is unverified.",
+    "version": "1.1.3.0",
+    "size": "",
+    "players": "1–4 players co-op",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1912410/86cbba83c1aaffa0b0efa4197ce29c2264ea9dc2/header.jpg?t=1791536987",
+    "zipUrl": [
+      {
+        "url": "https://gofile.io/d/3UvwrV7L",
+        "name": "Minecraft.Dungeons.II.v1.1.3.0-OFME.part1.rar"
+      },
+      {
+        "url": "https://gofile.io/d/Ds0BuHgt",
+        "name": "Minecraft.Dungeons.II.v1.1.3.0-OFME.part2.rar"
+      }
+    ],
+    "zipBackupUrl": [
+      {
+        "url": "https://filekeeper.net/ew1xkqw732kz/Minecraft.Dungeons.II.v1.1.3.0-OFME.part1.rar",
+        "name": "Minecraft.Dungeons.II.v1.1.3.0-OFME.part1.rar"
+      },
+      {
+        "url": "https://filekeeper.net/ugot4ku66dkg/Minecraft.Dungeons.II.v1.1.3.0-OFME.part2.rar",
+        "name": "Minecraft.Dungeons.II.v1.1.3.0-OFME.part2.rar"
+      }
+    ],
+    "fixZipUrl": "https://gofile.io/d/5dGwiRlZ",
+    "fixBackupUrl": "https://filekeeper.net/fkr2k1xoylgc/MinecraftDungeonsII_Fix_Repair_GDK_Generic.rar",
+    "requirements": {
+      "os": "Windows 10 64-bit version 1703 or newer",
+      "cpu": "Intel Core i3-8100 or AMD Ryzen 3 2200G",
+      "ram": "8 GB",
+      "gpu": "NVIDIA GeForce GTX 1050 or AMD Radeon RX 560, 2 GB VRAM",
+      "directx": "Version 11"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "The GDK-based Windows package and its Microsoft Store and Xbox service requirements have not been tested in Highball.",
+      "confidence": "Low",
+      "classifiedAt": "2026-11-14"
+    },
+    "cardColor": "#0874ad"
   }
 ]
