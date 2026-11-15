@@ -27,6 +27,9 @@ class PlatformRulesTests(unittest.TestCase):
     def test_platform_only_and_shared_inputs(self):
         for path, expected in {
             'main.py': (True, False),
+            'tests/test_card_effects.py': (True, False),
+            'tests/test_owned_games_ui.py': (True, False),
+            'tests/test_hosted_downloads.py': (True, True),
             'ci/build_windows.ps1': (True, False),
             'macos/GameDownloaderMac/Sources/GameDownloaderMac/Updater.swift': (False, True),
             'ci/build_macos.sh': (False, True),

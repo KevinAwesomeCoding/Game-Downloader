@@ -4,6 +4,7 @@ import ctypes
 from ctypes import wintypes
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 
@@ -28,7 +29,11 @@ class ShellExecuteInfo(ctypes.Structure):
     ]
 
 
-def check(executable: Path, fixture: Path) -> None:
+class StartupTimeout(RuntimeError):
+    """The packaged startup check did not finish within its deadline."""
+
+
+def _check_once(executable: Path, fixture: Path) -> None:
     adjacent_fixture = executable.parent / "winmm.dll"
     if adjacent_fixture.exists():
         raise RuntimeError(f"Refusing to overwrite existing DLL: {adjacent_fixture}")
@@ -75,10 +80,24 @@ def check(executable: Path, fixture: Path) -> None:
             kernel.CloseHandle.argtypes = [wintypes.HANDLE]
             kernel.CloseHandle.restype = wintypes.BOOL
             wait_result = kernel.WaitForSingleObject(info.hProcess, 180_000)
+            if wait_result == 0xFFFFFFFF:  # WAIT_FAILED
+                raise ctypes.WinError()
             if wait_result != 0:
+                # The helper launches a driver and browser; terminating only
+                # the parent leaves children behind on an unattended runner.
+                kernel.GetProcessId.argtypes = [wintypes.HANDLE]
+                kernel.GetProcessId.restype = wintypes.DWORD
+                pid = kernel.GetProcessId(info.hProcess)
+                if pid:
+                    try:
+                        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
+                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                       timeout=10, check=False)
+                    except (OSError, subprocess.TimeoutExpired):
+                        pass
                 kernel.TerminateProcess(info.hProcess, 1)
                 kernel.WaitForSingleObject(info.hProcess, 10_000)
-                raise RuntimeError(f"Packaged startup timed out: {executable}")
+                raise StartupTimeout(f"Packaged startup timed out: {executable}")
             exit_code = wintypes.DWORD()
             if not kernel.GetExitCodeProcess(info.hProcess, ctypes.byref(exit_code)):
                 raise ctypes.WinError()
@@ -91,6 +110,14 @@ def check(executable: Path, fixture: Path) -> None:
     finally:
         adjacent_fixture.unlink(missing_ok=True)
         marker.unlink(missing_ok=True)
+
+
+def check(executable: Path, fixture: Path) -> None:
+    try:
+        _check_once(executable, fixture)
+    except StartupTimeout:
+        print(f"Packaged startup timed out; retrying once: {executable}", flush=True)
+        _check_once(executable, fixture)
 
 
 if __name__ == "__main__":
