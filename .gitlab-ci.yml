@@ -50,7 +50,7 @@ release_info:
 build_windows:
   stage: build
   rules:
-    - if: '$WINDOWS_ONLY == "true"'
+    - if: '$WINDOWS_ONLY == "true" || ($CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TITLE =~ /\[windows-only\]/)'
     - if: '$PLATFORM_SPLIT_ENABLED != "true"'
     - changes:
         - "*.py"
@@ -99,7 +99,7 @@ build_windows:
 build_macos:
   stage: build
   rules:
-    - if: '$WINDOWS_ONLY == "true"'
+    - if: '$WINDOWS_ONLY == "true" || ($CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TITLE =~ /\[windows-only\]/)'
       when: never
     - if: '$PLATFORM_SPLIT_ENABLED != "true"'
     - changes:

@@ -44,8 +44,9 @@ class PlatformRulesTests(unittest.TestCase):
         text = (ROOT / '.gitlab-ci.yml').read_text(encoding='utf-8')
         windows = text.split('build_windows:', 1)[1].split('\nbuild_macos:', 1)[0]
         macos = text.split('build_macos:', 1)[1].split('\npublish_release:', 1)[0]
-        self.assertIn('    - if: \'$WINDOWS_ONLY == "true"\'\n', windows)
-        self.assertIn('    - if: \'$WINDOWS_ONLY == "true"\'\n      when: never', macos)
+        override = '    - if: \'$WINDOWS_ONLY == "true" || ($CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TITLE =~ /\\[windows-only\\]/)\''
+        self.assertIn(override + '\n', windows)
+        self.assertIn(override + '\n      when: never', macos)
 
     def test_tracked_files_do_not_fall_through_both_platforms(self):
         tracked = set(subprocess.check_output(['git', 'ls-files'], cwd=ROOT, text=True).splitlines())
