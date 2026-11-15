@@ -57,14 +57,14 @@ from desktop_profile import desktop_profile
 try:
     from PyQt6.QtCore import (
         Qt, QObject, QThread, QThreadPool, QRunnable, QSize, QRect, QPoint,
-        QTimer, QVariantAnimation, pyqtSignal, pyqtSlot,
+        QTimer, QVariantAnimation, QEasingCurve, QRectF, pyqtSignal, pyqtSlot,
     )
-    from PyQt6.QtGui import QPixmap, QImage, QPainter, QPainterPath, QCursor, QColor, QFont, QFontDatabase
+    from PyQt6.QtGui import QPixmap, QImage, QPainter, QPainterPath, QCursor, QColor, QFont, QFontDatabase, QPen
     from PyQt6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QLabel, QPushButton, QVBoxLayout,
         QHBoxLayout, QScrollArea, QFrame, QStackedWidget, QDialog, QLineEdit,
         QProgressBar, QFileDialog, QMessageBox, QSizePolicy, QLayout, QCheckBox,
-        QComboBox, QPlainTextEdit, QMenu, QGraphicsOpacityEffect, QGraphicsBlurEffect,
+        QComboBox, QPlainTextEdit, QMenu, QGraphicsOpacityEffect, QGraphicsBlurEffect, QGraphicsEffect,
     )
 except ImportError as _qt_err:
     _msg = (
@@ -3583,6 +3583,94 @@ def artwork_accent(image):
     return QColor.fromHsv(best * 15 + 7, 150, 190) if bins[best] >= 3 else fallback
 
 
+def ui_motion_enabled():
+    try:
+        enabled = ctypes.c_int()
+        if ctypes.windll.user32.SystemParametersInfoW(0x1042, 0, ctypes.byref(enabled), 0):
+            return bool(enabled.value)
+    except (AttributeError, OSError):
+        pass
+    return True
+
+
+def game_detail_art_urls(game):
+    app_id = str(game._raw.get('steamAppId') or '')
+    urls = []
+    if app_id.isdigit():
+        base = f'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/{app_id}'
+        urls.extend([f'{base}/library_hero.jpg', f'{base}/header.jpg'])
+    if game.thumbnail and game.thumbnail not in urls:
+        urls.append(game.thumbnail)
+    return urls
+
+
+class CardHoverEffect(QGraphicsEffect):
+    def __init__(self, card):
+        super().__init__(card)
+        self.card = card
+        self.progress = 0.0
+        self.flash = 0.0
+
+    def boundingRectFor(self, rect):
+        return rect.adjusted(-22, -26, 22, 22)
+
+    def draw(self, painter):
+        if self.progress <= 0 and self.flash <= 0:
+            self.drawSource(painter)
+            return
+        pixmap, offset = self.sourcePixmap(Qt.CoordinateSystem.LogicalCoordinates,
+                                           QGraphicsEffect.PixmapPadMode.NoPad)
+        if pixmap.isNull():
+            return
+        p = self.progress
+        target = QRectF(offset.x(), offset.y(), pixmap.width() / pixmap.devicePixelRatio(),
+                        pixmap.height() / pixmap.devicePixelRatio())
+        if ui_motion_enabled():
+            expansion = target.width() * 0.017 * p
+            target = target.adjusted(-expansion, -expansion - 5*p, expansion, expansion - 5*p)
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        if p > 0:
+            for width in range(22, 1, -2):
+                color = QColor(self.card._accent)
+                color.setAlpha(round(p * (23 - width) * 1.3))
+                painter.setPen(QPen(color, width))
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.drawRoundedRect(target.adjusted(1, 1, -1, -1), 14, 14)
+        painter.drawPixmap(target, pixmap, QRectF(pixmap.rect()))
+        if self.flash:
+            color = QColor(self.card._accent)
+            color.setAlpha(round(self.flash * 90))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(color)
+            painter.drawRoundedRect(target, 14, 14)
+        painter.restore()
+
+
+class AnimatedStack(QStackedWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._fade = None
+
+    def setCurrentWidget(self, widget):
+        if widget is self.currentWidget():
+            return
+        if self._fade is not None:
+            self._fade.stop()
+        super().setCurrentWidget(widget)
+        if not ui_motion_enabled():
+            return
+        effect = QGraphicsOpacityEffect(widget)
+        widget.setGraphicsEffect(effect)
+        self._fade = QVariantAnimation(self)
+        self._fade.setDuration(180)
+        self._fade.setStartValue(0.35)
+        self._fade.setEndValue(1.0)
+        self._fade.valueChanged.connect(effect.setOpacity)
+        self._fade.finished.connect(lambda: widget.setGraphicsEffect(None))
+        self._fade.start()
+
+
 class GameCard(QFrame):
     CARD_W = 280
     THUMB_H = 130
@@ -3595,6 +3683,13 @@ class GameCard(QFrame):
         self._installed = installed
         self._accent = QColor(game.card_color or '#2dd4bf')
         self._card_hovered = False
+        self._opening = False
+        self._card_effect = CardHoverEffect(self)
+        self.setGraphicsEffect(self._card_effect)
+        self._card_animation = QVariantAnimation(self)
+        self._card_animation.setDuration(200 if ui_motion_enabled() else 0)
+        self._card_animation.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self._card_animation.valueChanged.connect(self._animate_card)
         self.setObjectName("GameCard")
         self.setFixedWidth(self.CARD_W)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -3617,7 +3712,7 @@ class GameCard(QFrame):
         self._hovered = False
         self._hover_progress = 0.0
         self._hover_fade = QVariantAnimation(self)
-        self._hover_fade.setDuration(180)
+        self._hover_fade.setDuration(180 if ui_motion_enabled() else 0)
         self._hover_fade.valueChanged.connect(self._on_hover_progress)
 
         body = QVBoxLayout()
@@ -3736,21 +3831,20 @@ class GameCard(QFrame):
 
     def paintEvent(self, event):
         super().paintEvent(event)
-        if not self._card_hovered:
-            return
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        for inset, alpha in ((1, 180), (2, 95), (3, 60), (4, 38), (5, 22)):
-            color = QColor(self._accent)
-            color.setAlpha(alpha)
-            painter.setPen(color)
-            painter.drawRoundedRect(self.rect().adjusted(inset, inset, -inset - 1, -inset - 1), 12, 12)
-        painter.end()
+
+    def _animate_card(self, value):
+        self._card_effect.progress = float(value)
+        self._card_effect.update()
 
     def _set_hovered(self, hovered):
         if self._card_hovered != hovered:
             self._card_hovered = hovered
+            if hovered:
+                self.raise_()
+            self._card_animation.stop()
+            self._card_animation.setStartValue(self._card_effect.progress)
+            self._card_animation.setEndValue(1.0 if hovered else 0.0)
+            self._card_animation.start()
             self.update()
         if self._installed and self._hovered != hovered:
             self._hovered = hovered
@@ -3793,8 +3887,18 @@ class GameCard(QFrame):
         self.thumb.setPixmap(art)
 
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._on_click(self.game)
+        if event.button() == Qt.MouseButton.LeftButton and not self._opening:
+            self._opening = True
+            self._card_effect.flash = 1.0 if not self._installed and ui_motion_enabled() else 0.0
+            self._card_effect.update()
+            def activate():
+                self._card_effect.flash = 0.0
+                self._card_effect.update()
+                try:
+                    self._on_click(self.game)
+                finally:
+                    self._opening = False
+            QTimer.singleShot(90 if self._card_effect.flash else 0, activate)
         super().mouseReleaseEvent(event)
 
     def enterEvent(self, event):
@@ -3851,6 +3955,36 @@ def default_game_directory():
         return ""
 
 
+class DetailArtwork(QLabel):
+    def __init__(self):
+        super().__init__()
+        self.image = None
+        self.setFixedHeight(180)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+
+    def set_image(self, image):
+        self.image = image
+        self.update()
+
+    def paintEvent(self, event):
+        if self.image is None or self.image.isNull():
+            return super().paintEvent(event)
+        target = QRectF(self.rect())
+        if target.isEmpty():
+            return
+        source = QRectF(self.image.rect())
+        ratio = max(target.width() / source.width(), target.height() / source.height())
+        width, height = target.width() / ratio, target.height() / ratio
+        source = QRectF((source.width() - width) / 2, (source.height() - height) / 2, width, height)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        clip = QPainterPath()
+        clip.addRoundedRect(target, 12, 12)
+        painter.setClipPath(clip)
+        painter.drawImage(target, self.image, source)
+
+
 class InstallDialog(QDialog):
     def __init__(self, game: Game, parent=None, *, patch_target: str | None = None,
                  manager=None):
@@ -3876,6 +4010,11 @@ class InstallDialog(QDialog):
         root.setContentsMargins(24, 24, 24, 24)
         root.setSpacing(13)
 
+        self._detail_header = QWidget()
+        detail_layout = QVBoxLayout(self._detail_header)
+        detail_layout.setContentsMargins(0, 0, 0, 0)
+        self._detail_art = DetailArtwork()
+        detail_layout.addWidget(self._detail_art)
         title_row = QHBoxLayout()
         title = QLabel(game.name)
         title.setObjectName("DialogTitle")
@@ -3890,7 +4029,13 @@ class InstallDialog(QDialog):
             game.id, game.name, game.has_fix, game.fix_url,
         )
         title_row.addWidget(self.fix_only_btn)
-        root.addLayout(title_row)
+        detail_layout.addLayout(title_row)
+        root.addWidget(self._detail_header)
+        self._detail_header.hide()
+        self._detail_urls = game_detail_art_urls(game)
+        self._detail_placeholder = QLabel('Loading artwork…')
+        root.insertWidget(0, self._detail_placeholder)
+        QTimer.singleShot(0, self._load_detail_art)
 
         if game.id == "among-us":
             login_button = QPushButton("Set up itch.io login")
@@ -4063,6 +4208,31 @@ class InstallDialog(QDialog):
         task.signals.authorization_url.connect(show_link)
         task.signals.finished.connect(finished)
         QThreadPool.globalInstance().start(task)
+
+    def _load_detail_art(self):
+        if not self._detail_urls:
+            self._detail_art.hide()
+            self._detail_placeholder.hide()
+            self._detail_header.show()
+            return
+        url = self._detail_urls.pop(0)
+        cached = THUMB_CACHE.get(url)
+        if cached is not None:
+            self._detail_art_done(url, cached)
+            return
+        task = ThumbnailRunnable(url)
+        task.signals.done.connect(self._detail_art_done)
+        QThreadPool.globalInstance().start(task)
+
+    @pyqtSlot(str, object)
+    def _detail_art_done(self, url, image):
+        if image is None:
+            self._load_detail_art()
+            return
+        THUMB_CACHE[url] = image
+        self._detail_art.set_image(image)
+        self._detail_placeholder.hide()
+        self._detail_header.show()
 
     def _label(self, text, obj):
         lbl = QLabel(text)
@@ -5257,7 +5427,7 @@ class MainWindow(QMainWindow):
         elif self._update_restart_status == "failed":
             self.check_updates_btn.setToolTip("The update could not be applied; the previous app was reopened. Click to retry or open the release page.")
 
-        self.stack = QStackedWidget()
+        self.stack = AnimatedStack()
         outer.addWidget(self.stack, 1)
         self.loading_page = self._build_loading_page()
         self.error_page = self._build_error_page()
@@ -6388,16 +6558,77 @@ class MainWindow(QMainWindow):
                 return
             dlg = InstallDialog(game, self, patch_target=folder,
                                 manager=self.download_manager)
-            if dlg.exec():
-                self.stack.setCurrentWidget(self.downloads_page)
+            self._show_game_details(dlg)
             return
 
         # Normal (non-fix) game — unchanged.
         dlg = InstallDialog(game, self, manager=self.download_manager)
-        # Dialog is now just a configure-and-queue step; accepted == enqueued,
-        # so jump to the Downloads page to show progress.
-        if dlg.exec():
-            self.stack.setCurrentWidget(self.downloads_page)
+        self._show_game_details(dlg)
+
+    def _show_game_details(self, dialog):
+        scrim = QFrame(self.centralWidget())
+        scrim.setObjectName('DetailScrim')
+        scrim.setStyleSheet('#DetailScrim { background-color: rgba(0, 0, 0, 155); }')
+        layout = QVBoxLayout(scrim)
+        layout.setContentsMargins(20, 20, 20, 20)
+        panel = QFrame()
+        panel.setObjectName('DetailPanel')
+        panel.setStyleSheet('#DetailPanel { background-color: #0c111c; border: 1px solid #394452; border-radius: 18px; }')
+        panel_layout = QVBoxLayout(panel)
+        panel_layout.setContentsMargins(12, 10, 12, 12)
+        close = QPushButton('✕')
+        close.setObjectName('NavButton')
+        close.setToolTip('Close details')
+        close.clicked.connect(dialog.reject)
+        panel_layout.addWidget(close, 0, Qt.AlignmentFlag.AlignRight)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        dialog.setParent(scroll)
+        dialog.setWindowFlags(Qt.WindowType.Widget)
+        dialog.setModal(False)
+        scroll.setWidget(dialog)
+        panel_layout.addWidget(scroll, 1)
+        layout.addWidget(panel, 0, Qt.AlignmentFlag.AlignCenter)
+        self._details_overlay = (scrim, panel)
+        self._resize_details_overlay()
+
+        def finished(result):
+            self._details_overlay = None
+            scrim.hide()
+            scrim.deleteLater()
+            if result == QDialog.DialogCode.Accepted:
+                self.stack.setCurrentWidget(self.downloads_page)
+
+        dialog.finished.connect(finished)
+        scrim.show()
+        scrim.raise_()
+        dialog.show()
+        if ui_motion_enabled():
+            effect = QGraphicsOpacityEffect(scrim)
+            scrim.setGraphicsEffect(effect)
+            animation = QVariantAnimation(scrim)
+            animation.setDuration(220)
+            animation.setStartValue(0.0)
+            animation.setEndValue(1.0)
+            animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+            animation.valueChanged.connect(effect.setOpacity)
+            animation.finished.connect(lambda: scrim.setGraphicsEffect(None))
+            scrim._opening_animation = animation
+            animation.start()
+
+    def _resize_details_overlay(self):
+        overlay = getattr(self, '_details_overlay', None)
+        if overlay:
+            scrim, panel = overlay
+            area = self.centralWidget().rect()
+            scrim.setGeometry(area)
+            panel.setFixedSize(max(1, min(900, area.width() - 40)),
+                               max(1, min(940, area.height() - 40)))
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._resize_details_overlay()
 
 
 # ---------------------------------------------------------------------------
