@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,12 +26,23 @@ version = os.environ["RELEASE_VERSION"]
 api = os.environ["CI_API_V4_URL"].rstrip("/")
 project_id = os.environ["CI_PROJECT_ID"]
 package_root = f"{api}/projects/{project_id}/packages/generic/GameInstaller/{quote(tag)}"
-files = [
-    Path("dist/GameInstaller.zip"),
-    Path("dist/GameInstaller-windows-x64.exe"),
-    Path("dist/GameInstaller-macOS-arm64.zip"),
-    Path("games.json"),
-]
+windows_files = [Path("dist/GameInstaller.zip"), Path("dist/GameInstaller-windows-x64.exe")]
+macos_files = [Path("dist/GameInstaller-macOS-arm64.zip")]
+windows_built = all(p.is_file() for p in windows_files)
+macos_built = all(p.is_file() for p in macos_files)
+if not (windows_built or macos_built):
+    raise SystemExit('No platform build artifacts were supplied.')
+if not (windows_built and macos_built) and os.environ.get('PLATFORM_SPLIT_ENABLED') != 'true':
+    raise SystemExit('Migration release requires both platform builds.')
+previous = None
+if not (windows_built and macos_built):
+    previous_url = os.environ['CI_PROJECT_URL'].rstrip('/') + '/-/releases/permalink/latest/downloads/release.json'
+    try:
+        with urlopen(Request(previous_url, headers={'JOB-TOKEN': os.environ['CI_JOB_TOKEN']}), timeout=30) as response:
+            previous = json.load(response)
+    except Exception as exc:
+        raise SystemExit(f'Cannot safely carry forward the previous platform release: {exc}')
+files = (windows_files if windows_built else []) + (macos_files if macos_built else []) + [Path('games.json')]
 for path in files:
     if not path.is_file():
         raise SystemExit(f"Missing release file: {path}")
@@ -74,7 +86,7 @@ for line in git_output('for-each-ref', '--format=%(refname:short)%09%(*objectnam
     fields = line.split('\t')
     if len(fields) == 3 and fields[0].startswith('v'):
         tag_commits[fields[0]] = fields[1] or fields[2]
-release_manifest.write_text(json.dumps({
+release_data = {
     "tag_name": tag,
     "commit_title": os.environ.get("CI_COMMIT_TITLE", ""),
     "commit_sha": os.environ["CI_COMMIT_SHA"],
@@ -88,10 +100,50 @@ release_manifest.write_text(json.dumps({
         "browser_download_url": f"{release_url}/downloads/{quote(path.name)}",
         "digest": f"sha256:{hashes[path.name]}",
     } for path in files if path.name in hashes],
-}, indent=2) + "\n", encoding="utf-8")
+}
+# Initial migration release builds both platforms. Preserve the legacy fields
+# so older installations can still locate their installer.
+release_data['platforms'] = {}
+carried_assets = []
+for platform, names in {
+    'windows': {'GameInstaller.zip', 'GameInstaller-windows-x64.exe'},
+    'macos': {'GameInstaller-macOS-arm64.zip'},
+}.items():
+    built = windows_built if platform == 'windows' else macos_built
+    if not built:
+        prior = (previous.get('platforms') or {}).get(platform)
+        if not isinstance(prior, dict) or not prior.get('assets'):
+            raise SystemExit(f'Previous {platform} release metadata is missing; build both platforms first.')
+        release_data['platforms'][platform] = prior
+        carried_assets.extend(prior['assets'])
+        continue
+    release_data['platforms'][platform] = {
+        **{key: release_data[key] for key in ('tag_name', 'html_url', 'body',
+                                               'commit_title', 'commit_sha', 'created_at',
+                                               'commit_history', 'tag_commits')},
+        'assets': [asset for asset in release_data['assets'] if asset['name'] in names],
+    }
+# Older clients read only top-level assets. Keep the previous installer links
+# available to them even though their shared version may trigger a redundant
+# update notice until they install the migration release.
+release_data['assets'].extend(carried_assets)
+for asset in carried_assets:
+    digest = str(asset.get('digest') or '')
+    if not re.fullmatch(r'sha256:[0-9a-fA-F]{64}', digest):
+        raise SystemExit(f"Previous asset {asset.get('name', '')} has no valid SHA-256 digest.")
+    hashes[asset['name']] = digest.removeprefix('sha256:')
+manifest.write_text(json.dumps(hashes, indent=2) + "\n", encoding="utf-8")
+release_manifest.write_text(json.dumps(release_data, indent=2) + "\n", encoding="utf-8")
 files.append(release_manifest)
 
 links = []
+for asset in carried_assets:
+    links.append({
+        'name': asset['name'],
+        'url': asset['browser_download_url'],
+        'direct_asset_path': '/' + asset['name'],
+        'link_type': 'package',
+    })
 for path in files:
     package_url = f"{package_root}/{quote(path.name)}"
     request(package_url, data=path.read_bytes(), content_type="application/octet-stream", method="PUT")

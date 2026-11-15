@@ -44,7 +44,7 @@ $main = Get-Content main.py -Raw
 $main = $main -replace '(?m)^VERSION = ".*"$', ('VERSION = "' + $env:RELEASE_TAG + '"')
 Set-Content main.py -Value $main -Encoding utf8 -NoNewline
 
-$common = @('--windowed', '--uac-admin', '--noupx', '--version-file', 'version_info.txt',
+$common = @('--windowed', '--uac-admin', '--noupx', '--icon', 'assets/icons/game-installer.ico', '--version-file', 'version_info.txt',
     '--hidden-import', 'PyQt6.sip',
     '--add-data', 'build/host-resolver/HostResolver;HostResolver',
     '--add-data', 'games.json;.', '--add-data', 'assets/fonts;assets/fonts', '--add-data', 'bin/7z.exe;bin', '--add-data', 'bin/7z.dll;bin',
@@ -65,7 +65,7 @@ $launcherManifest = Join-Path (Resolve-Path build).Path 'launcher.manifest'
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0"><trustInfo xmlns="urn:schemas-microsoft-com:asm.v3"><security><requestedPrivileges><requestedExecutionLevel level="requireAdministrator" uiAccess="false" /></requestedPrivileges></security></trustInfo></assembly>
 '@ | Set-Content -LiteralPath $launcherManifest -Encoding utf8
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-& $csc /nologo /target:winexe /optimize+ '/reference:System.Windows.Forms.dll' '/reference:System.Drawing.dll' '/reference:System.IO.Compression.dll' '/reference:System.IO.Compression.FileSystem.dll' "/win32manifest:$launcherManifest" "/resource:$payload,app.zip" '/out:dist\GameInstaller-windows-x64.exe' 'ci\windows_launcher.cs'
+& $csc /nologo /target:winexe /optimize+ '/win32icon:assets/icons/game-installer.ico' '/reference:System.Windows.Forms.dll' '/reference:System.Drawing.dll' '/reference:System.IO.Compression.dll' '/reference:System.IO.Compression.FileSystem.dll' "/win32manifest:$launcherManifest" "/resource:$payload,app.zip" '/out:dist\GameInstaller-windows-x64.exe' 'ci\windows_launcher.cs'
 if ($LASTEXITCODE -ne 0) { throw 'Windows launcher build failed.' }
 & $python @pythonArgs tools/check_windows_dll_safety.py $fixture dist/GameInstaller-windows-x64.exe
 if ($LASTEXITCODE -ne 0) { throw 'Single-file DLL collision check failed.' }

@@ -32,6 +32,9 @@ workflow:
 
 variables:
   GIT_DEPTH: "0"
+  # The migration commit modifies this shared CI file, so both jobs run once.
+  # Set this variable to false in GitLab to force both builds if needed.
+  PLATFORM_SPLIT_ENABLED: "true"
 
 release_info:
   stage: prepare
@@ -46,6 +49,29 @@ release_info:
 
 build_windows:
   stage: build
+  rules:
+    - if: '$PLATFORM_SPLIT_ENABLED != "true"'
+    - changes:
+        - "*.py"
+        - "*.txt"
+        - "*.md"
+        - "*.json"
+        - "*.yml"
+        - "*.html"
+        - "*.log"
+        - ".gitignore"
+        - "compat/**/*"
+        - "sync-app/**/*"
+        - VERSION
+        - "bin/**/*"
+        - "ci/build_windows.ps1"
+        - "ci/windows_launcher.cs"
+        - "ci/release_info.py"
+        - "ci/publish_gitlab_release.py"
+        - "tools/**/*"
+        - "assets/**/*"
+        - "tests/**/*"
+        - ".gitlab-ci.yml"
   variables:
     GIT_CONFIG_NOSYSTEM: "1"
     GIT_CONFIG_GLOBAL: "NUL"
@@ -68,6 +94,31 @@ build_windows:
 
 build_macos:
   stage: build
+  rules:
+    - if: '$PLATFORM_SPLIT_ENABLED != "true"'
+    - changes:
+        - "macos/**/*"
+        - VERSION
+        - "requirements.txt"
+        - "*.md"
+        - "*.json"
+        - "*.yml"
+        - "*.html"
+        - "*.log"
+        - ".gitignore"
+        - "compat/**/*"
+        - "sync-app/**/*"
+        - "tests/**/*"
+        - "ci/build_macos.sh"
+        - "ci/release_info.py"
+        - "ci/publish_gitlab_release.py"
+        - "assets/**/*"
+        - "download_support.py"
+        - "host_resolver.py"
+        - "host_resolver_client.py"
+        - "tools/**/*"
+        - "spikes/highball/**/*"
+        - ".gitlab-ci.yml"
   tags:
     - game-downloader-macos-arm64
   needs:
@@ -89,8 +140,10 @@ publish_release:
       artifacts: true
     - job: build_windows
       artifacts: true
+      optional: true
     - job: build_macos
       artifacts: true
+      optional: true
   script:
     - python ci/publish_gitlab_release.py
   resource_group: game-downloader-release

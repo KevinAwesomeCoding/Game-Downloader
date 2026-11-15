@@ -180,6 +180,7 @@ PY
 }
 trap cleanup EXIT
 mkdir -p "$stage/Contents/MacOS" "$stage/Contents/Resources"
+cp "$ROOT/assets/icons/game-installer.icns" "$stage/Contents/Resources/GameInstaller.icns"
 install -m 755 "$binary" "$stage/Contents/MacOS/$PRODUCT"
 ditto "$resource_bundle" "$stage/Contents/Resources/${PRODUCT}_${PRODUCT}.bundle"
 
@@ -191,6 +192,7 @@ info={
     "CFBundleDisplayName":os.environ.get("APP_DISPLAY_NAME", "Game Installer Preview"),
     "CFBundleIdentifier":os.environ.get("APP_BUNDLE_IDENTIFIER", "com.kevinawesomecoding.GameInstallerPreview"),
     "CFBundleExecutable":"GameDownloaderMac",
+    "CFBundleIconFile":"GameInstaller.icns",
     "CFBundlePackageType":"APPL",
     "CFBundleShortVersionString":os.environ.get("RELEASE_VERSION", "0.1.0"),
     "CFBundleVersion":"1",

@@ -91,6 +91,14 @@ def compatible_release(release: dict, current_version: str, system: str, machine
     """Find a newer release for this binary target; this app ships Windows x64."""
     if system.lower() not in ("windows", "win32") or machine.lower() not in ("amd64", "x86_64"):
         return None
+    # Newer manifests can carry a complete release per platform. Legacy
+    # manifests continue to use the shared top-level release unchanged.
+    platforms = release.get('platforms')
+    if isinstance(platforms, dict):
+        platform_release = platforms.get('windows')
+        if not isinstance(platform_release, dict):
+            return None
+        release = platform_release
     tag = str(release.get("tag_name") or "")
     if not tag or version_key(tag) <= version_key(current_version):
         return None

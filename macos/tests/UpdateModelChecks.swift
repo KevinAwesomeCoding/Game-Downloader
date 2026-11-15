@@ -23,6 +23,22 @@ enum UpdateModelChecks {
                            browser_download_url: URL(string: "https://example.invalid/legacy.zip")!, digest: "sha256:" + hash)]
         )
         precondition(AppUpdater.resolve(legacyRelease, currentVersion: "v1.3", architecture: "arm64")?.canSelfUpdate == true)
+        let platformRelease = AppUpdater.Release.PlatformRelease(
+            tag_name: release.tag_name, html_url: release.html_url, body: release.body, assets: release.assets)
+        let splitRelease = AppUpdater.Release(
+            tag_name: "v1.4-20261027-85", html_url: release.html_url, body: nil,
+            assets: [], platforms: ["macos": platformRelease])
+        precondition(AppUpdater.resolve(splitRelease, currentVersion: release.tag_name, architecture: "arm64") == nil)
+        precondition(AppUpdater.resolve(splitRelease, currentVersion: "v1.3", architecture: "arm64")?.version == release.tag_name)
+        let encodedSplit = """
+        {"tag_name":"v1.4-20261027-85","html_url":"https://example.invalid/release","assets":[],
+         "platforms":{"macos":{"tag_name":"v1.4-20261027-84","html_url":"https://example.invalid/mac",
+          "assets":[{"name":"GameInstaller-macOS-arm64.zip","browser_download_url":"https://example.invalid/mac.zip",
+           "digest":"sha256:\(hash)"}]}}}
+        """
+        let decodedSplit = try JSONDecoder().decode(AppUpdater.Release.self, from: Data(encodedSplit.utf8))
+        precondition(AppUpdater.resolve(decodedSplit, currentVersion: release.tag_name, architecture: "arm64") == nil)
+        precondition(AppUpdater.resolve(decodedSplit, currentVersion: "v1.3", architecture: "arm64")?.canSelfUpdate == true)
 
         var notice = UpdateNoticeState()
         precondition(!notice.indicatorVisible && !notice.detailsPresented)

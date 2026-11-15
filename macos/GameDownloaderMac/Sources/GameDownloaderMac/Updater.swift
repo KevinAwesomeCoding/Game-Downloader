@@ -36,6 +36,21 @@ enum AppUpdater {
         let html_url: URL
         let body: String?
         let assets: [Asset]
+        let platforms: [String: PlatformRelease]?
+        struct PlatformRelease: Decodable {
+            let tag_name: String
+            let html_url: URL
+            let body: String?
+            let assets: [Asset]
+        }
+        init(tag_name: String, html_url: URL, body: String?, assets: [Asset],
+             platforms: [String: PlatformRelease]? = nil) {
+            self.tag_name = tag_name
+            self.html_url = html_url
+            self.body = body
+            self.assets = assets
+            self.platforms = platforms
+        }
     }
     private static let endpoint = URL(string: "https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json")!
     private static let expectedBundleID = "com.kevinawesomecoding.GameInstaller"
@@ -96,24 +111,30 @@ enum AppUpdater {
     }
 
     static func resolve(_ release: Release, currentVersion: String, architecture: String) -> AppUpdate? {
-        guard compare(release.tag_name, currentVersion) > 0 else { return nil }
+        let platform = release.platforms?["macos"]
+        if release.platforms != nil && platform == nil { return nil }
+        let tag = platform?.tag_name ?? release.tag_name
+        let releaseURL = platform?.html_url ?? release.html_url
+        let notes = platform?.body ?? release.body ?? "No release notes provided."
+        let assets = platform?.assets ?? release.assets
+        guard compare(tag, currentVersion) > 0 else { return nil }
         guard architecture.lowercased() == "arm64" else { return nil }
         let compatibleNames = ["GameInstaller-macOS-arm64.zip", "GameInstaller-macOS.zip"]
-        guard let asset = release.assets.first(where: { compatibleNames.contains($0.name) }) else {
-            return AppUpdate(id: release.tag_name, version: release.tag_name,
-                             notes: release.body ?? "No release notes provided.", releaseURL: release.html_url,
+        guard let asset = assets.first(where: { compatibleNames.contains($0.name) }) else {
+            return AppUpdate(id: tag, version: tag,
+                             notes: notes, releaseURL: releaseURL,
                              downloadURL: nil, sha256: nil,
                              manualReason: "This release does not include a compatible Apple silicon app download.")
         }
         let digest = asset.digest?.replacingOccurrences(of: "sha256:", with: "").lowercased()
         guard let digest, digest.range(of: #"^[0-9a-f]{64}$"#, options: .regularExpression) != nil else {
-            return AppUpdate(id: release.tag_name, version: release.tag_name,
-                             notes: release.body ?? "No release notes provided.", releaseURL: release.html_url,
+            return AppUpdate(id: tag, version: tag,
+                             notes: notes, releaseURL: releaseURL,
                              downloadURL: nil, sha256: nil,
                              manualReason: "This release has no valid SHA-256 checksum. Review and install it manually.")
         }
-        return AppUpdate(id: release.tag_name, version: release.tag_name,
-                         notes: release.body ?? "No release notes provided.", releaseURL: release.html_url,
+        return AppUpdate(id: tag, version: tag,
+                         notes: notes, releaseURL: releaseURL,
                          downloadURL: asset.browser_download_url, sha256: digest, manualReason: nil)
     }
 

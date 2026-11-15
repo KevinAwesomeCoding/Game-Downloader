@@ -48,6 +48,14 @@ class UpdateFlowTests(unittest.TestCase):
             }],
         }
 
+    def test_platform_specific_version_prevents_unrelated_update(self):
+        platform = dict(self.release)
+        platform['tag_name'] = 'v1.4-20261027-22'
+        manifest = dict(self.release, tag_name='v1.4-20261027-23', platforms={'windows': platform})
+        self.assertIsNone(compatible_release(manifest, 'v1.4-20261027-22', 'Windows', 'AMD64'))
+        self.assertEqual(compatible_release(manifest, 'v1.4-20261027-21', 'Windows', 'AMD64').tag, platform['tag_name'])
+        self.assertIsNone(compatible_release(dict(manifest, platforms={}), 'v1.4-20261027-21', 'Windows', 'AMD64'))
+
     def test_no_update_or_incompatible_target(self):
         self.assertIsNone(compatible_release(self.release, "v1.4-20261027-22", "Windows", "AMD64"))
         self.assertIsNotNone(compatible_release(self.release, "v1.4-20261026-21", "Windows", "AMD64"))
