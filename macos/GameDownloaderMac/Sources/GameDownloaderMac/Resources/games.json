@@ -2413,5 +2413,37 @@
       "classifiedAt": "2026-11-14"
     },
     "cardColor": "#0874ad"
+  },
+  {
+    "id": "surgeon-simulator-2",
+    "steamAppId": "774791",
+    "name": "Surgeon Simulator 2",
+    "source": "https://online-fix.me/games/simulator/18264-surgeon-simulator-2-po-seti.html",
+    "description": "Perform chaotic physics-based surgeries and explore the Bossa Labs facility. A third-party modification claims to restore co-op for up to four players.",
+    "version": "Build 10092021 (source-listed; mod 1.2.1)",
+    "size": "",
+    "players": "Single-player; up to 4-player co-op via unverified mod",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/774791/header.jpg",
+    "zipUrl": "https://gofile.io/d/FWbhhq5G",
+    "zipBackupUrl": "https://filekeeper.net/k2rqwaxas621/Surgeon.Simulator.2.Build.10092021-OFME.rar",
+    "fixZipUrl": "https://gofile.io/d/3mfS0hEs",
+    "fixBackupUrl": "https://filekeeper.net/oxe2hpna8z47/SurgeonSimulator2_Fix_Repair_Steam.rar",
+    "comment": "Steam reports official multiplayer was removed. The source lists a third-party co-op mod; its functionality and this archive have not been tested. Steam must be running according to the source.",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i3-3225 3.3 GHz",
+      "ram": "4 GB",
+      "gpu": "GeForce GTX 460",
+      "directx": "Version 11",
+      "storage": "10 GB"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows build and third-party co-op modification have not been tested in Highball.",
+      "confidence": "Low"
+    },
+    "cardColor": "#298d98"
   }
 ]
