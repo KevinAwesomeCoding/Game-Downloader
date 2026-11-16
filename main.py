@@ -3647,28 +3647,62 @@ class CardHoverEffect(QGraphicsEffect):
         painter.restore()
 
 
+class _PageTransition(QWidget):
+    def __init__(self, parent, image, direction):
+        super().__init__(parent)
+        self.image = image
+        self.direction = direction
+        self.progress = 0.0
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setGeometry(parent.rect())
+        self.animation = QVariantAnimation(self)
+        self.animation.setDuration(320)
+        self.animation.setStartValue(0.0)
+        self.animation.setEndValue(1.0)
+        self.animation.setEasingCurve(QEasingCurve.Type.InOutCubic)
+        self.animation.valueChanged.connect(self._advance)
+        self.animation.finished.connect(self.deleteLater)
+        self.show()
+        self.raise_()
+        self.animation.start()
+
+    def _advance(self, value):
+        self.progress = value
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setOpacity(1.0 - self.progress)
+        painter.drawPixmap(int(-self.direction * min(self.width() * 0.16, 180) * self.progress), 0, self.image)
+
+
 class AnimatedStack(QStackedWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._fade = None
+        self._transition = None
+
+    def capture_page(self):
+        if self._transition is not None:
+            self._transition.animation.stop()
+            self._transition.hide()
+            self._transition.deleteLater()
+            self._transition = None
+        return self.grab() if ui_motion_enabled() and self.isVisible() else None
+
+    def animate_from(self, image, direction=1):
+        if image is not None and not image.isNull():
+            self._transition = _PageTransition(self, image, direction)
+            transition = self._transition
+            transition.animation.finished.connect(
+                lambda: setattr(self, '_transition', None) if self._transition is transition else None)
 
     def setCurrentWidget(self, widget):
         if widget is self.currentWidget():
             return
-        if self._fade is not None:
-            self._fade.stop()
+        old_index = self.currentIndex()
+        image = self.capture_page()
         super().setCurrentWidget(widget)
-        if not ui_motion_enabled():
-            return
-        effect = QGraphicsOpacityEffect(widget)
-        widget.setGraphicsEffect(effect)
-        self._fade = QVariantAnimation(self)
-        self._fade.setDuration(180)
-        self._fade.setStartValue(0.35)
-        self._fade.setEndValue(1.0)
-        self._fade.valueChanged.connect(effect.setOpacity)
-        self._fade.finished.connect(lambda: widget.setGraphicsEffect(None))
-        self._fade.start()
+        self.animate_from(image, 1 if self.currentIndex() >= old_index else -1)
 
 
 class GameCard(QFrame):
@@ -6312,18 +6346,22 @@ class MainWindow(QMainWindow):
         self._populate_cards(filtered)
 
     def _show_library(self):
+        image = self.stack.capture_page() if self.stack.currentWidget() is self.content_page else None
         self._library_heading.setText("Your library")
         self._library_subtitle.setText("Find, install, and manage your games.")
         self._library_filter.setCurrentIndex(0)
         self._on_search_changed(self._search_bar.text())
         self.stack.setCurrentWidget(self.content_page)
+        self.stack.animate_from(image, -1)
 
     def _show_owned_games(self):
+        image = self.stack.capture_page() if self.stack.currentWidget() is self.content_page else None
         self._library_heading.setText("Your games")
         self._library_subtitle.setText("Play and manage games in your selected folder.")
         self._library_filter.setCurrentText("Installed games")
         self._on_search_changed(self._search_bar.text())
         self.stack.setCurrentWidget(self.content_page)
+        self.stack.animate_from(image, 1)
 
     @staticmethod
     def _is_installed_game(base, game):

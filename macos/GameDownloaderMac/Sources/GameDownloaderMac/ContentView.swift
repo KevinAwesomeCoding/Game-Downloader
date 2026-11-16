@@ -627,6 +627,7 @@ private enum InstallerPage: String, CaseIterable {
 
 struct ContentView: View {
     @ObservedObject var model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var page: InstallerPage = .library
     @State private var search = ""
     @AppStorage("librarySortOrder") private var librarySortOrder = LibrarySortOrder.oldestFirst.rawValue
@@ -705,7 +706,12 @@ struct ContentView: View {
                 }.padding(12).background(Color.teal.opacity(0.12))
             }
             if model.highballSetupComplete {
-                pageContent
+                ZStack {
+                    pageContent
+                        .id(page)
+                        .transition(reduceMotion ? .identity : .opacity.combined(with: .offset(y: 12)))
+                }
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.32), value: page)
             } else {
                 firstLaunchSetup
             }
