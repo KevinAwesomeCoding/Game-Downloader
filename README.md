@@ -6,6 +6,8 @@ downloads the game zip and extracts it into the folder you chose — with live
 download and extraction progress, full cancellation support, and a responsive
 UI at all times.
 
+For details about Defender exclusions, their risks, and the limits of source review, see [Security notes](SECURITY-NOTES.md).
+
 ![Native desktop app — not a website.]
 
 ---

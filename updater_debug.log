@@ -1,0 +1,657 @@
+2026-11-15 16:01:14,162  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:01:14,626  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:01:15,813  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:02:59,172  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:02:59,173  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:02:59,337  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:04:59,176  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:04:59,176  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:04:59,371  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:06:59,170  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:06:59,170  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:06:59,807  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 16:07:33,629  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:07:33,629  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:07:34,283  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 16:10:25,316  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:10:25,317  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:10:25,952  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 16:12:10,325  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:12:10,326  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:12:11,015  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 16:14:10,326  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:14:10,326  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:14:10,957  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 16:16:10,323  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:16:10,324  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:16:10,980  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 16:18:10,326  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:18:10,326  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:18:10,992  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 16:20:10,329  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:20:10,329  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:20:10,944  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 16:22:10,337  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:22:10,337  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:22:11,008  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 16:24:10,341  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:24:10,341  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:24:10,973  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 16:26:10,343  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:26:10,343  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:26:10,536  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:28:10,346  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:28:10,346  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:28:10,517  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:30:10,347  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:30:10,347  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:30:10,517  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:32:10,353  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:32:10,353  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:32:10,496  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:34:10,355  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:34:10,355  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:34:10,526  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:36:10,358  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:36:10,358  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:36:10,508  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:38:10,362  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:38:10,362  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:38:10,534  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:40:10,359  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:40:10,359  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:40:10,533  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:42:10,362  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:42:10,362  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:42:10,598  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:44:10,369  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:44:10,370  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:44:10,538  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:46:10,367  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:46:10,367  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:46:10,511  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:48:10,371  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:48:10,371  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:48:10,543  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:50:10,373  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:50:10,373  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:50:10,817  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:52:10,381  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:52:10,382  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:52:10,563  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:54:10,384  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:54:10,384  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:54:10,566  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:56:10,382  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:56:10,382  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:56:10,558  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:58:10,385  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 16:58:10,385  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 16:58:10,581  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:00:10,393  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:00:10,393  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:00:10,598  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:02:10,395  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:02:10,395  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:02:10,558  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:04:10,393  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:04:10,393  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:04:10,566  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:06:10,396  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:06:10,396  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:06:11,120  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 17:08:10,398  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:08:10,398  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:08:11,017  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 17:10:10,405  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:10:10,405  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:10:11,077  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 17:12:10,407  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:12:10,407  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:12:11,038  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 17:14:10,411  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:14:10,411  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:14:11,083  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 17:16:10,415  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:16:10,415  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:16:11,091  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 17:18:10,420  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:18:10,421  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:18:11,011  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 17:20:10,421  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:20:10,421  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:20:11,095  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 17:22:10,431  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:22:10,431  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:22:11,145  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 17:24:10,435  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:24:10,435  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:24:11,046  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 17:26:10,440  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:26:10,440  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:26:10,631  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:28:10,439  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:28:10,440  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:28:10,626  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:30:10,446  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:30:10,447  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:30:10,681  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:32:10,447  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:32:10,447  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:32:10,628  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:34:10,456  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:34:10,456  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:34:10,618  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:36:10,456  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:36:10,456  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:36:10,637  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:38:10,463  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:38:10,463  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:38:10,637  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:40:10,468  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:40:10,468  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:40:10,690  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:42:10,472  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:42:10,472  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:42:10,642  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:44:10,476  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:44:10,476  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:44:10,661  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:46:10,480  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:46:10,480  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:46:10,735  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:48:10,482  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:48:10,482  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:48:10,625  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:50:10,484  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:50:10,484  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:50:10,643  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:52:10,492  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:52:10,492  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:52:10,661  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:54:10,497  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:54:10,497  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:54:10,692  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:56:10,501  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:56:10,501  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:56:10,634  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:58:10,505  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 17:58:10,505  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 17:58:10,744  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:00:10,509  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:00:10,509  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:00:10,719  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:02:10,514  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:02:10,514  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:02:10,730  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:04:10,518  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:04:10,518  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:04:10,699  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:06:10,522  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:06:10,522  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:06:11,162  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 18:08:10,525  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:08:10,525  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:08:11,196  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 18:10:10,527  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:10:10,527  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:10:11,299  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 18:12:10,532  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:12:10,532  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:12:11,184  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 18:14:10,536  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:14:10,536  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:14:11,200  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 18:16:10,541  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:16:10,541  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:16:11,316  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 18:18:10,544  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:18:10,544  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:18:11,246  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 18:20:10,547  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:20:10,547  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:20:11,364  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 18:22:10,545  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:22:10,545  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:22:11,212  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 18:24:10,555  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:24:10,555  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:24:11,252  INFO      [3] Release manifest response  status=200  tag_name='v1.4-20261115-68'
+2026-11-15 18:26:10,558  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:26:10,558  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:26:10,745  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:28:10,561  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:28:10,561  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:28:10,763  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:30:10,561  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:30:10,561  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:30:10,749  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:32:10,564  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:32:10,564  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:32:10,903  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:34:10,571  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:34:10,572  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:34:10,781  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:36:10,576  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:36:10,576  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:36:10,741  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:38:10,579  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:38:10,579  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:38:10,748  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:40:10,582  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:40:10,582  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:40:10,788  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:42:10,586  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:42:10,586  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:42:10,735  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:44:10,590  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:44:10,590  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:44:10,779  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:46:10,590  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:46:10,590  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:46:10,770  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:48:10,593  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:48:10,593  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:48:10,803  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:50:10,600  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:50:10,600  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:50:10,763  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:52:10,600  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:52:10,600  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:52:10,788  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:54:10,607  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:54:10,607  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:54:10,774  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:56:10,610  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:56:10,610  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:56:10,827  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:58:10,611  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 18:58:10,612  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 18:58:10,792  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 19:00:10,617  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 19:00:10,617  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 19:00:10,897  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 19:02:10,622  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 19:02:10,622  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 19:02:10,809  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 19:04:10,619  INFO      [1] App started. Current VERSION = 'v1.0.0'
+2026-11-15 19:04:10,619  INFO      [2] Release manifest request  URL = https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
+2026-11-15 19:04:10,842  ERROR     [9] Exception in UpdateChecker.run — full traceback:
+Traceback (most recent call last):
+  File "D:\Users\Owner\Desktop\Game-Downloader\main.py", line 1585, in run
+    resp.raise_for_status()
+  File "C:\Users\Kevin\AppData\Local\Programs\Python\Python311\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json
