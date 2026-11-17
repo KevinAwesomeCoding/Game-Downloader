@@ -2445,5 +2445,611 @@
       "confidence": "Low"
     },
     "cardColor": "#298d98"
+  },
+  {
+    "id": "bodycam",
+    "steamAppId": "2406770",
+    "name": "Bodycam",
+    "source": "https://online-fix.me/games/officialservers/17452-bodycam-po-seti.html",
+    "description": "Tactical first-person shooting presented through a body-camera perspective.",
+    "version": "Build 16112026 (source-listed)",
+    "size": "",
+    "players": "Online multiplayer; source does not specify a player limit",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2406770/b533bca55927692f0cf812ebb91c6e6e8f5cb4a6/header_alt_assets_4.jpg?t=1794683329",
+    "zipUrl": [
+      {
+        "url": "https://gofile.io/d/Ii9GTmQq",
+        "name": "Bodycam.Build.16112026-OFME.part01.rar"
+      },
+      {
+        "url": "https://gofile.io/d/Ypo0DNFe",
+        "name": "Bodycam.Build.16112026-OFME.part02.rar"
+      },
+      {
+        "url": "https://gofile.io/d/7akhuBIP",
+        "name": "Bodycam.Build.16112026-OFME.part03.rar"
+      },
+      {
+        "url": "https://gofile.io/d/KbPQbHRQ",
+        "name": "Bodycam.Build.16112026-OFME.part04.rar"
+      },
+      {
+        "url": "https://gofile.io/d/QIQrthM3",
+        "name": "Bodycam.Build.16112026-OFME.part05.rar"
+      },
+      {
+        "url": "https://gofile.io/d/ihSTQMio",
+        "name": "Bodycam.Build.16112026-OFME.part06.rar"
+      },
+      {
+        "url": "https://gofile.io/d/Bg5ohRou",
+        "name": "Bodycam.Build.16112026-OFME.part07.rar"
+      },
+      {
+        "url": "https://gofile.io/d/rJzm7o15",
+        "name": "Bodycam.Build.16112026-OFME.part08.rar"
+      },
+      {
+        "url": "https://gofile.io/d/sn9bVaP2",
+        "name": "Bodycam.Build.16112026-OFME.part09.rar"
+      },
+      {
+        "url": "https://gofile.io/d/3X87LF8z",
+        "name": "Bodycam.Build.16112026-OFME.part10.rar"
+      },
+      {
+        "url": "https://gofile.io/d/qwiVI5J8",
+        "name": "Bodycam.Build.16112026-OFME.part11.rar"
+      },
+      {
+        "url": "https://gofile.io/d/PpBAzXTu",
+        "name": "Bodycam.Build.16112026-OFME.part12.rar"
+      },
+      {
+        "url": "https://gofile.io/d/ZiRExddT",
+        "name": "Bodycam.Build.16112026-OFME.part13.rar"
+      }
+    ],
+    "zipBackupUrl": [
+      {
+        "url": "https://filekeeper.net/l7mix8x2tl30/Bodycam.Build.16112026-OFME.part01.rar",
+        "name": "Bodycam.Build.16112026-OFME.part01.rar"
+      },
+      {
+        "url": "https://filekeeper.net/juhdsbkyvxlt/Bodycam.Build.16112026-OFME.part02.rar",
+        "name": "Bodycam.Build.16112026-OFME.part02.rar"
+      },
+      {
+        "url": "https://filekeeper.net/8bzqyg4wacd4/Bodycam.Build.16112026-OFME.part03.rar",
+        "name": "Bodycam.Build.16112026-OFME.part03.rar"
+      },
+      {
+        "url": "https://filekeeper.net/h5tj8z91xrwu/Bodycam.Build.16112026-OFME.part04.rar",
+        "name": "Bodycam.Build.16112026-OFME.part04.rar"
+      },
+      {
+        "url": "https://filekeeper.net/hboitg0mcmbd/Bodycam.Build.16112026-OFME.part05.rar",
+        "name": "Bodycam.Build.16112026-OFME.part05.rar"
+      },
+      {
+        "url": "https://filekeeper.net/o3yj0mnhyks7/Bodycam.Build.16112026-OFME.part06.rar",
+        "name": "Bodycam.Build.16112026-OFME.part06.rar"
+      },
+      {
+        "url": "https://filekeeper.net/058oct92gd3h/Bodycam.Build.16112026-OFME.part07.rar",
+        "name": "Bodycam.Build.16112026-OFME.part07.rar"
+      },
+      {
+        "url": "https://filekeeper.net/jyvhfj7q44lk/Bodycam.Build.16112026-OFME.part08.rar",
+        "name": "Bodycam.Build.16112026-OFME.part08.rar"
+      },
+      {
+        "url": "https://filekeeper.net/6b016x2eq20h/Bodycam.Build.16112026-OFME.part09.rar",
+        "name": "Bodycam.Build.16112026-OFME.part09.rar"
+      },
+      {
+        "url": "https://filekeeper.net/nwk0stbaqhdw/Bodycam.Build.16112026-OFME.part10.rar",
+        "name": "Bodycam.Build.16112026-OFME.part10.rar"
+      },
+      {
+        "url": "https://filekeeper.net/y835dzc2to33/Bodycam.Build.16112026-OFME.part11.rar",
+        "name": "Bodycam.Build.16112026-OFME.part11.rar"
+      },
+      {
+        "url": "https://filekeeper.net/djgdxrznvoj8/Bodycam.Build.16112026-OFME.part12.rar",
+        "name": "Bodycam.Build.16112026-OFME.part12.rar"
+      },
+      {
+        "url": "https://filekeeper.net/4pmvtjth11dw/Bodycam.Build.16112026-OFME.part13.rar",
+        "name": "Bodycam.Build.16112026-OFME.part13.rar"
+      }
+    ],
+    "fixZipUrl": "https://gofile.io/d/9HH2NKeM",
+    "fixBackupUrl": "https://filekeeper.net/e89e23c8zeue/Bodycam_Fix_Repair_Steam_V9_Generic.rar",
+    "requirements": {
+      "os": "Windows 10/11",
+      "cpu": "AMD Ryzen 7 3700X, Intel Core i7-9700K",
+      "ram": "8 GB RAM",
+      "gpu": "AMD Radeon RX 5700 (8 GB), NVIDIA GeForce RTX 2070 (8 GB)",
+      "storage": "50 GB available space"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows archive and its multiplayer setup have not been tested in Highball.",
+      "confidence": "Low"
+    },
+    "cardColor": "#a43834",
+    "comment": "Source claims official server compatibility; this build, repair, and online access are untested."
+  },
+  {
+    "id": "elden-ring-nightreign",
+    "steamAppId": "2622380",
+    "name": "ELDEN RING NIGHTREIGN",
+    "source": "https://online-fix.me/games/rpg/17783-elden-ring-nightreign-po-seti.html",
+    "description": "Embark on cooperative expeditions through a changing fantasy world.",
+    "version": "1.03.3 (source-listed)",
+    "size": "",
+    "players": "Up to 6 players via source-listed mod, unverified",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2622380/header.jpg?t=1791488960",
+    "zipUrl": [
+      {
+        "url": "https://gofile.io/d/dztuGQ",
+        "name": "ELDEN.RING.NIGHTREIGN.v1.03.3-OFME.part1.rar"
+      },
+      {
+        "url": "https://gofile.io/d/Ax98Xn",
+        "name": "ELDEN.RING.NIGHTREIGN.v1.03.3-OFME.part2.rar"
+      },
+      {
+        "url": "https://gofile.io/d/8DEMb6",
+        "name": "ELDEN.RING.NIGHTREIGN.v1.03.3-OFME.part3.rar"
+      },
+      {
+        "url": "https://gofile.io/d/5MB16i",
+        "name": "ELDEN.RING.NIGHTREIGN.v1.03.3-OFME.part4.rar"
+      },
+      {
+        "url": "https://gofile.io/d/kCNBK9",
+        "name": "ELDEN.RING.NIGHTREIGN.v1.03.3-OFME.part5.rar"
+      },
+      {
+        "url": "https://gofile.io/d/okO5OR",
+        "name": "ELDEN.RING.NIGHTREIGN.v1.03.3-OFME.part6.rar"
+      }
+    ],
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/4QvnHF",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i5-10600 / AMD RYZEN 5 5500",
+      "ram": "12 GB RAM",
+      "gpu": "NVIDIA GeForce GTX 1060 3GB / AMD Radeon RX 580 4GB",
+      "directx": "Version 12",
+      "storage": "30 GB available space"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows archive and its multiplayer setup have not been tested in Highball.",
+      "confidence": "Low"
+    },
+    "cardColor": "#365b91",
+    "launchExecutable": "nrsc_launcher.exe",
+    "comment": "Third-party mod claims six-player co-op; use nrsc_launcher.exe and complete the prologue. This setup is untested. On Mac, select the listed launcher manually if Highball does not detect it."
+  },
+  {
+    "id": "task-time",
+    "steamAppId": "2182680",
+    "name": "Task Time ⏰",
+    "source": "https://online-fix.me/games/adventures/18093-task-time-online.html",
+    "description": "Compete in a game-show-style party game with unpredictable, physics-based challenges.",
+    "version": "Source-listed build",
+    "size": "",
+    "players": "Up to 8 players, Steam-listed",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2182680/af3b7c37570e77e62520ab8fa37f5cb9425d17cd/header.jpg?t=1782809558",
+    "zipUrl": "https://gofile.io/d/lZOwQ6",
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/OPT1KO",
+    "fixBackupUrl": "",
+    "requirements": {
+      "cpu": "Intel core i5-10400 / AMD Ryzen 3600",
+      "ram": "8 GB RAM",
+      "gpu": "Nvidia GTX 1650 / AMD Radeon RX 570 (A minimum of 4 GB of VRAM) / Intel A580",
+      "storage": "4 GB available space"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows archive and its multiplayer setup have not been tested in Highball.",
+      "confidence": "Low"
+    },
+    "cardColor": "#248db9"
+  },
+  {
+    "id": "cooking-simulator-2-better-together",
+    "steamAppId": "2455360",
+    "name": "Cooking Simulator 2: Better Together",
+    "source": "https://online-fix.me/games/simulator/18051-cooking-simulator-2-better-together-po-seti.html",
+    "description": "Cook and serve meals with a partner in a shared kitchen.",
+    "version": "1.11.8838be4 (source-listed)",
+    "size": "",
+    "players": "Up to 2 players, source-listed",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2455360/c5ed32d713f2a7b5bf15c0ef557c4b02d10064cc/header.jpg?t=1790860516",
+    "zipUrl": [
+      {
+        "url": "https://gofile.io/d/xAMoSE",
+        "name": "Cooking.Simulator.2.Better.Together.v1.11.8838be4-OFME.part1.rar"
+      },
+      {
+        "url": "https://gofile.io/d/0b7AJJ",
+        "name": "Cooking.Simulator.2.Better.Together.v1.11.8838be4-OFME.part2.rar"
+      }
+    ],
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/KBkWyk",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 10 x64",
+      "cpu": "Intel i5 (i5-10600K) or AMD (Ryzen5 5600X)",
+      "ram": "8 GB RAM",
+      "gpu": "Intel Arc A750 / Nvidia RTX 2060 6GB / AMD Radeon 5600XT/RX6600",
+      "directx": "Version 11",
+      "storage": "20 GB available space"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows archive and its multiplayer setup have not been tested in Highball.",
+      "confidence": "Low"
+    },
+    "cardColor": "#c2774c"
+  },
+  {
+    "id": "semi-side-effects-may-include",
+    "steamAppId": "3957560",
+    "name": "S.E.M.I. – Side Effects May Include...",
+    "source": "https://online-fix.me/games/puzzles/18023-semi-side-effects-may-include-po-seti.html",
+    "description": "Play as patients in an unusual clinic, solve platforming puzzles, and deal with experimental side effects.",
+    "version": "Build 02022026 (source-listed)",
+    "size": "",
+    "players": "Up to 4 players, source-listed",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3957560/f21928e252cb7cf797dda931b49e48a6c51b7b9c/header.jpg?t=1769777569",
+    "zipUrl": "https://gofile.io/d/NMEHtu",
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/fro6Ve",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i5 series or Ryzen series",
+      "ram": "8 GB RAM",
+      "gpu": "GTX 960 or AMD R9 290",
+      "directx": "Version 11",
+      "storage": "3 GB available space"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows archive and its multiplayer setup have not been tested in Highball.",
+      "confidence": "Low"
+    },
+    "cardColor": "#7657ad"
+  },
+  {
+    "id": "scam-line",
+    "steamAppId": "2794590",
+    "name": "Scam Line",
+    "source": "https://online-fix.me/games/simulator/17988-scam-line-po-seti.html",
+    "description": "Compete in social-deception challenges by bluffing, manipulating, or finding your own path to victory.",
+    "version": "Build 23042026 (source-listed)",
+    "size": "",
+    "players": "4–8 players, Steam-listed",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2794590/86d84c71aadc3000e8719d3df387a0f11007ebcc/header_alt_assets_0.jpg?t=1793728821",
+    "zipUrl": "https://gofile.io/d/uBiBDS",
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/nOwPk5",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 10 (64-bit)",
+      "cpu": "Intel® Core™ i5-4670 (quad-core) / AMD® FX-Series™ FX-4350 (quad-core)",
+      "ram": "4 GB RAM",
+      "gpu": "integrated graphics card",
+      "directx": "Version 11",
+      "storage": "1 GB available space"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows archive and its multiplayer setup have not been tested in Highball.",
+      "confidence": "Low"
+    },
+    "cardColor": "#a46e2c"
+  },
+  {
+    "id": "keep-gambling",
+    "steamAppId": "3720460",
+    "name": "KEEP GAMBLING",
+    "source": "https://online-fix.me/games/simulator/17986-keep-gambling-po-seti.html",
+    "description": "Explore a gambling-themed multiplayer experience.",
+    "version": "Build 19122025 (source-listed)",
+    "size": "",
+    "players": "Up to 4 players, source-listed",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3720460/e626c2023fd9c52038acdf5191eb65119b1150b2/header.jpg?t=1778184257",
+    "zipUrl": "https://gofile.io/d/iMDYvw",
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/cCBCeP",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i7-8700K (or equivalent)",
+      "ram": "8 GB RAM",
+      "gpu": "NVIDIA GeForce GTX 1060 6GB (or equivalent)",
+      "directx": "Version 11",
+      "storage": "5 GB available space"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows archive and its multiplayer setup have not been tested in Highball.",
+      "confidence": "Low"
+    },
+    "cardColor": "#718d35"
+  },
+  {
+    "id": "severance",
+    "steamAppId": "3815750",
+    "name": "SEVERANCE",
+    "source": "https://online-fix.me/games/officialservers/17978-severance-po-seti.html",
+    "description": "Investigate paranormal activity while a ghost hunts the team.",
+    "version": "Build 12122025 (source-listed)",
+    "size": "",
+    "players": "Up to 5 players, source-listed",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3815750/06e6f359bcde19d12a965368a12597c2d5572be4/header.jpg?t=1793134297",
+    "zipUrl": "https://gofile.io/d/68C3dD",
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/BD78gW",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 7/8/10 (64-bit)",
+      "cpu": "Intel Core i5-7400 or AMD Ryzen 3 1200",
+      "ram": "8 GB RAM",
+      "gpu": "NVIDIA GeForce GTX 1050 or AMD Radeon RX 560",
+      "directx": "Version 11",
+      "storage": "20 GB available space"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows archive and its multiplayer setup have not been tested in Highball.",
+      "confidence": "Low"
+    },
+    "cardColor": "#70574b"
+  },
+  {
+    "id": "exit-together",
+    "steamAppId": "3333740",
+    "name": "Exit Together",
+    "source": "https://online-fix.me/games/puzzles/17972-exit-together-po-seti.html",
+    "description": "Spot anomalies and solve puzzles to escape a looping series of rooms.",
+    "version": "1.50 (source-listed)",
+    "size": "",
+    "players": "Up to 6 players, Steam-listed",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3333740/b19f3c31ccb27864d900ba8a5c2e63b129575229/header.jpg?t=1791383305",
+    "zipUrl": "https://gofile.io/d/wGDdMi",
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/pLVl7h",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 10/11 64 bit",
+      "cpu": "3.2 GHz Quad Core Processor",
+      "ram": "8 GB RAM",
+      "gpu": "NVIDIA GeForce 1650",
+      "directx": "Version 12",
+      "storage": "2 GB available space"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows archive and its multiplayer setup have not been tested in Highball.",
+      "confidence": "Low"
+    },
+    "cardColor": "#6e8251"
+  },
+  {
+    "id": "side-effects",
+    "steamAppId": "3799100",
+    "name": "SIDE EFFECTS",
+    "source": "https://online-fix.me/games/horror/17956-side-effects-po-seti.html",
+    "description": "Survive a round of pill roulette and use experimental items to change the odds.",
+    "version": "1.03 (source-listed)",
+    "size": "",
+    "players": "Up to 4 players, Steam-listed",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3799100/ab45f12575f1e05377a5982eebd5bad800712ca2/header.jpg?t=1763737405",
+    "zipUrl": "https://gofile.io/d/O0cCcI",
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/AmF1bL",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Intel Core i3",
+      "ram": "2 GB RAM",
+      "gpu": "Relatively modern dedicted graphics card (Vulkan support required)",
+      "storage": "500 MB available space"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows archive and its multiplayer setup have not been tested in Highball.",
+      "confidence": "Low"
+    },
+    "cardColor": "#3a776d"
+  },
+  {
+    "id": "project-motor-racing",
+    "steamAppId": "299970",
+    "name": "Project Motor Racing",
+    "source": "https://online-fix.me/games/officialservers/17955-project-motor-racing-po-seti.html",
+    "description": "Race professional cars on real-world inspired circuits.",
+    "version": "1.5.0.0 (source-listed)",
+    "size": "",
+    "players": "Up to 32 players, source-listed",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/299970/9f70176ac521d6a7472882a4bcf67fa9251c3e63/header.jpg?t=1794315848",
+    "zipUrl": [
+      {
+        "url": "https://gofile.io/d/qP0mjZ",
+        "name": "Project.Motor.Racing.v1.5.0.0-OFME.part01.rar"
+      },
+      {
+        "url": "https://gofile.io/d/Dl5ra8",
+        "name": "Project.Motor.Racing.v1.5.0.0-OFME.part02.rar"
+      },
+      {
+        "url": "https://gofile.io/d/sFBb1B",
+        "name": "Project.Motor.Racing.v1.5.0.0-OFME.part03.rar"
+      },
+      {
+        "url": "https://gofile.io/d/0d5XUp",
+        "name": "Project.Motor.Racing.v1.5.0.0-OFME.part04.rar"
+      },
+      {
+        "url": "https://gofile.io/d/my6aPq",
+        "name": "Project.Motor.Racing.v1.5.0.0-OFME.part05.rar"
+      }
+    ],
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/hwPWzE",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 10 (x64)",
+      "cpu": "Intel Core i7-8700 / AMD Ryzen 5 (minimum 12 threads required)",
+      "ram": "16 GB RAM",
+      "gpu": "NVIDIA RTX 2060 / AMD Radeon RX 580 (6 GB VRAM or more)",
+      "directx": "Version 12",
+      "storage": "75 GB available space"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows archive and its multiplayer setup have not been tested in Highball.",
+      "confidence": "Low"
+    },
+    "cardColor": "#718069",
+    "launchExecutable": "EOSAuthLauncher.exe",
+    "comment": "Source instructions require EOSAuthLauncher.exe and Epic Games account authorization in a browser. This setup and online play have not been tested. On Mac, select the listed launcher manually if Highball does not detect it."
+  },
+  {
+    "id": "the-other-side",
+    "steamAppId": "2764750",
+    "name": "The Other Side",
+    "source": "https://online-fix.me/games/horror/17927-the-other-side-po-seti.html",
+    "description": "Investigate haunted locations with paranormal equipment and a team.",
+    "version": "0.9.4.8 (source-listed)",
+    "size": "",
+    "players": "Up to 4 players for this source-listed build",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2764750/ac1e5a495cb576601f98993c16010d74db819157/header.jpg?t=1794866210",
+    "zipUrl": [
+      {
+        "url": "https://gofile.io/d/Q4Fk4i",
+        "name": "The.Other.Side.v0.9.4.8-OFME.part1.rar"
+      },
+      {
+        "url": "https://gofile.io/d/Qonc5y",
+        "name": "The.Other.Side.v0.9.4.8-OFME.part2.rar"
+      },
+      {
+        "url": "https://gofile.io/d/Pn1U3T",
+        "name": "The.Other.Side.v0.9.4.8-OFME.part3.rar"
+      },
+      {
+        "url": "https://gofile.io/d/6F61zK",
+        "name": "The.Other.Side.v0.9.4.8-OFME.part4.rar"
+      },
+      {
+        "url": "https://gofile.io/d/upSVhy",
+        "name": "The.Other.Side.v0.9.4.8-OFME.part5.rar"
+      }
+    ],
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/ZVTmJ6",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 10 (64-bit)",
+      "cpu": "Intel i5 or new-gen i3 / AMD equivalent",
+      "ram": "8 GB RAM",
+      "gpu": "NVIDIA GeForce GTX 1060 6GB",
+      "directx": "Version 11",
+      "storage": "20 GB available space"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows archive and its multiplayer setup have not been tested in Highball.",
+      "confidence": "Low"
+    },
+    "cardColor": "#28607a"
+  },
+  {
+    "id": "escape-simulator-2",
+    "steamAppId": "2879840",
+    "name": "Escape Simulator 2",
+    "source": "https://online-fix.me/games/adventures/17923-escape-simulator-2-po-seti.html",
+    "description": "Explore escape rooms and solve their puzzles alone or with friends.",
+    "version": "17323r (source-listed)",
+    "size": "",
+    "players": "Up to 4 players, source-listed",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2879840/94b12045a71f53ccd3d6903b5b74a8363c243e99/header.jpg?t=1790013058",
+    "zipUrl": [
+      {
+        "url": "https://gofile.io/d/kB6tsV",
+        "name": "Escape.Simulator.2.v17323r-OFME.part1.rar"
+      },
+      {
+        "url": "https://gofile.io/d/InW2LK",
+        "name": "Escape.Simulator.2.v17323r-OFME.part2.rar"
+      },
+      {
+        "url": "https://gofile.io/d/aGaKY7",
+        "name": "Escape.Simulator.2.v17323r-OFME.part3.rar"
+      }
+    ],
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/erFxOK",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 10 version 21H1 (or newer)",
+      "cpu": "X64 architecture with SSE2 instruction set support",
+      "ram": "8 GB RAM",
+      "gpu": "DX11 capable GPU (4 GB)",
+      "directx": "Version 11",
+      "storage": "20 GB available space"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Native",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists a native Mac version; this Windows archive and its Highball compatibility have not been tested.",
+      "confidence": "High"
+    },
+    "cardColor": "#3976a0",
+    "macRequirements": {
+      "os": "macOS Big Sur 11 (or newer)",
+      "cpu": "Apple M1",
+      "ram": "8 GB RAM",
+      "gpu": "Apple M1",
+      "storage": "20 GB available space"
+    }
   }
 ]

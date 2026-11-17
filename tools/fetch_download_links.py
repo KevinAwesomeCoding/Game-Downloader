@@ -13,6 +13,32 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from host_resolver_client import provider_for
 
 
+def onlinefix_links(url):
+    """Read the host listing linked by a public Online-Fix game page."""
+    parts = urllib.parse.urlsplit(url)
+    if (parts.scheme != 'https' or parts.hostname != 'online-fix.me'
+            or parts.username or parts.password or parts.port not in (None, 443)
+            or not parts.path.startswith('/games/')):
+        raise ValueError('Expected an HTTPS Online-Fix game page.')
+    class Links(HTMLParser):
+        def __init__(self):
+            super().__init__(); self.host = None; self.options = []
+        def handle_starttag(self, tag, attrs):
+            data = dict(attrs)
+            link = urllib.parse.urlsplit(data.get('href', ''))
+            if tag == 'a' and link.scheme == 'https' and link.hostname == 'hosters.online-fix.me' and link.port in (None, 443, 2053):
+                self.host = data['href']
+            if data.get('data-links'):
+                self.options.append(json.loads(data['data-links']))
+    page = requests.get(url, timeout=30); page.raise_for_status()
+    parsed = Links(); parsed.feed(page.text)
+    if not parsed.host:
+        raise ValueError('No host listing found on the game page.')
+    response = requests.get(parsed.host, timeout=30); response.raise_for_status()
+    hosts = Links(); hosts.feed(response.text)
+    return [item for group in hosts.options for item in group if item.get('direct_link') and item.get('file_name')]
+
+
 def gamebounty_links(url):
     """Extract public host-page links, without starting downloads."""
     parts = urllib.parse.urlsplit(url)
@@ -193,8 +219,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Collect game host page links.')
     parser.add_argument('--steamrip', metavar='GAME_URL', help='Collect BZZHR and FileDitch page links')
     parser.add_argument('--gamebounty', metavar='GAME_URL', help='Collect supported GameBounty host links')
+    parser.add_argument('--onlinefix', metavar='GAME_URL', help='Collect public Online-Fix host listings')
     args = parser.parse_args()
-    if args.gamebounty:
+    if args.onlinefix:
+        try:
+            print(json.dumps(onlinefix_links(args.onlinefix), indent=2, ensure_ascii=False))
+        except Exception as exc:
+            print(f'Could not extract host page links: {exc}', file=sys.stderr)
+            raise SystemExit(1)
+    elif args.gamebounty:
         try:
             print(json.dumps(gamebounty_links(args.gamebounty), indent=2))
         except Exception as exc:
