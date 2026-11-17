@@ -49,6 +49,8 @@ release_info:
 
 build_windows:
   stage: build
+  # Artifact upload happens after the build script; retry the entire job if it fails.
+  retry: 1
   rules:
     - if: '$WINDOWS_ONLY == "true" || ($CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TITLE =~ /\[windows-only\]/)'
     - if: '$PLATFORM_SPLIT_ENABLED != "true"'
@@ -98,6 +100,8 @@ build_windows:
 
 build_macos:
   stage: build
+  # Retry the entire job, including artifact upload, once after a failure.
+  retry: 1
   rules:
     - if: '$WINDOWS_ONLY == "true" || ($CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TITLE =~ /\[windows-only\]/)'
       when: never

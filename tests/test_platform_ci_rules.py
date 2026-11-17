@@ -48,6 +48,13 @@ class PlatformRulesTests(unittest.TestCase):
         self.assertIn(override + '\n', windows)
         self.assertIn(override + '\n      when: never', macos)
 
+    def test_platform_builds_retry_once(self):
+        text = (ROOT / '.gitlab-ci.yml').read_text(encoding='utf-8')
+        for platform, next_job in [('windows', 'build_macos'), ('macos', 'publish_release')]:
+            section = text.split(f'build_{platform}:', 1)[1].split(f'\n{next_job}:', 1)[0]
+            with self.subTest(platform=platform):
+                self.assertRegex(section, r'(?m)^  retry: 1$')
+
     def test_tracked_files_do_not_fall_through_both_platforms(self):
         tracked = set(subprocess.check_output(['git', 'ls-files'], cwd=ROOT, text=True).splitlines())
         missing = tracked - self.matches['windows'] - self.matches['macos']
