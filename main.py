@@ -5735,6 +5735,7 @@ class MainWindow(QMainWindow):
         controls_lay.setSpacing(8)
         self._library_filter = QComboBox()
         self._library_filter.addItems(["All games", "Installed games", "Name A–Z", "Name Z–A", "Newest first", "Installed first", "Size: smallest first", "Size: largest first", "Players: fewest first", "Players: most first"])
+        self._library_filter.setCurrentText("Newest first")
         self._library_filter.currentIndexChanged.connect(lambda _: self._on_search_changed(self._search_bar.text()))
         self._library_filter.currentIndexChanged.connect(self._sync_navigation)
         controls_lay.addWidget(self._library_filter)
@@ -6349,7 +6350,7 @@ class MainWindow(QMainWindow):
         image = self.stack.capture_page() if self.stack.currentWidget() is self.content_page else None
         self._library_heading.setText("Your library")
         self._library_subtitle.setText("Find, install, and manage your games.")
-        self._library_filter.setCurrentIndex(0)
+        self._library_filter.setCurrentText("Newest first")
         self._on_search_changed(self._search_bar.text())
         self.stack.setCurrentWidget(self.content_page)
         self.stack.animate_from(image, -1)

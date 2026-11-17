@@ -630,7 +630,7 @@ struct ContentView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var page: InstallerPage = .library
     @State private var search = ""
-    @AppStorage("librarySortOrder") private var librarySortOrder = LibrarySortOrder.oldestFirst.rawValue
+    @AppStorage("librarySortOrder") private var librarySortOrder = LibrarySortOrder.newestFirst.rawValue
     @State private var selectedGame: Game?
     @State private var cleanupTarget: InstallJob?
     @State private var showingUpdateDetails = false
@@ -641,7 +641,7 @@ struct ContentView: View {
         let matches = model.games.filter {
             LibrarySearch.matches(query: search, name: $0.name, description: $0.description)
         }
-        let order = LibrarySortOrder(rawValue: librarySortOrder) ?? .oldestFirst
+        let order = LibrarySortOrder(rawValue: librarySortOrder) ?? .newestFirst
         switch order {
         case .oldestFirst:
             return matches
@@ -1034,7 +1034,7 @@ struct ContentView: View {
                         }
                     }
                 } label: {
-                    Label("Sort: \(LibrarySortOrder(rawValue: librarySortOrder)?.shortLabel ?? LibrarySortOrder.oldestFirst.shortLabel)", systemImage: "arrow.up.arrow.down")
+                    Label("Sort: \(LibrarySortOrder(rawValue: librarySortOrder)?.shortLabel ?? LibrarySortOrder.newestFirst.shortLabel)", systemImage: "arrow.up.arrow.down")
                 }
                 .menuStyle(.borderlessButton)
                 if let error = model.catalogError {
