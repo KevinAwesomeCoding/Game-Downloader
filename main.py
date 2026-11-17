@@ -1047,7 +1047,9 @@ class Game:
     def safe_folder_name(self) -> str:
         """A filesystem-safe folder name derived from the game's name."""
         invalid = '<>:"/\\|?*'
-        cleaned = "".join(c for c in self.name if c not in invalid).strip()
+        # Windows strips trailing dots and spaces when creating directories;
+        # retaining them breaks later child-file lookups in the same folder.
+        cleaned = "".join(c for c in self.name if c not in invalid).strip().rstrip(" .")
         return cleaned or (self.id or "Game")
 
 

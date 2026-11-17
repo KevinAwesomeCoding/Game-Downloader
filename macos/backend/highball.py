@@ -483,7 +483,6 @@ class Highball:
         setup = receipt.get("universalSetup") or {}
         if (setup.get("settings") or {}).get("requiresSteamFirst"):
             if not registration.get("steamReadyForNextLaunch"):
-                announce("Opening Steam does not give a local game copy official Steam authentication. For that, own and install the game through Windows Steam.")
                 result = self.steam_install(bottle, "steam://open/main", announce)
                 registration["steamReadyForNextLaunch"] = True
                 receipt["registration"] = registration
@@ -518,7 +517,6 @@ class Highball:
         if not isinstance(report.get("installed"), bool):
             raise ValueError("Highball did not confirm this Steam installation; no game was launched.")
         if not report["installed"]:
-            announce("This local copy is not recorded as an installation by Windows Steam in this bottle. Starting Steam cannot grant it official Steam authentication; use a game you own and install through Steam.")
             return None
         resolved = json.loads(self.command(["steam", "resolve", bottle]))
         path = resolved.get("path")

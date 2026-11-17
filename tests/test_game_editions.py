@@ -21,6 +21,15 @@ class GameEditionTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
         cls.catalog = json.loads(Path("games.json").read_text(encoding="utf-8"))
 
+    def test_trailing_periods_produce_usable_windows_folder(self):
+        game = Game({"id": "semi", "name": "S.E.M.I. – Side Effects May Include..."})
+        self.assertEqual(game.safe_folder_name, "S.E.M.I. – Side Effects May Include")
+        with tempfile.TemporaryDirectory() as root:
+            folder = Path(root) / game.safe_folder_name
+            folder.mkdir()
+            (folder / "Manifest_DebugFiles_Win64.txt").write_text("ok", encoding="utf-8")
+            self.assertTrue((folder / "Manifest_DebugFiles_Win64.txt").is_file())
+
     def test_more_players_has_own_download_identity_and_no_normal_repairs(self):
         for game_id in ("mimesis", "peak", "schedule-i"):
             with self.subTest(game_id=game_id):

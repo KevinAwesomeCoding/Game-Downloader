@@ -480,18 +480,14 @@ def main():
             dll_overrides = registration.get("nativeFirstDlls", [])
             if dll_overrides:
                 message += f" Native-first DLL overrides applied: {len(dll_overrides)} ({', '.join(dll_overrides)})."
-            if job["game"].get("steamAppId"):
-                message += " This local copy is not a verified Steam installation; opening Steam cannot grant it official Steam authentication."
             emit("registered", message)
         else:
             result = highball.launch(receipt, lambda message: emit("running", message))
             atomic_json(path, receipt)
             if result.get("steamStarted"):
-                emit("steamStarted", "Windows Steam opened at " + result["steamExecutable"] + ". Sign in, then click Play again. A local copy cannot obtain official Steam authentication just by opening Steam.", **result)
+                emit("steamStarted", "Windows Steam opened at " + result["steamExecutable"] + ". Sign in, then click Play again.", **result)
                 return 0
             message = "Launch requested through Highball; game startup is not yet verified. Log: " + result["logPath"]
-            if job["game"].get("steamAppId"):
-                message += " This local copy is not a verified Steam installation; opening Steam cannot grant it official Steam authentication."
             emit("launchRequested", message, **result)
         return 0
     except Stopped:

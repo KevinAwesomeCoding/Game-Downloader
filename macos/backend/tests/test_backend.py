@@ -708,7 +708,7 @@ class HighballTests(TemporaryTest):
         self.client.dispatch = Mock()
         messages = []
         self.assertIsNone(self.client.launch_steam_game(self.receipt, "480", "Disposable", messages.append))
-        self.assertIn("cannot grant it official Steam authentication", messages[-1])
+        self.assertEqual(messages, [])
         self.client.dispatch.assert_not_called()
         self.assertIsNone(self.client.launch_steam_game(self.receipt, "not-an-app-id", "Disposable"))
 
