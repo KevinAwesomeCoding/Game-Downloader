@@ -3051,5 +3051,76 @@
       "gpu": "Apple M1",
       "storage": "20 GB available space"
     }
+  },
+  {
+    "id": "thief-simulator",
+    "steamAppId": "704850",
+    "name": "Thief Simulator",
+    "source": "https://gamebounty.world/thief-simulator-free-pc-download",
+    "description": "Scout neighborhoods, plan burglaries, steal valuables and sell your loot.",
+    "version": "Build 21239852 (source-listed)",
+    "size": "5.6 GB compressed",
+    "players": "Single-player",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/704850/header.jpg",
+    "zipUrl": "https://gofile.io/d/gQ3shIn8",
+    "zipBackupUrl": "https://vikingfile.com/f/01dw9IWCb9",
+    "fixZipUrl": "",
+    "fixBackupUrl": "",
+    "comment": "Source-listed mirrors; the full download, installation and game launch have not been verified.",
+    "requirements": {
+      "os": "Windows 7 (64-bit)",
+      "cpu": "Intel Core i5",
+      "ram": "8 GB RAM",
+      "gpu": "NVIDIA GeForce GTX 750",
+      "directx": "Version 10",
+      "storage": "5 GB available space"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Native",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists a native Mac version; this linked Windows archive has not been tested in Highball.",
+      "confidence": "High"
+    },
+    "macRequirements": {
+      "os": "macOS 10.13.6 or later",
+      "cpu": "Intel Core i5",
+      "ram": "8 GB RAM",
+      "gpu": "NVIDIA GeForce GTX 750",
+      "storage": "5 GB available space"
+    },
+    "cardColor": "#235594"
+  },
+  {
+    "id": "thief-simulator-2",
+    "steamAppId": "1332720",
+    "name": "Thief Simulator 2",
+    "source": "https://gamebounty.world/thief-simulator-2-free-pc-download",
+    "description": "Plan break-ins, upgrade your tools, steal valuables and escape the police.",
+    "version": "v25.06.2024 / Build 14833298 (source-listed)",
+    "size": "6.6 GB compressed",
+    "players": "Single-player",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1332720/header.jpg",
+    "zipUrl": "https://gofile.io/d/Es2Ogs",
+    "zipBackupUrl": "https://vikingfile.com/f/u2JrRejuZl",
+    "fixZipUrl": "",
+    "fixBackupUrl": "",
+    "comment": "Source-listed mirrors; the full download, installation and game launch have not been verified.",
+    "requirements": {
+      "os": "Windows 7 (64-bit)",
+      "cpu": "Intel Core i3-6100 or equivalent",
+      "ram": "8 GB RAM",
+      "gpu": "NVIDIA GeForce GTX 960 or equivalent",
+      "directx": "Version 10",
+      "storage": "12 GB available space"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists Windows support; this archive has not been tested in Highball.",
+      "confidence": "Low"
+    },
+    "cardColor": "#207484"
   }
 ]
