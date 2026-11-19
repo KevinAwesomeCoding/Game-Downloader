@@ -115,7 +115,7 @@ SETTINGS_FILE = "settings.json"
 # Current build version.  Set this to match the semver in the VERSION file
 # before each release so the self-update check knows what is installed.
 VERSION = "v1.0.0"
-RELEASES_API = "https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json"
+RELEASES_API = "https://api.github.com/repos/KevinAwesomeCoding/Game-Downloader/releases/latest"
 
 # ---------------------------------------------------------------------------
 # DEBUG — temporary instrumentation to diagnose fixZipUrl download failures.
@@ -1562,7 +1562,7 @@ class DefenderWorker(QObject):
 # Self-update workers
 # ---------------------------------------------------------------------------
 class UpdateChecker(QObject):
-    """Fetches the latest GitLab release and signals if a newer version exists."""
+    """Fetches the latest GitHub release and signals if a newer version exists."""
     result = pyqtSignal(object, str)  # UpdateRelease or None, error text
     finished = pyqtSignal()
 
@@ -5549,7 +5549,7 @@ class MainWindow(QMainWindow):
         update = self._update_notice.open_details()
         if update is None:
             self._manual_update_check = True
-            self.check_updates_btn.setToolTip("Checking GitLab releases…")
+            self.check_updates_btn.setToolTip("Checking GitHub releases…")
             self._start_update_check()
             return
         try:

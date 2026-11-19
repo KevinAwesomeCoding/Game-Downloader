@@ -52,7 +52,7 @@ enum AppUpdater {
             self.platforms = platforms
         }
     }
-    private static let endpoint = URL(string: "https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/release.json")!
+    private static let endpoint = URL(string: "https://api.github.com/repos/KevinAwesomeCoding/Game-Downloader/releases/latest")!
     private static let expectedBundleID = "com.kevinawesomecoding.GameInstaller"
     static let protectedInstallMessage = "macOS is running a protected copy of Game Installer. Move Game Installer to /Applications (or your personal ~/Applications folder), open it there, then retry the update. No update was downloaded."
 
