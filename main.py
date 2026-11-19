@@ -3650,18 +3650,19 @@ class CardHoverEffect(QGraphicsEffect):
 
 
 class _PageTransition(QWidget):
-    def __init__(self, parent, image, direction):
+    def __init__(self, parent, outgoing, incoming, direction):
         super().__init__(parent)
-        self.image = image
+        self.outgoing = outgoing
+        self.incoming = incoming
         self.direction = direction
         self.progress = 0.0
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.setGeometry(parent.rect())
         self.animation = QVariantAnimation(self)
-        self.animation.setDuration(320)
+        self.animation.setDuration(280)
         self.animation.setStartValue(0.0)
         self.animation.setEndValue(1.0)
-        self.animation.setEasingCurve(QEasingCurve.Type.InOutCubic)
+        self.animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.animation.valueChanged.connect(self._advance)
         self.animation.finished.connect(self.deleteLater)
         self.show()
@@ -3674,8 +3675,14 @@ class _PageTransition(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        distance = min(self.width() * 0.045, 64)
         painter.setOpacity(1.0 - self.progress)
-        painter.drawPixmap(int(-self.direction * min(self.width() * 0.16, 180) * self.progress), 0, self.image)
+        painter.drawPixmap(
+            int(-self.direction * distance * self.progress), 0, self.outgoing)
+        painter.setOpacity(self.progress)
+        painter.drawPixmap(
+            int(self.direction * distance * (1.0 - self.progress)), 0, self.incoming)
 
 
 class AnimatedStack(QStackedWidget):
@@ -3684,16 +3691,18 @@ class AnimatedStack(QStackedWidget):
         self._transition = None
 
     def capture_page(self):
+        image = self.grab() if ui_motion_enabled() and self.isVisible() else None
         if self._transition is not None:
             self._transition.animation.stop()
             self._transition.hide()
             self._transition.deleteLater()
             self._transition = None
-        return self.grab() if ui_motion_enabled() and self.isVisible() else None
+        return image
 
     def animate_from(self, image, direction=1):
         if image is not None and not image.isNull():
-            self._transition = _PageTransition(self, image, direction)
+            incoming = self.grab()
+            self._transition = _PageTransition(self, image, incoming, direction)
             transition = self._transition
             transition.animation.finished.connect(
                 lambda: setattr(self, '_transition', None) if self._transition is transition else None)
