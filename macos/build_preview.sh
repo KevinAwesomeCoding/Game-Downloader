@@ -28,26 +28,33 @@ mkdir -p "$RESOURCES/Backend/HighballRecipes"
 cp "$ROOT/macos/backend/HighballRecipes/"*.json "$RESOURCES/Backend/HighballRecipes/"
 
 # The Needle save fix is build-specific. Keep its binary payload out of the
-# source tree and stage it from the user's retained diagnostic backup only
-# for this local app build. The recipe's hashes are the authority.
+# source tree and stage it only when a local diagnostic backup is available.
+# Public release builds omit this optional game patch when the payloads are
+# unavailable; other games and the rest of the Needle recipe still ship.
 python3 - "$ROOT" "$RESOURCES/Backend" <<'PY'
 import hashlib
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
 
 root, backend = map(Path, sys.argv[1:])
-catalog = json.loads((backend / "recipes.json").read_text(encoding="utf-8"))
-delta = catalog.get("deltas", {}).get("needle-in-a-haystack", {})
+recipe_path = backend / "recipes.json"
+catalog = json.loads(recipe_path.read_text(encoding="utf-8"))
+delta = catalog.get("deltas", {}).get("needle-in-a-haystack")
+if not isinstance(delta, dict):
+    raise SystemExit("Needle recipe delta is missing or invalid.")
 specs = list(delta.get("setupFiles", [])) + list(delta.get("managedPatches", []))
-if not specs:
-    raise SystemExit("Needle recipe has no local patch payload declarations.")
-source_dir = Path.home() / "Library/Application Support/Game-Downloader/Diagnostics/Needle-20261026-194923"
+source_dir = Path(os.environ.get(
+    "NEEDLE_PATCH_SOURCE_DIR",
+    Path.home() / "Library/Application Support/Game-Downloader/Diagnostics/Needle-20261026-194923",
+))
 source_by_name = {
     "NeedleHighballIO.dll": "NeedleHighballIO.dll",
     "Assembly-CSharp.fixed.dll": "Assembly-CSharp.fixed.dll",
 }
+sources = []
 for spec in specs:
     asset = Path(spec["assetPath"])
     filename = source_by_name.get(asset.name)
@@ -55,15 +62,21 @@ for spec in specs:
         raise SystemExit(f"Unexpected Needle patch asset path: {asset}")
     source = source_dir / filename
     if not source.is_file():
-        raise SystemExit(f"Required local Needle patch asset is missing: {source}")
+        delta.pop("setupFiles", None)
+        delta.pop("managedPatches", None)
+        recipe_path.write_text(json.dumps(catalog, indent=2) + "\n", encoding="utf-8")
+        print("Needle local patch payloads are unavailable; excluded them from this app bundle.")
+        break
     expected = spec["sha256"] if "sha256" in spec else spec["patchedSha256"]
     actual = hashlib.sha256(source.read_bytes()).hexdigest()
     if actual != expected.lower():
         raise SystemExit(f"Needle patch asset hash mismatch for {source.name}: {actual}")
-    target = backend / asset
-    target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source, target)
-    print(f"Staged verified Needle patch asset: {asset} ({actual})")
+    sources.append((source, backend / asset, actual, asset))
+else:
+    for source, target, actual, asset in sources:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+        print(f"Staged verified Needle patch asset: {asset} ({actual})")
 PY
 
 # Build the free, official RARLAB UnRAR extractor. Unlike unar, it follows
