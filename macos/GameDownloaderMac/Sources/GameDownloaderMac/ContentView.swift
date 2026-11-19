@@ -629,11 +629,13 @@ struct ContentView: View {
     @ObservedObject var model: AppModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var page: InstallerPage = .library
+    @State private var pageDirection: CGFloat = 1
     @State private var search = ""
     @AppStorage("librarySortOrder") private var librarySortOrder = LibrarySortOrder.newestFirst.rawValue
     @State private var selectedGame: Game?
     @State private var cleanupTarget: InstallJob?
     @State private var showingUpdateDetails = false
+    @Namespace private var pageSelection
 
     private let columns = [GridItem(.adaptive(minimum: 285, maximum: 360), spacing: 22)]
 
@@ -709,9 +711,8 @@ struct ContentView: View {
                 ZStack {
                     pageContent
                         .id(page)
-                        .transition(reduceMotion ? .identity : .opacity.combined(with: .offset(y: 12)))
+                        .transition(pageTransition)
                 }
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.32), value: page)
             } else {
                 firstLaunchSetup
             }
@@ -723,7 +724,7 @@ struct ContentView: View {
             GameDetailsSheet(game: game, model: model) { selected in
                 model.enqueue(selected)
                 selectedGame = nil
-                if !selected.isSteamEntry { page = .downloads }
+                if !selected.isSteamEntry { navigate(to: .downloads) }
             }
                 .frame(minWidth: 720, idealWidth: 820, minHeight: 620, idealHeight: 760)
         }
@@ -821,14 +822,19 @@ struct ContentView: View {
                 HStack(spacing: 6) {
                     ForEach(InstallerPage.allCases, id: \.self) { item in
                         Button {
-                            page = item
+                            navigate(to: item)
                         } label: {
                             Text(item == .downloads && !model.jobs.isEmpty ? "Downloads (\(model.jobs.count))" :
                                 (item == .owned && !model.ownedInstallations.isEmpty ? "Games Owned (\(model.ownedInstallations.count))" : item.rawValue))
                                 .font(.system(size: 13, weight: .semibold))
                                 .padding(.horizontal, 13).padding(.vertical, 9)
-                                .background(page == item ? Color.white.opacity(0.12) : .clear,
-                                            in: RoundedRectangle(cornerRadius: 8))
+                                .background {
+                                    if page == item {
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(Color.white.opacity(0.12))
+                                            .matchedGeometryEffect(id: "page-selection", in: pageSelection)
+                                    }
+                                }
                                 .foregroundStyle(page == item ? .white : Color.white.opacity(0.72))
                         }
                         .buttonStyle(.plain)
@@ -889,7 +895,25 @@ struct ContentView: View {
             ? Color(red: 0.20, green: 0.25, blue: 0.36)
             : Color(red: 0.95, green: 0.61, blue: 0.18), darkText: update != nil))
         .disabled(model.isCheckingForAppUpdate && update == nil)
-        .help(update == nil ? "Check GitLab for a compatible app update" : "Show release notes and update options")
+        .help(update == nil ? "Check GitHub for a compatible app update" : "Show release notes and update options")
+    }
+
+    private var pageTransition: AnyTransition {
+        guard !reduceMotion else { return .identity }
+        return .asymmetric(
+            insertion: .opacity.combined(with: .offset(x: pageDirection * 22)),
+            removal: .opacity.combined(with: .offset(x: pageDirection * -12))
+        )
+    }
+
+    private func navigate(to target: InstallerPage) {
+        guard target != page else { return }
+        let currentIndex = InstallerPage.allCases.firstIndex(of: page) ?? 0
+        let targetIndex = InstallerPage.allCases.firstIndex(of: target) ?? currentIndex
+        pageDirection = targetIndex >= currentIndex ? 1 : -1
+        withAnimation(reduceMotion ? nil : .spring(response: 0.36, dampingFraction: 0.9)) {
+            page = target
+        }
     }
 
     @ViewBuilder private var pageContent: some View {
@@ -999,7 +1023,7 @@ struct ContentView: View {
                         Text(error).font(.callout).foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button("Setup steps") { page = .settings }.buttonStyle(.bordered)
+                    Button("Setup steps") { navigate(to: .settings) }.buttonStyle(.bordered)
                 }
                 .padding(14)
                 .background(Color.orange.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
@@ -1338,7 +1362,7 @@ struct ContentView: View {
                 }
                 GroupBox("App updates") {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Checks GitLab for updates at launch and every two minutes. Downloads are verified with SHA-256 before installation.")
+                        Text("Checks GitHub for updates at launch and every two minutes. Downloads are verified with SHA-256 before installation.")
                             .font(.caption).foregroundStyle(.secondary)
                         Button("Check for updates") { Task { await model.checkForAppUpdate(manual: true) } }
                             .disabled(model.isInstallingUpdate || model.isCheckingForAppUpdate)
