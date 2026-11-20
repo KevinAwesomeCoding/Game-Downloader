@@ -56,8 +56,6 @@ class UpdateRelease:
                 if sha == base:
                     return 'Changes since your installed version:\n' + ('\n'.join(entries) if entries else 'No newer commits.')
                 entries.append(f'• {title} ({sha[:8]})')
-        if self.notes:
-            return 'Release notes:\n' + self.notes
         return self.display_changes + '\nFull changes since your installed version are unavailable.'
 
     @property

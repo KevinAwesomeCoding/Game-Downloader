@@ -153,7 +153,9 @@ enum AppUpdater {
             }
             return "• \(title) (\(item.sha.prefix(8)))"
         }
-        guard !entries.isEmpty else { return nil }
+        guard !entries.isEmpty else {
+            return "No newer commits since your installed version."
+        }
         return "Changes since your installed version:\n" + entries.joined(separator: "\n")
     }
 
