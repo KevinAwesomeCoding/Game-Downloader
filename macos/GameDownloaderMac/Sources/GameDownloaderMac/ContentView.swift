@@ -23,17 +23,23 @@ final class AppModel: ObservableObject {
     @Published var catalogURL: String = {
         let current = UserDefaults.standard.string(forKey: "catalogURL")
         let previous = [
+            "https://gitlab.com/kevinanil-projects/Game-Downloader/-/raw/main/games.json",
             "https://gitlab.com/api/v4/projects/88321703/releases/permalink/latest/downloads/games.json",
             "https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/games.json",
         ]
         if current == nil || previous.contains(current!) {
-            return "https://gitlab.com/kevinanil-projects/Game-Downloader/-/raw/main/games.json"
+            return "https://raw.githubusercontent.com/KevinAwesomeCoding/Game-Downloader/main/games.json"
         }
         return current!
     }() {
-        didSet { UserDefaults.standard.set(catalogURL, forKey: "catalogURL") }
+        didSet {
+            UserDefaults.standard.set(catalogURL, forKey: "catalogURL")
+            if oldValue != catalogURL {
+                UserDefaults.standard.removeObject(forKey: "catalogETag")
+            }
+        }
     }
-    @Published var autoUpdateCatalog = UserDefaults.standard.bool(forKey: "autoUpdateCatalog") {
+    @Published var autoUpdateCatalog = (UserDefaults.standard.object(forKey: "autoUpdateCatalog") as? Bool) ?? true {
         didSet {
             UserDefaults.standard.set(autoUpdateCatalog, forKey: "autoUpdateCatalog")
             if autoUpdateCatalog && catalogSource == "url" {
@@ -342,14 +348,6 @@ final class AppModel: ObservableObject {
 
     func refreshCatalog() async {
         guard !isRefreshingCatalog else { return }
-        let defaults = UserDefaults.standard
-        let now = Date().timeIntervalSince1970
-        let nextCheck = defaults.double(forKey: "catalogNextCheck")
-        let lastCheck = defaults.double(forKey: "catalogLastCheck")
-        if catalogSource == "url" && (now < nextCheck || now - lastCheck < 15 * 60) {
-            catalogMessage = "Using the saved catalog. GitLab will be checked again after the refresh cooldown."
-            return
-        }
         isRefreshingCatalog = true
         catalogError = nil
         defer { isRefreshingCatalog = false }
@@ -366,24 +364,30 @@ final class AppModel: ObservableObject {
             guard let url = Self.normalizedCatalogURL(catalogURL) else {
                 throw CatalogRefreshError.invalidURL
             }
-            var request = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy,
+            var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData,
                                      timeoutInterval: 20)
             request.setValue("application/json", forHTTPHeaderField: "Accept")
-            defaults.set(now, forKey: "catalogLastCheck")
+            request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+            if let etag = UserDefaults.standard.string(forKey: "catalogETag") {
+                request.setValue(etag, forHTTPHeaderField: "If-None-Match")
+            }
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let response = response as? HTTPURLResponse,
-                  (200..<300).contains(response.statusCode) else {
+            guard let response = response as? HTTPURLResponse else {
+                throw CatalogRefreshError.httpStatus("unknown")
+            }
+            if response.statusCode == 304 {
+                return
+            }
+            guard (200..<300).contains(response.statusCode) else {
                 let httpResponse = response as? HTTPURLResponse
-                if httpResponse?.statusCode == 429 {
-                    let retryAfter = httpResponse?.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init) ?? 0
-                    defaults.set(Date().timeIntervalSince1970 + max(retryAfter, 60 * 60), forKey: "catalogNextCheck")
-                }
                 let code = httpResponse?.statusCode.description ?? "unknown"
                 throw CatalogRefreshError.httpStatus(code)
             }
             let refreshed = try Self.decodeCatalog(data)
             try data.write(to: managedCatalogURL(), options: .atomic)
-            defaults.removeObject(forKey: "catalogNextCheck")
+            if let etag = response.value(forHTTPHeaderField: "ETag") {
+                UserDefaults.standard.set(etag, forKey: "catalogETag")
+            }
             // Preserve games.json order so the library's "added" sort reflects the catalog.
             games = refreshed
             scanOwnedGames()
@@ -393,12 +397,17 @@ final class AppModel: ObservableObject {
                let cached = try? Self.decodeCatalog(data) {
                 games = cached
                 scanOwnedGames()
-                catalogMessage = "GitLab could not refresh the catalog; using the saved copy (\(games.count) games)."
+                catalogMessage = "Could not refresh the online catalog; using the saved copy (\(games.count) games). \(error.localizedDescription)"
                 catalogError = nil
             } else {
                 catalogError = "Could not refresh the selected catalog. Your current game list was kept. \(error.localizedDescription)"
             }
         }
+    }
+
+    func refreshCatalogAutomatically() async {
+        guard autoUpdateCatalog, catalogSource == "url" else { return }
+        await refreshCatalog()
     }
 
     func chooseLocalCatalog() {
@@ -754,6 +763,13 @@ struct ContentView: View {
                 try? await Task.sleep(for: .seconds(120))
                 guard !Task.isCancelled else { return }
                 await model.checkForAppUpdate()
+            }
+        }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                guard !Task.isCancelled else { return }
+                await model.refreshCatalogAutomatically()
             }
         }
         .onChange(of: model.shouldQuitForUpdate) { _, shouldQuit in

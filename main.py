@@ -86,19 +86,19 @@ except ImportError as _qt_err:
 # CONFIG
 # ---------------------------------------------------------------------------
 CONFIG = {
-    "manifest_url": "https://gitlab.com/kevinanil-projects/Game-Downloader/-/raw/main/games.json",
+    "manifest_url": "https://raw.githubusercontent.com/KevinAwesomeCoding/Game-Downloader/main/games.json",
     "window_title": "Game Installer",
     "default_install_subfolder": True
 }
 PREVIOUS_CATALOG_URLS = {
+    "https://gitlab.com/kevinanil-projects/Game-Downloader/-/raw/main/games.json",
     "https://gitlab.com/api/v4/projects/88321703/releases/permalink/latest/downloads/games.json",
     "https://gitlab.com/kevinanil-projects/Game-Downloader/-/releases/permalink/latest/downloads/games.json",
 }
 
 # Bundled fallback manifest, looked up next to this file / the exe.
 LOCAL_MANIFEST = "games.json"
-MANIFEST_REFRESH_INTERVAL = 15 * 60
-MANIFEST_RATE_LIMIT_COOLDOWN = 60 * 60
+CATALOG_AUTO_REFRESH_INTERVAL_MS = 5_000
 ZIP_PASSWORD = b"online-fix.me"
 
 # Network timeouts (connect, read) in seconds, and download chunk size.
@@ -1435,6 +1435,7 @@ class ThumbnailRunnable(QRunnable):
 class ManifestLoader(QObject):
     loaded = pyqtSignal(list, str)   # games, source label
     failed = pyqtSignal(str)
+    unchanged = pyqtSignal()
 
     def __init__(self, manifest_url: str, mode: str = "url"):
         super().__init__()
@@ -1460,51 +1461,43 @@ class ManifestLoader(QObject):
 
         # 1) Try the configured remote URL when this load is allowed to update.
         if self.mode == "url" and self.manifest_url:
-            prefs = load_prefs()
-            now = time.time()
-            next_check = float(prefs.get("manifest_next_check", 0) or 0)
-            last_check = float(prefs.get("manifest_last_check", 0) or 0)
-            # The catalog is already cached locally. Avoid asking GitLab on
-            # every app launch or repeated manual refresh during a cooldown.
-            if now < next_check or now - last_check < MANIFEST_REFRESH_INTERVAL:
-                pass
-            else:
-                prefs["manifest_last_check"] = now
-                save_prefs(prefs)
+            try:
+                prefs = load_prefs()
+                etag = prefs.get("catalog_etag", "")
+                req = urllib.request.Request(
+                    self.manifest_url,
+                    headers={"User-Agent": "GameInstaller/1.0", "Cache-Control": "no-cache"},
+                )
+                if etag and prefs.get("catalog_etag_url") == self.manifest_url:
+                    req.add_header("If-None-Match", etag)
                 try:
-                    req = urllib.request.Request(
-                        self.manifest_url,
-                        headers={"User-Agent": "GameInstaller/1.0"},
-                    )
-                    with urllib.request.urlopen(req, timeout=3) as resp:
-                        raw = resp.read().decode("utf-8")
-                    games = validate_manifest(raw)
-                    # Persist to disk so the next offline launch uses the latest list.
-                    try:
-                        with open(local_path, "w", encoding="utf-8") as fh:
-                            fh.write(raw)
-                        os.makedirs(os.path.dirname(user_catalog_path()), exist_ok=True)
-                        with open(user_catalog_path(), "w", encoding="utf-8") as fh:
-                            fh.write(raw)
-                    except OSError:
-                        pass  # write failure is non-fatal; we already have the data
-                    prefs = load_prefs()
-                    prefs.pop("manifest_next_check", None)
-                    save_prefs(prefs)
-                    self.loaded.emit(games, "remote manifest")
-                    return
+                    response = urllib.request.urlopen(req, timeout=15)
                 except urllib.error.HTTPError as exc:
-                    if exc.code == 429:
-                        retry_after = exc.headers.get("Retry-After", "")
-                        try:
-                            cooldown = max(int(retry_after), MANIFEST_RATE_LIMIT_COOLDOWN)
-                        except (TypeError, ValueError):
-                            cooldown = MANIFEST_RATE_LIMIT_COOLDOWN
-                        prefs = load_prefs()
-                        prefs["manifest_next_check"] = time.time() + cooldown
+                    if exc.code == 304:
+                        self.unchanged.emit()
+                        return
+                    raise
+                with response as resp:
+                    raw = resp.read().decode("utf-8")
+                    new_etag = getattr(resp, "headers", {}).get("ETag", "")
+                games = validate_manifest(raw)
+                # Persist to disk so the next offline launch uses the latest list.
+                try:
+                    with open(local_path, "w", encoding="utf-8") as fh:
+                        fh.write(raw)
+                    os.makedirs(os.path.dirname(user_catalog_path()), exist_ok=True)
+                    with open(user_catalog_path(), "w", encoding="utf-8") as fh:
+                        fh.write(raw)
+                    if new_etag:
+                        prefs["catalog_etag"] = new_etag
+                        prefs["catalog_etag_url"] = self.manifest_url
                         save_prefs(prefs)
-                except Exception:
-                    pass  # network or parse error — fall through to local copy
+                except OSError:
+                    pass  # write failure is non-fatal; we already have the data
+                self.loaded.emit(games, "remote manifest")
+                return
+            except Exception:
+                pass  # network, server rate limit or parse error — use local copy
 
         # 2) Fall back through the user's saved catalog, app-local copy, and
         # bundled copy. Restore the app-local copy from the bundle when absent.
@@ -5466,6 +5459,9 @@ class MainWindow(QMainWindow):
 
         self.manifest_thread = None
         self.manifest_worker = None
+        self._manifest_background_refresh = False
+        self._manual_catalog_refresh_requested = False
+        self._catalog_refresh_timer = None
         self._spacewar_check_done = False  # fires at most once per session
         self._update_thread = None
         self._update_worker = None
@@ -5507,6 +5503,10 @@ class MainWindow(QMainWindow):
         self.stack.currentChanged.connect(self._sync_navigation)
 
         self.load_manifest()
+        self._catalog_refresh_timer = QTimer(self)
+        self._catalog_refresh_timer.setInterval(CATALOG_AUTO_REFRESH_INTERVAL_MS)
+        self._catalog_refresh_timer.timeout.connect(self._refresh_catalog_automatically)
+        self._catalog_refresh_timer.start()
         # Let the first window paint, then check without holding up the GUI.
         schedule_background_check(QTimer.singleShot, self._start_update_check)
         self._update_timer = QTimer(self)
@@ -6232,16 +6232,26 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "Desktop shortcuts", "\n".join(lines))
 
     # -- manifest loading ---------------------------------------------------
-    def load_manifest(self, manual: bool = False):
+    def _refresh_catalog_automatically(self):
+        prefs = load_prefs()
+        if prefs.get("catalog_mode", "url") != "url" or not prefs.get("catalog_auto_update", True):
+            return
+        self.load_manifest(background=True)
+
+    def load_manifest(self, manual: bool = False, background: bool = False):
         if self.manifest_thread is not None:
+            if manual:
+                self._manual_catalog_refresh_requested = True
             return
         prefs = load_prefs()
         mode = prefs.get("catalog_mode", "url")
         url = prefs.get("catalog_url", CONFIG["manifest_url"])
         if mode == "url" and not manual and not prefs.get("catalog_auto_update", True):
             mode = "cached"
-        self.refresh_btn.setEnabled(False)
-        self.stack.setCurrentWidget(self.loading_page)
+        self._manifest_background_refresh = background
+        if not background:
+            self.refresh_btn.setEnabled(False)
+            self.stack.setCurrentWidget(self.loading_page)
 
         self.manifest_thread = QThread()
         self.manifest_worker = ManifestLoader(url if mode == "url" else "", mode)
@@ -6249,6 +6259,7 @@ class MainWindow(QMainWindow):
         self.manifest_thread.started.connect(self.manifest_worker.run)
         self.manifest_worker.loaded.connect(self._on_manifest_loaded)
         self.manifest_worker.failed.connect(self._on_manifest_failed)
+        self.manifest_worker.unchanged.connect(self._on_manifest_unchanged)
         self.manifest_thread.start()
 
     def _teardown_manifest_thread(self):
@@ -6261,24 +6272,46 @@ class MainWindow(QMainWindow):
             self.manifest_thread = None
         self.refresh_btn.setEnabled(True)
 
+    def _run_queued_manual_catalog_refresh(self):
+        if not self._manual_catalog_refresh_requested:
+            return
+        self._manual_catalog_refresh_requested = False
+        QTimer.singleShot(0, lambda: self.load_manifest(manual=True))
+
     @pyqtSlot(list, str)
     def _on_manifest_loaded(self, games, source):
+        background = self._manifest_background_refresh
         self._teardown_manifest_thread()
         self._current_games = games
         self.download_manager.restore_interrupted(games)
-        self._search_bar.clear()
-        self._on_search_changed("")
+        if not background:
+            self._search_bar.clear()
+        self._on_search_changed(self._search_bar.text())
         stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
         self.updated_label.setText(f"Last updated {stamp}  ·  {source}")
-        self.stack.setCurrentWidget(self.content_page)
+        if not background:
+            self.stack.setCurrentWidget(self.content_page)
         # Defer the Spacewar check until after the cards are painted.
-        QTimer.singleShot(400, self._maybe_prompt_spacewar)
+        if not background:
+            QTimer.singleShot(400, self._maybe_prompt_spacewar)
+        self._run_queued_manual_catalog_refresh()
+
+    @pyqtSlot()
+    def _on_manifest_unchanged(self):
+        self._teardown_manifest_thread()
+        self._run_queued_manual_catalog_refresh()
 
     @pyqtSlot(str)
     def _on_manifest_failed(self, message):
+        background = self._manifest_background_refresh
         self._teardown_manifest_thread()
+        if background and self._current_games:
+            self.updated_label.setToolTip(message)
+            self._run_queued_manual_catalog_refresh()
+            return
         self.error_label.setText(message)
         self.stack.setCurrentWidget(self.error_page)
+        self._run_queued_manual_catalog_refresh()
 
     # -- Spacewar ------------------------------------------------------------
     def _maybe_prompt_spacewar(self):
