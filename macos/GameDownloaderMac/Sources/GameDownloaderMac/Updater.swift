@@ -52,7 +52,7 @@ enum AppUpdater {
             self.platforms = platforms
         }
     }
-    private static let endpoint = URL(string: "https://api.github.com/repos/KevinAwesomeCoding/Game-Downloader/releases/latest")!
+    private static let endpoint = URL(string: "https://api.github.com/repos/KevinAwesomeCoding/Game-Downloader/releases?per_page=100")!
     private static let expectedBundleID = "com.kevinawesomecoding.GameInstaller"
     static let protectedInstallMessage = "macOS is running a protected copy of Game Installer. Move Game Installer to /Applications (or your personal ~/Applications folder), open it there, then retry the update. No update was downloaded."
 
@@ -101,8 +101,12 @@ enum AppUpdater {
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw UpdateError.httpStatus((response as? HTTPURLResponse)?.statusCode ?? -1)
         }
-        let release = try JSONDecoder().decode(Release.self, from: data)
+        let releases = try JSONDecoder().decode([Release].self, from: data)
         let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+        let compatibleNames = ["GameInstaller-macOS-arm64.zip", "GameInstaller-macOS.zip"]
+        guard let release = releases.first(where: { release in
+            release.assets.contains(where: { compatibleNames.contains($0.name) })
+        }) else { return nil }
         #if arch(arm64)
         return resolve(release, currentVersion: current, architecture: "arm64")
         #else

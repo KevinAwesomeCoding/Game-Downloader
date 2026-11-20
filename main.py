@@ -115,7 +115,7 @@ SETTINGS_FILE = "settings.json"
 # Current build version.  Set this to match the semver in the VERSION file
 # before each release so the self-update check knows what is installed.
 VERSION = "v1.0.0"
-RELEASES_API = "https://api.github.com/repos/KevinAwesomeCoding/Game-Downloader/releases/latest"
+RELEASES_API = "https://api.github.com/repos/KevinAwesomeCoding/Game-Downloader/releases?per_page=100"
 
 # ---------------------------------------------------------------------------
 # DEBUG — temporary instrumentation to diagnose fixZipUrl download failures.
@@ -1586,15 +1586,24 @@ class UpdateChecker(QObject):
             _log.debug("UpdateChecker: HTTP status = %s", resp.status_code)
             resp.raise_for_status()
             data = resp.json()
-            tag = data.get("tag_name", "")
+            if not isinstance(data, list):
+                raise ValueError("GitHub returned an invalid releases list")
+            data = next((release for release in data
+                         if isinstance(release, dict)
+                         and any(asset.get("name") in (
+                             "GameInstaller-windows-x64.exe", "GameInstaller.exe")
+                             for asset in (release.get("assets") or [])
+                             if isinstance(asset, dict))), None)
+            tag = data.get("tag_name", "") if data else ""
             _ulog.info(
                 "[3] Release manifest response  status=%s  tag_name=%r",
                 resp.status_code, tag,
             )
             _log.debug("UpdateChecker: tag_name from API = %r", tag)
 
-            update = compatible_release(data, VERSION, platform.system(), platform.machine(),
-                                        packaged=bool(getattr(sys, "frozen", False)))
+            update = (compatible_release(data, VERSION, platform.system(), platform.machine(),
+                                         packaged=bool(getattr(sys, "frozen", False)))
+                      if data else None)
             self.result.emit(update, "")
         except Exception as exc:
             # Step 9 — exception anywhere in the update flow: log full traceback.

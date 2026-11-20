@@ -15,6 +15,8 @@ on:
       - 'tools/build_host_helper.py'
       - 'tools/windows_dll_safety*'
       - 'tools/requirements-gofile.txt'
+      - 'ci/**'
+      - 'assets/**'
       - 'tests/**'
       - 'version_info.txt'
       - 'VERSION'
@@ -34,6 +36,8 @@ on:
       - 'tools/build_host_helper.py'
       - 'tools/windows_dll_safety*'
       - 'tools/requirements-gofile.txt'
+      - 'ci/**'
+      - 'assets/**'
       - 'tests/**'
       - 'version_info.txt'
       - 'VERSION'
@@ -44,6 +48,12 @@ on:
       - '.github/workflows/**'
   workflow_dispatch:
     inputs:
+      platform:
+        description: Which platform to build and release
+        type: choice
+        options: [both, windows, macos]
+        default: both
+        required: true
       gofile_probe_url:
         description: Optional public single-file GoFile URL for live range checks
         type: string
@@ -54,6 +64,61 @@ on:
         default: ''
 
 jobs:
+  detect_platforms:
+    runs-on: ubuntu-latest
+    outputs:
+      windows: ${{ steps.select.outputs.windows }}
+      macos: ${{ steps.select.outputs.macos }}
+    steps:
+      - name: Checkout history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select build platforms
+        id: select
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PLATFORM_INPUT: ${{ inputs.platform }}
+          BEFORE_SHA: ${{ github.event.before }}
+          PUSH_SHA: ${{ github.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            case "$PLATFORM_INPUT" in
+              windows) echo 'windows=true' >> "$GITHUB_OUTPUT"; echo 'macos=false' >> "$GITHUB_OUTPUT" ;;
+              macos) echo 'windows=false' >> "$GITHUB_OUTPUT"; echo 'macos=true' >> "$GITHUB_OUTPUT" ;;
+              *) echo 'windows=true' >> "$GITHUB_OUTPUT"; echo 'macos=true' >> "$GITHUB_OUTPUT" ;;
+            esac
+            exit 0
+          fi
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            base="$PR_BASE_SHA"; head="$PR_HEAD_SHA"
+          else
+            base="$BEFORE_SHA"; head="$PUSH_SHA"
+          fi
+          if [[ -z "$base" || "$base" =~ ^0+$ ]]; then
+            echo 'windows=true' >> "$GITHUB_OUTPUT"; echo 'macos=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          windows=false; macos=false
+          while IFS= read -r path; do
+            [[ -z "$path" ]] && continue
+            case "$path" in
+              macos/*|spikes/highball/*|*.icns) macos=true ;;
+              main.py|update_support.py|version_info.txt|ci/build_windows.ps1|tools/windows_dll_safety*|assets/*) windows=true ;;
+              games.json|VERSION|requirements.txt|download_support.py|host_resolver*.py|tools/build_host_helper.py|tools/requirements-gofile.txt|tests/*|.github/*|ci/*|.gitlab-ci.yml)
+                windows=true; macos=true ;;
+              *) windows=true; macos=true ;;
+            esac
+          done < <(git diff --name-only "$base" "$head")
+          echo "windows=$windows" >> "$GITHUB_OUTPUT"
+          echo "macos=$macos" >> "$GITHUB_OUTPUT"
+
   release_info:
     runs-on: ubuntu-latest
     outputs:
@@ -74,7 +139,8 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
   build_windows:
-    needs: release_info
+    needs: [release_info, detect_platforms]
+    if: needs.detect_platforms.outputs.windows == 'true'
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -213,7 +279,8 @@ jobs:
           if-no-files-found: error
 
   build_macos:
-    needs: release_info
+    needs: [release_info, detect_platforms]
+    if: needs.detect_platforms.outputs.macos == 'true'
     runs-on: macos-15
     steps:
       - name: Checkout
@@ -273,51 +340,72 @@ jobs:
           if-no-files-found: error
 
   publish_release:
-    needs: [release_info, build_windows, build_macos]
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [release_info, detect_platforms, build_windows, build_macos]
+    if: >-
+      always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' &&
+      (needs.detect_platforms.outputs.windows == 'true' || needs.detect_platforms.outputs.macos == 'true') &&
+      (needs.detect_platforms.outputs.windows != 'true' || needs.build_windows.result == 'success') &&
+      (needs.detect_platforms.outputs.macos != 'true' || needs.build_macos.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Download Windows build
+        if: needs.detect_platforms.outputs.windows == 'true'
         uses: actions/download-artifact@v4
         with:
           name: windows-release-files
           path: release-assets
 
       - name: Download Mac build
+        if: needs.detect_platforms.outputs.macos == 'true'
         uses: actions/download-artifact@v4
         with:
           name: macos-release-files
           path: release-assets
 
-      - name: Publish combined GitHub Release
+      - name: Prepare platform-specific release notes
+        shell: bash
+        env:
+          WINDOWS: ${{ needs.detect_platforms.outputs.windows }}
+          MACOS: ${{ needs.detect_platforms.outputs.macos }}
+          VERSION: ${{ needs.release_info.outputs.version }}
+          COMMIT: ${{ github.sha }}
+          TRIGGER: ${{ github.event_name }}
+        run: |
+          echo "**Version:** $VERSION" > release-body.md
+          echo "**Commit:** \`$COMMIT\`" >> release-body.md
+          echo "**Trigger:** $TRIGGER" >> release-body.md
+          if [[ "$WINDOWS" == true ]]; then
+            cat <<'NOTES' >> release-body.md
+
+### Windows x64 and Highball users
+Download **`GameInstaller-windows-x64.exe`** for the single-file app. The onedir
+folder package is **`GameInstaller.zip`**; extract it and run `GameInstaller\GameInstaller.exe`.
+The included download browser targets native Windows 11 or later. Its operation
+inside Wine/Highball has not been verified; Mac users should use the native Mac app.
+NOTES
+          fi
+          if [[ "$MACOS" == true ]]; then
+            cat <<'NOTES' >> release-body.md
+
+### Native macOS users
+Download **`GameInstaller-macOS-arm64.zip`**, extract it, then open **Game Installer.app**.
+This build targets Apple silicon (arm64) and requires macOS 14 or later. The app is ad-hoc signed, so macOS may require
+opening it from Finder and approving it in Privacy & Security. Highball's
+version-matched helper can be installed from Settings. Python 3 is still
+required for readiness checks and the current Mac setup flow. The app includes
+the helper's GPL-3.0 license and corresponding source archive.
+NOTES
+          fi
+
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.release_info.outputs.tag }}
           name: Game Installer ${{ needs.release_info.outputs.tag }}
           draft: false
           prerelease: false
-          files: |
-            release-assets/GameInstaller.zip
-            release-assets/GameInstaller-windows-x64.exe
-            release-assets/GameInstaller-macOS-arm64.zip
-          body: |
-            **Version:** ${{ needs.release_info.outputs.version }}
-            **Commit:** `${{ github.sha }}`
-            **Trigger:** ${{ github.event_name }}
-
-            ### Windows x64 and Highball users
-            Download **`GameInstaller-windows-x64.exe`** for the single-file app. The onedir
-            folder package is **`GameInstaller.zip`**; extract it and run `GameInstaller\GameInstaller.exe`.
-            The included download browser targets native Windows 11 or later. Its operation
-            inside Wine/Highball has not been verified; Mac users should use the native Mac app.
-
-            ### Native macOS users
-            Download **`GameInstaller-macOS-arm64.zip`**, extract it, then open **Game Installer.app**.
-            This build targets Apple silicon (arm64) and requires macOS 14 or later. The app is ad-hoc signed, so macOS may require
-            opening it from Finder and approving it in Privacy & Security. Highball's
-            version-matched helper can be installed from Settings. Python 3 is still
-            required for readiness checks and the current Mac setup flow. The app includes
-            the helper's GPL-3.0 license and corresponding source archive.
+          files: release-assets/*
+          body_path: release-body.md
 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
