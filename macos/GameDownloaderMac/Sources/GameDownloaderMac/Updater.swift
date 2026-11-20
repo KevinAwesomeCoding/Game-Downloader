@@ -242,7 +242,8 @@ enum AppUpdater {
         let bundleID = Bundle.main.bundleIdentifier ?? expectedBundleID
         let body = installScript(appPath: app.path, archivePath: archive.path,
                                  stagePath: stage.path, previousPath: previous.path,
-                                 statusPath: statusFile.path, processID: pid, bundleID: bundleID)
+                                 statusPath: statusFile.path, processID: pid, bundleID: bundleID,
+                                 expectedVersion: update.version)
         try body.write(to: scriptURL, atomically: true, encoding: .utf8)
         try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: scriptURL.path)
         await report("Verified. Closing the app to install and restart…", nil)
@@ -294,7 +295,8 @@ enum AppUpdater {
 
     static func installScript(appPath: String, archivePath: String, stagePath: String,
                               previousPath: String, statusPath: String,
-                              processID: Int32, bundleID: String) -> String {
+                              processID: Int32, bundleID: String,
+                              expectedVersion: String) -> String {
         """
         #!/bin/bash
         set -euo pipefail
@@ -305,6 +307,7 @@ enum AppUpdater {
         STATUS=\(shellQuote(statusPath))
         PID=\(processID)
         BUNDLE_ID=\(shellQuote(bundleID))
+        EXPECTED_VERSION=\(shellQuote(expectedVersion))
         fail_update() {
           echo failed > "$STATUS"
           rm -rf "$STAGE" "$ZIP"
@@ -315,6 +318,7 @@ enum AppUpdater {
         ditto -x -k "$ZIP" "$STAGE" || fail_update
         NEW="$STAGE/Game Installer.app"
         if [ ! -d "$NEW" ] || [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$NEW/Contents/Info.plist" 2>/dev/null)" != "$BUNDLE_ID" ]; then fail_update; fi
+        if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$NEW/Contents/Info.plist" 2>/dev/null)" != "$EXPECTED_VERSION" ]; then fail_update; fi
         for i in {1..30}; do
           if [ "$i" -eq 12 ] && kill -0 "$PID" 2>/dev/null; then
             # Ask Launch Services to deliver the standard app quit event too.
@@ -328,11 +332,32 @@ enum AppUpdater {
           sleep 1
         done
         if kill -0 "$PID" 2>/dev/null; then fail_update; fi
-        mv "$APP" "$PREVIOUS" || fail_update
-        if mv "$NEW" "$APP"; then
+        sleep 1
+        for i in {1..10}; do
+          if mv "$APP" "$PREVIOUS" 2>/dev/null; then break; fi
+          sleep 1
+        done
+        if [ -d "$APP" ] || [ ! -d "$PREVIOUS" ]; then fail_update; fi
+        for i in {1..10}; do
+          if mv "$NEW" "$APP" 2>/dev/null; then break; fi
+          sleep 1
+        done
+        if [ -d "$APP" ] && [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist" 2>/dev/null)" = "$EXPECTED_VERSION" ]; then
           echo installed > "$STATUS"
-          rm -rf "$PREVIOUS" "$STAGE" "$ZIP"
-          open "$APP"
+          if open "$APP"; then
+            rm -rf "$PREVIOUS" "$STAGE" "$ZIP"
+            rm -f "$0"
+            exit 0
+          fi
+          echo failed > "$STATUS"
+          rm -rf "$APP"
+          if ! mv "$PREVIOUS" "$APP"; then
+            echo "failed:previous-app-preserved-at:$PREVIOUS" > "$STATUS"
+            rm -rf "$STAGE"
+            rm -f "$0"
+            exit 1
+          fi
+          fail_update
         else
           if [ -e "$APP" ]; then rm -rf "$APP"; fi
           if ! mv "$PREVIOUS" "$APP"; then

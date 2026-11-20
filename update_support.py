@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
+import base64
 import hashlib
 import os
 import re
@@ -216,19 +217,62 @@ def download_verified_file(url: str, destination: str, expected_sha256: str,
 
 
 def windows_update_script(new_exe: str, current_exe: str, pid: int, status_file: str) -> str:
-    """Build the Windows-only deferred swap; current_exe stays untouched until exit."""
+    """Build a deferred updater that waits for every process locking current_exe."""
+    target = current_exe.replace("'", "''")
+    wait_script = f"""
+$target = [System.IO.Path]::GetFullPath('{target}')
+$updaterPid = {pid}
+$imageName = [System.IO.Path]::GetFileName($target).Replace("'", "''")
+$filter = "Name = '$imageName'"
+$deadline = [DateTime]::UtcNow.AddSeconds(120)
+while ([DateTime]::UtcNow -lt $deadline) {{
+    try {{
+        $processes = @(Get-CimInstance Win32_Process -Filter $filter -ErrorAction Stop)
+    }} catch {{
+        exit 2
+    }}
+    $running = @($processes | Where-Object {{
+        $_.ProcessId -eq $updaterPid -or
+        (-not $_.ExecutablePath) -or
+        [String]::Equals([System.IO.Path]::GetFullPath($_.ExecutablePath), $target,
+            [StringComparison]::OrdinalIgnoreCase)
+    }})
+    if ($running.Count -eq 0) {{
+        Start-Sleep -Milliseconds 1200
+        exit 0
+    }}
+    Start-Sleep -Milliseconds 500
+}}
+exit 1
+"""
+    encoded_wait_script = base64.b64encode(wait_script.encode("utf-16le")).decode("ascii")
     return (
         "@echo off\n"
         "chcp 65001 >nul\n"
-        f'powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -Command "Wait-Process -Id {pid} -ErrorAction SilentlyContinue" >NUL 2>&1\n'
-        f'if not exist "{new_exe}" (echo failed>"{status_file}" & set "PYINSTALLER_RESET_ENVIRONMENT=1" & start "" "{current_exe}" & del "%~f0" & exit /b 1)\n'
-        f'move /y "{new_exe}" "{current_exe}"\n'
-        f'if errorlevel 1 (echo failed>"{status_file}" & set "PYINSTALLER_RESET_ENVIRONMENT=1" & start "" "{current_exe}" & del "%~f0" & exit /b 1)\n'
-        f'if not exist "{current_exe}" (echo failed>"{status_file}" & exit /b 1)\n'
-        f'echo installed>"{status_file}"\n'
+        f'powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand {encoded_wait_script} >NUL 2>&1\n'
+        'if errorlevel 1 goto update_failed\n'
+        f'if not exist "{new_exe}" goto update_failed\n'
+        'set "attempt=0"\n'
+        ':replace_update\n'
+        f'move /y "{new_exe}" "{current_exe}" >NUL\n'
+        'if not errorlevel 1 goto update_installed\n'
+        'set /a attempt+=1 >NUL\n'
+        'if %attempt% geq 30 goto update_failed\n'
+        'timeout /t 1 /nobreak >NUL\n'
+        'goto replace_update\n'
+        ':update_installed\n'
+        f'if not exist "{current_exe}" goto update_failed\n'
         'set "PYINSTALLER_RESET_ENVIRONMENT=1"\n'
         f'start "" "{current_exe}"\n'
+        f'echo installed>"{status_file}"\n'
         'del "%~f0"\n'
+        'exit /b 0\n'
+        ':update_failed\n'
+        f'echo failed>"{status_file}"\n'
+        'set "PYINSTALLER_RESET_ENVIRONMENT=1"\n'
+        f'if exist "{current_exe}" start "" "{current_exe}"\n'
+        'del "%~f0"\n'
+        'exit /b 1\n'
     )
 
 

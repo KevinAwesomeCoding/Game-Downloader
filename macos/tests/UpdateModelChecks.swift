@@ -56,13 +56,17 @@ enum UpdateModelChecks {
                                               previousPath: "/Applications/.previous.app",
                                               statusPath: "/Users/user/Library/Application Support/Game-Downloader/Updates/update-status.txt",
                                               processID: 1234,
-                                              bundleID: "com.kevinawesomecoding.GameInstaller")
+                                              bundleID: "com.kevinawesomecoding.GameInstaller",
+                                              expectedVersion: "v1.4-20261120-116")
         precondition(script.contains("ditto -x -k"))
         precondition(script.contains("mv \"$APP\" \"$PREVIOUS\""))
         precondition(script.contains("mv \"$PREVIOUS\" \"$APP\""))
         precondition(script.contains("echo installed > \"$STATUS\""))
         precondition(script.contains("echo failed > \"$STATUS\""))
         precondition(script.contains("open \"$APP\""))
+        precondition(script.contains("EXPECTED_VERSION='v1.4-20261120-116'"))
+        precondition(script.contains("Print :CFBundleShortVersionString"))
+        precondition(script.contains("for i in {1..10}"))
         precondition(script.contains("kill -TERM \"$PID\""))
 
         precondition(LibrarySearch.matches(query: "  cafe  ", name: "Café Racer", description: nil))

@@ -1,4 +1,5 @@
 import hashlib
+import base64
 import os
 import tempfile
 import unittest
@@ -175,14 +176,21 @@ class UpdateFlowTests(unittest.TestCase):
                 download_verified_file("https://example.invalid/file", bad, "0" * 64, get=get)
             self.assertFalse(os.path.exists(bad))
 
-    def test_windows_apply_script_waits_for_exit_then_swaps_and_relaunches(self):
+    def test_windows_apply_script_waits_for_all_app_processes_then_retries_swap(self):
         script = windows_update_script(
             r"C:\Temp\new.exe", r"C:\Apps\GameInstaller.exe", 4242,
             r"C:\Users\User\AppData\Roaming\GameInstaller\update-status.txt",
         )
-        self.assertIn('Wait-Process -Id 4242 -ErrorAction SilentlyContinue', script)
-        self.assertNotIn('find "4242"', script)
+        encoded = script.split("-EncodedCommand ", 1)[1].split()[0]
+        wait_script = base64.b64decode(encoded).decode("utf-16le")
+        self.assertIn("$updaterPid = 4242", wait_script)
+        self.assertIn("Get-CimInstance Win32_Process", wait_script)
+        self.assertIn("ExecutablePath", wait_script)
+        self.assertIn("AddSeconds(120)", wait_script)
         self.assertIn('move /y "C:\\Temp\\new.exe" "C:\\Apps\\GameInstaller.exe"', script)
+        self.assertIn(":replace_update", script)
+        self.assertIn("if %attempt% geq 30 goto update_failed", script)
+        self.assertIn("timeout /t 1 /nobreak", script)
         self.assertIn('start "" "C:\\Apps\\GameInstaller.exe"', script)
         self.assertIn('echo installed>"C:\\Users\\User\\AppData\\Roaming\\GameInstaller\\update-status.txt"', script)
         self.assertIn('echo failed>"C:\\Users\\User\\AppData\\Roaming\\GameInstaller\\update-status.txt"', script)
