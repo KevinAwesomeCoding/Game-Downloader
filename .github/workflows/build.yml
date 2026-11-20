@@ -375,26 +375,24 @@ jobs:
           echo "**Commit:** \`$COMMIT\`" >> release-body.md
           echo "**Trigger:** $TRIGGER" >> release-body.md
           if [[ "$WINDOWS" == true ]]; then
-            cat <<'NOTES' >> release-body.md
-
-### Windows x64 and Highball users
-Download **`GameInstaller-windows-x64.exe`** for the single-file app. The onedir
-folder package is **`GameInstaller.zip`**; extract it and run `GameInstaller\GameInstaller.exe`.
-The included download browser targets native Windows 11 or later. Its operation
-inside Wine/Highball has not been verified; Mac users should use the native Mac app.
-NOTES
+            printf '%s\n' '' \
+              '### Windows x64 and Highball users' \
+              'Download **`GameInstaller-windows-x64.exe`** for the single-file app. The onedir' \
+              'folder package is **`GameInstaller.zip`**; extract it and run `GameInstaller\GameInstaller.exe`.' \
+              'The included download browser targets native Windows 11 or later. Its operation' \
+              'inside Wine/Highball has not been verified; Mac users should use the native Mac app.' \
+              >> release-body.md
           fi
           if [[ "$MACOS" == true ]]; then
-            cat <<'NOTES' >> release-body.md
-
-### Native macOS users
-Download **`GameInstaller-macOS-arm64.zip`**, extract it, then open **Game Installer.app**.
-This build targets Apple silicon (arm64) and requires macOS 14 or later. The app is ad-hoc signed, so macOS may require
-opening it from Finder and approving it in Privacy & Security. Highball's
-version-matched helper can be installed from Settings. Python 3 is still
-required for readiness checks and the current Mac setup flow. The app includes
-the helper's GPL-3.0 license and corresponding source archive.
-NOTES
+            printf '%s\n' '' \
+              '### Native macOS users' \
+              'Download **`GameInstaller-macOS-arm64.zip`**, extract it, then open **Game Installer.app**.' \
+              'This build targets Apple silicon (arm64) and requires macOS 14 or later. The app is ad-hoc signed, so macOS may require' \
+              'opening it from Finder and approving it in Privacy & Security. Highball'\''s' \
+              'version-matched helper can be installed from Settings. Python 3 is still' \
+              'required for readiness checks and the current Mac setup flow. The app includes' \
+              'the helper'\''s GPL-3.0 license and corresponding source archive.' \
+              >> release-body.md
           fi
 
       - name: Publish GitHub Release
