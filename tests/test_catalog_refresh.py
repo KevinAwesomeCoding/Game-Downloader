@@ -1,10 +1,14 @@
 import io
 import json
+import sys
 import tempfile
 import unittest
 import urllib.error
 from pathlib import Path
 from unittest.mock import patch
+
+if sys.platform != "win32":
+    raise unittest.SkipTest("Windows catalog loader tests")
 
 from main import CATALOG_AUTO_REFRESH_INTERVAL_MS, CONFIG, ManifestLoader, load_prefs
 
