@@ -20,8 +20,12 @@ on:
       - 'tests/**'
       - 'version_info.txt'
       - 'VERSION'
-      - 'games.json'
       - 'macos/**'
+      # Catalog data and documentation are refreshed/read at runtime and do not need app builds.
+      - '!games.json'
+      - '!macos/**/Resources/games.json'
+      - '!macos/*.md'
+      - '!macos/**/*.md'
       - 'spikes/highball/probe.py'
       - 'spikes/highball/readiness.py'
       - '.github/workflows/**'
@@ -41,8 +45,11 @@ on:
       - 'tests/**'
       - 'version_info.txt'
       - 'VERSION'
-      - 'games.json'
       - 'macos/**'
+      - '!games.json'
+      - '!macos/**/Resources/games.json'
+      - '!macos/*.md'
+      - '!macos/**/*.md'
       - 'spikes/highball/probe.py'
       - 'spikes/highball/readiness.py'
       - '.github/workflows/**'
@@ -109,9 +116,10 @@ jobs:
           while IFS= read -r path; do
             [[ -z "$path" ]] && continue
             case "$path" in
+              games.json|macos/GameDownloaderMac/Sources/GameDownloaderMac/Resources/games.json|macos/*.md) ;;
               macos/*|spikes/highball/*|*.icns) macos=true ;;
               main.py|update_support.py|version_info.txt|ci/build_windows.ps1|tools/windows_dll_safety*|assets/*) windows=true ;;
-              games.json|VERSION|requirements.txt|download_support.py|host_resolver*.py|tools/build_host_helper.py|tools/requirements-gofile.txt|tests/*|.github/*|ci/*|.gitlab-ci.yml)
+              VERSION|requirements.txt|download_support.py|host_resolver*.py|tools/build_host_helper.py|tools/requirements-gofile.txt|tests/*|.github/*|ci/*|.gitlab-ci.yml)
                 windows=true; macos=true ;;
               *) windows=true; macos=true ;;
             esac
