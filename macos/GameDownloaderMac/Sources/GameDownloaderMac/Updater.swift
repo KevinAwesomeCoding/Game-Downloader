@@ -26,6 +26,17 @@ struct UpdateNoticeState: Equatable {
 }
 
 enum AppUpdater {
+    private struct ComparedCommit: Decodable {
+        struct Details: Decodable { let message: String }
+        let sha: String
+        let commit: Details
+    }
+    private struct Comparison: Decodable {
+        struct BaseCommit: Decodable { let sha: String }
+        let base_commit: BaseCommit
+        let commits: [ComparedCommit]
+    }
+
     struct Release: Decodable {
         struct Asset: Decodable {
             let name: String
@@ -108,10 +119,42 @@ enum AppUpdater {
             release.assets.contains(where: { compatibleNames.contains($0.name) })
         }) else { return nil }
         #if arch(arm64)
-        return resolve(release, currentVersion: current, architecture: "arm64")
+        guard var update = resolve(release, currentVersion: current, architecture: "arm64") else {
+            return nil
+        }
+        if let changes = await changesSinceInstalled(current, updateTag: update.version) {
+            update = AppUpdate(id: update.id, version: update.version, notes: changes,
+                               releaseURL: update.releaseURL, downloadURL: update.downloadURL,
+                               sha256: update.sha256, manualReason: update.manualReason)
+        }
+        return update
         #else
         return nil
         #endif
+    }
+
+    private static func changesSinceInstalled(_ installedTag: String, updateTag: String) async -> String? {
+        guard let range = "\(installedTag)...\(updateTag)".addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let url = URL(string: "https://api.github.com/repos/KevinAwesomeCoding/Game-Downloader/compare/\(range)") else {
+            return nil
+        }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
+                                 timeoutInterval: 20)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("GameInstaller-updater", forHTTPHeaderField: "User-Agent")
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+              let comparison = try? JSONDecoder().decode(Comparison.self, from: data) else {
+            return nil
+        }
+        let entries = comparison.commits.compactMap { item -> String? in
+            guard let title = item.commit.message.split(whereSeparator: \.isNewline).first else {
+                return nil
+            }
+            return "• \(title) (\(item.sha.prefix(8)))"
+        }
+        guard !entries.isEmpty else { return nil }
+        return "Changes since your installed version:\n" + entries.joined(separator: "\n")
     }
 
     static func resolve(_ release: Release, currentVersion: String, architecture: String) -> AppUpdate? {

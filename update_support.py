@@ -5,6 +5,7 @@ from datetime import datetime
 import hashlib
 import os
 import re
+from urllib.parse import quote
 import requests
 
 
@@ -55,6 +56,8 @@ class UpdateRelease:
                 if sha == base:
                     return 'Changes since your installed version:\n' + ('\n'.join(entries) if entries else 'No newer commits.')
                 entries.append(f'• {title} ({sha[:8]})')
+        if self.notes:
+            return 'Release notes:\n' + self.notes
         return self.display_changes + '\nFull changes since your installed version are unavailable.'
 
     @property
@@ -128,6 +131,48 @@ def compatible_release(release: dict, current_version: str, system: str, machine
         commit_history=release.get('commit_history') if isinstance(release.get('commit_history'), list) else [],
         tag_commits=release.get('tag_commits') if isinstance(release.get('tag_commits'), dict) else {},
     )
+
+
+def release_change_history(installed_tag: str, update_tag: str, get=requests.get) -> dict | None:
+    """Load commits between two release tags from GitHub's compare API."""
+    if not installed_tag or not update_tag or installed_tag == update_tag:
+        return None
+    base = quote(installed_tag, safe="")
+    head = quote(update_tag, safe="")
+    url = ("https://api.github.com/repos/KevinAwesomeCoding/Game-Downloader/compare/"
+           f"{base}...{head}")
+    try:
+        response = get(url, timeout=(5, 10), headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "GameInstaller-updater",
+        })
+        response.raise_for_status()
+        comparison = response.json()
+        base_sha = (comparison.get("base_commit") or {}).get("sha")
+        commits = comparison.get("commits")
+        if not isinstance(base_sha, str) or not isinstance(commits, list):
+            return None
+        history = []
+        for commit in commits:
+            if not isinstance(commit, dict):
+                continue
+            sha = commit.get("sha")
+            message = (commit.get("commit") or {}).get("message")
+            title = message.splitlines()[0].strip() if isinstance(message, str) else ""
+            if isinstance(sha, str) and title:
+                history.append({"sha": sha, "title": title})
+        latest = history[-1] if history else {}
+        # Match the legacy manifest shape consumed by changes_for(): a base
+        # commit at the tail marks the end of the requested comparison range.
+        history.append({"sha": base_sha, "title": ""})
+        return {
+            "commit_history": history,
+            "tag_commits": {installed_tag: base_sha},
+            "commit_title": latest.get("title", ""),
+            "commit_sha": latest.get("sha", ""),
+        }
+    except Exception:
+        return None
 
 
 def verify_file_sha256(path: str, expected: str) -> bool:

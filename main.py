@@ -50,7 +50,7 @@ from download_support import (Downloader as HostedDownloader, Stopped as Downloa
 from host_resolver_client import provider_for, helper_command, resolve_source
 from update_support import (UpdateNoticeState, UpdateRelease, compatible_release,
                             download_verified_file, schedule_background_check,
-                            windows_update_script)
+                            release_change_history, windows_update_script)
 from search_support import matches_game_search
 from macos.backend.itch_login import sign_in as itch_sign_in
 from desktop_profile import desktop_profile
@@ -1600,6 +1600,14 @@ class UpdateChecker(QObject):
                 resp.status_code, tag,
             )
             _log.debug("UpdateChecker: tag_name from API = %r", tag)
+
+            # GitHub Releases does not expose the custom commit-history fields
+            # used by the former GitLab manifest. Compare release tags directly
+            # so users see every commit since the version installed on Windows.
+            if data and tag:
+                history = release_change_history(VERSION, tag)
+                if history:
+                    data = {**data, **history}
 
             update = (compatible_release(data, VERSION, platform.system(), platform.machine(),
                                          packaged=bool(getattr(sys, "frozen", False)))
