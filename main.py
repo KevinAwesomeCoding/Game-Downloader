@@ -3730,7 +3730,8 @@ class GameCard(QFrame):
     CARD_W = 280
     THUMB_H = 130
 
-    def __init__(self, game: Game, on_click, *, installed=False, on_choose=None):
+    def __init__(self, game: Game, on_click, *, installed=False, on_choose=None,
+                 on_favorite=None, is_favorite=False):
         super().__init__()
         self.game = game
         self._on_click = on_click
@@ -3762,6 +3763,21 @@ class GameCard(QFrame):
         self.thumb.setFixedHeight(self.THUMB_H)
         self.thumb.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.thumb.setText("Loading image…")
+        self.favorite_btn = QPushButton("★" if is_favorite else "☆", self.thumb_container)
+        self.favorite_btn.setObjectName("FavoriteButton")
+        self.favorite_btn.setFixedSize(36, 36)
+        self.favorite_btn.move(self.CARD_W - 46, 10)
+        self.favorite_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.favorite_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.favorite_btn.setToolTip("Remove from favorites" if is_favorite else "Add to favorites")
+        self.favorite_btn.setAccessibleName(self.favorite_btn.toolTip())
+        self.favorite_btn.setStyleSheet(
+            "QPushButton#FavoriteButton { background: rgba(10, 16, 28, 205); color: #facc15; "
+            "border: 1px solid rgba(255,255,255,75); border-radius: 18px; font-size: 22px; }"
+            "QPushButton#FavoriteButton:hover { background: rgba(10, 16, 28, 245); }"
+        )
+        self.favorite_btn.clicked.connect(lambda: on_favorite(game) if on_favorite else None)
+        self.favorite_btn.raise_()
         root.addWidget(self.thumb_container)
         self._normal_art = None
         self._hovered = False
@@ -5471,6 +5487,11 @@ class MainWindow(QMainWindow):
         self._sweep_thread = None
         self._sweep_worker = None
         self._current_games: list = []
+        saved_favorites = load_prefs().get("favorite_game_ids", [])
+        self._favorite_game_ids = (
+            {game_id for game_id in saved_favorites if isinstance(game_id, str)}
+            if isinstance(saved_favorites, list) else set()
+        )
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -5762,7 +5783,7 @@ class MainWindow(QMainWindow):
         controls_lay.setContentsMargins(24, 0, 24, 10)
         controls_lay.setSpacing(8)
         self._library_filter = QComboBox()
-        self._library_filter.addItems(["All games", "Installed games", "Name A–Z", "Name Z–A", "Newest first", "Installed first", "Size: smallest first", "Size: largest first", "Players: fewest first", "Players: most first"])
+        self._library_filter.addItems(["All games", "Installed games", "Favorites", "Name A–Z", "Name Z–A", "Newest first", "Installed first", "Size: smallest first", "Size: largest first", "Players: fewest first", "Players: most first"])
         self._library_filter.setCurrentText("Newest first")
         self._library_filter.currentIndexChanged.connect(lambda _: self._on_search_changed(self._search_bar.text()))
         self._library_filter.currentIndexChanged.connect(self._sync_navigation)
@@ -6385,6 +6406,8 @@ class MainWindow(QMainWindow):
             editions = [edition for game in filtered for edition in
                         ([game, game.more_players_game()] if game.more_players else [game])]
             filtered = [g for g in editions if self._is_installed_game(base, g)]
+        elif mode == "Favorites":
+            filtered = [g for g in filtered if g.id in self._favorite_game_ids]
         elif mode == "Name A–Z":
             filtered = sorted(filtered, key=lambda g: g.name.casefold())
         elif mode == "Name Z–A":
@@ -6424,6 +6447,20 @@ class MainWindow(QMainWindow):
         self._on_search_changed(self._search_bar.text())
         self.stack.setCurrentWidget(self.content_page)
         self.stack.animate_from(image, 1)
+
+    def _toggle_favorite(self, game):
+        favorites = set(self._favorite_game_ids)
+        if game.id in favorites:
+            favorites.remove(game.id)
+        else:
+            favorites.add(game.id)
+        prefs = load_prefs()
+        prefs["favorite_game_ids"] = sorted(favorites)
+        if save_prefs(prefs) is False:
+            QMessageBox.warning(self, "Could not save favorite", "Your favorite games could not be saved.")
+            return
+        self._favorite_game_ids = favorites
+        self._on_search_changed(self._search_bar.text())
 
     @staticmethod
     def _is_installed_game(base, game):
@@ -6560,6 +6597,8 @@ class MainWindow(QMainWindow):
             searching = self._search_bar.text().strip() if hasattr(self, "_search_bar") else ""
             if hasattr(self, "_library_filter") and self._library_filter.currentText() == "Installed games":
                 msg = "No installed games found in the selected games folder."
+            elif hasattr(self, "_library_filter") and self._library_filter.currentText() == "Favorites":
+                msg = "No favorite games yet. Select the star on a game card to add one."
             else:
                 msg = "No games match your search." if searching else "No games are available right now."
             placeholder = QLabel(msg)
@@ -6570,9 +6609,18 @@ class MainWindow(QMainWindow):
         owned = self._library_filter.currentText() == "Installed games"
         for game in games:
             if owned:
-                self.cards_layout.addWidget(GameCard(game, self._launch_owned_game, installed=True, on_choose=self._choose_owned_executable))
+                self.cards_layout.addWidget(GameCard(
+                    game, self._launch_owned_game, installed=True,
+                    on_choose=self._choose_owned_executable,
+                    on_favorite=self._toggle_favorite,
+                    is_favorite=game.id in self._favorite_game_ids,
+                ))
             else:
-                self.cards_layout.addWidget(GameCard(game, self._open_install))
+                self.cards_layout.addWidget(GameCard(
+                    game, self._open_install,
+                    on_favorite=self._toggle_favorite,
+                    is_favorite=game.id in self._favorite_game_ids,
+                ))
 
     def _choose_owned_executable(self, game):
         root = os.path.abspath(os.path.join(default_game_directory(), game.safe_folder_name))
