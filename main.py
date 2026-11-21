@@ -499,8 +499,9 @@ def _remove_resume_job(game, target):
 
 
 def _legacy_cache_exists(game, target):
-    """Find pre-resume downloads without creating or touching cache files."""
+    """Find cached downloads without creating or touching cache files."""
     root = os.path.join(os.path.dirname(os.path.abspath(target)), '.gameinstaller-cache')
+    job_root = os.path.join(root, _cache_job_id(game.id, target))
     for kind, parts in (('main', game.zip_parts + game.zip_backup_parts),
                         ('game-update', game.update_parts + game.update_backup_parts),
                         ('fix', game.fix_parts + game.fix_backup_parts)):
@@ -509,14 +510,14 @@ def _legacy_cache_exists(game, target):
         urls = '|'.join((p.get('url') or '') for p in parts)
         identity = os.path.normcase(os.path.abspath(target))
         key = hashlib.sha1(f'{game.id}|{kind}|{urls}|{identity}'.encode('utf-8')).hexdigest()[:16]
-        folder = os.path.join(root, key)
-        try:
-            with os.scandir(folder) as entries:
-                if any(entry.is_file() and not entry.name.endswith('.json')
-                       and entry.stat().st_size > 0 for entry in entries):
-                    return True
-        except OSError:
-            pass
+        for folder in (os.path.join(job_root, key), os.path.join(root, key)):
+            try:
+                with os.scandir(folder) as entries:
+                    if any(entry.is_file() and not entry.name.endswith('.json')
+                           and entry.stat().st_size > 0 for entry in entries):
+                        return True
+            except OSError:
+                pass
     return False
 
 
