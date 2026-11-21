@@ -91,26 +91,32 @@ def validate_workspace_volume(job, workspace, minimum_free=MIN_INSTALL_FREE_BYTE
         mount = Path("/Volumes") / selected.parts[2]
         if not mount.is_mount():
             raise OSError(f"The selected volume {mount} is unavailable. Reconnect it, then resume this job.")
-    if not selected.exists() or not selected.is_dir():
-        raise OSError(f"The selected install volume {selected} is unavailable. Reconnect it, then resume this job.")
     if workspace.is_symlink():
         raise OSError("The selected job workspace is a symbolic link. Choose the original cache folder on the install volume, then resume.")
-    if workspace.exists() and workspace.stat().st_dev != selected.stat().st_dev:
+    volume_anchor = selected
+    while not volume_anchor.exists():
+        parent = volume_anchor.parent
+        if parent == volume_anchor:
+            raise OSError(f"The selected install volume {selected} is unavailable. Reconnect it, then resume this job.")
+        volume_anchor = parent
+    if not volume_anchor.is_dir():
+        raise OSError(f"The selected install volume {selected} is unavailable. Reconnect it, then resume this job.")
+    if workspace.exists() and workspace.stat().st_dev != volume_anchor.stat().st_dev:
         raise OSError("The job workspace is on a different volume from the install destination. Choose the cache folder on the selected volume, then resume.")
     try:
-        selected.mkdir(parents=True, exist_ok=True)
-        probe = selected / f".game-installer-write-check-{job['id']}"
+        probe = volume_anchor / f".game-installer-write-check-{job['id']}"
         with probe.open("xb"):
             pass
         probe.unlink()
     except OSError as exc:
         raise OSError(f"The selected volume is not writable. Check its connection and permissions, then resume. {exc}") from exc
     try:
-        free = shutil.disk_usage(selected).free
+        free = shutil.disk_usage(volume_anchor).free
     except OSError as exc:
         raise OSError(f"Could not check free space on the selected volume: {exc}") from exc
     if free < minimum_free:
         raise OSError(f"The selected volume has only {free // (1024 ** 2)} MB free. Free at least 1 GB, then resume.")
+    selected.mkdir(parents=True, exist_ok=True)
     workspace.mkdir(parents=True, exist_ok=True)
 
 

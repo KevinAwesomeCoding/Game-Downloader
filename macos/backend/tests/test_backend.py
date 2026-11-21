@@ -70,8 +70,9 @@ class StorageWorkspaceTests(TemporaryTest):
         self.assertEqual((self.workspace / "main.part1.rar.part").read_bytes(), b"resumable bytes")
         self.assertEqual((legacy / "main.part1.rar.part").read_bytes(), b"resumable bytes")
 
+    @unittest.skipUnless(sys.platform == "darwin", "requires macOS volume mount semantics")
     def test_missing_selected_volume_fails_before_workspace_creation(self):
-        missing = self.root / "ejected-volume"
+        missing = Path("/Volumes/GameInstaller-Test-Volume-Not-Mounted")
         job = {"id": "gone", "installFolder": str(missing)}
         with self.assertRaisesRegex(OSError, "unavailable"):
             validate_workspace_volume(job, missing / ".game-installer-jobs" / "gone")
