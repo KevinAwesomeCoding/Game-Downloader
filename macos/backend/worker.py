@@ -491,22 +491,26 @@ def main():
         if not re.fullmatch(r"[A-Za-z0-9-]{1,80}", job["id"]):
             raise ValueError("Invalid install job identifier.")
         state = args.job.parent / job["id"]
-        workspace = Path(job.get("workspacePath") or (Path(job["installFolder"]).expanduser() / ".game-installer-jobs" / job["id"])).expanduser()
         state.mkdir(parents=True, exist_ok=True)
         lock = (state / ".worker.lock").open("w")
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise ValueError("This install job is already running in another process.") from exc
-        validate_workspace_volume(job, workspace)
-        prepare_workspace(job, state, workspace)
+        workspace = None
         if args.action == "install":
+            workspace = Path(job.get("workspacePath") or (Path(job["installFolder"]).expanduser() / ".game-installer-jobs" / job["id"])).expanduser()
+            validate_workspace_volume(job, workspace)
+            prepare_workspace(job, state, workspace)
             install(job, workspace, stopped.is_set, state=state)
             return 0
         path = state / "receipt.json"
         if args.action == "cleanup":
             if not args.registered:
                 raise ValueError("Add the installed game to Highball before cleaning its download files.")
+            workspace = Path(job.get("workspacePath") or (Path(job["installFolder"]).expanduser() / ".game-installer-jobs" / job["id"])).expanduser()
+            validate_workspace_volume(job, workspace)
+            prepare_workspace(job, state, workspace)
             cleanup_downloads(job, workspace, state=state)
             return 0
         receipt = json.loads(path.read_text())
