@@ -382,9 +382,75 @@ extension AppModel {
     }
 
     func retryJob(_ id: String) {
+        guard let existing = jobs.first(where: { $0.id == id }) else { return }
+        if existing.game.id == "forza-horizon-6", existing.workspacePath == nil {
+            let defaultWorkspace = URL(fileURLWithPath: existing.installFolder, isDirectory: true)
+                .appending(path: ".game-installer-jobs", directoryHint: .isDirectory)
+                .appending(path: existing.id, directoryHint: .isDirectory)
+            if !Self.hasCachedArchiveParts(defaultWorkspace) {
+                chooseForzaCacheFolder(for: existing)
+                return
+            }
+        }
         updateJob(id) { $0.status = "queued"; $0.message = "Queued to resume"; $0.done = 0; $0.total = 0 }
         saveQueue()
         startNext()
+    }
+
+    private func chooseForzaCacheFolder(for job: InstallJob) {
+        let panel = NSOpenPanel()
+        panel.title = "Continue Forza Horizon 6 from Cached Files?"
+        panel.message = "Choose the Forza Horizon 6 cache folder you moved to Storage. Game Installer will verify the cached archive parts and resume from that folder without deleting or replacing them."
+        panel.prompt = "Continue from Cache"
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: job.installFolder, isDirectory: true)
+        guard panel.runModal() == .OK, let selected = panel.url else { return }
+
+        guard Self.hasCachedArchiveParts(selected) else {
+            actionMessage = "That folder does not contain Forza Horizon 6 archive parts or resumable partial files. Choose the moved job cache folder; its files were left untouched."
+            return
+        }
+        do {
+            let targetVolume = try URL(fileURLWithPath: job.installFolder, isDirectory: true)
+                .resourceValues(forKeys: [.volumeUUIDStringKey]).volumeUUIDString
+            let cacheVolume = try selected.resourceValues(forKeys: [.volumeUUIDStringKey]).volumeUUIDString
+            guard let targetVolume, let cacheVolume, targetVolume == cacheVolume else {
+                actionMessage = "Choose the cache folder on the same mounted volume as the Forza Horizon 6 install destination. The selected files were not changed."
+                return
+            }
+        } catch {
+            actionMessage = "Could not verify the cache folder's volume. Reconnect Storage and try again. (error.localizedDescription)"
+            return
+        }
+
+        updateJob(job.id) {
+            $0.workspacePath = selected.standardizedFileURL.path
+            $0.status = "queued"
+            $0.message = "Verified cached archive parts on the selected volume. Queued to resume."
+            $0.done = 0
+            $0.total = 0
+        }
+        saveQueue()
+        startNext()
+    }
+
+    private static func hasCachedArchiveParts(_ folder: URL) -> Bool {
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey]
+        ) else { return false }
+        return entries.contains { file in
+            let name = file.lastPathComponent
+            let isArchive = name == "main.archive" || name.range(
+                of: #"^main\.part\d+\.rar(?:\.part)?$"#, options: .regularExpression
+            ) != nil
+            guard isArchive,
+                  let values = try? file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey]),
+                  values.isRegularFile == true, values.isSymbolicLink != true,
+                  let sizeValues = try? file.resourceValues(forKeys: [.fileSizeKey]) else { return false }
+            return (sizeValues.fileSize ?? 0) > 0
+        }
     }
 
     func removeJob(_ id: String) {

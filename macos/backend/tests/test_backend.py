@@ -18,7 +18,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from downloads import Downloader, Stopped, atomic_json, canonical_source, drive_confirmation, parts, sha256
 from archives import extract, merge_repair, safe_path, validate_entries, find_tool
 from highball import Highball, parse_pins, same_external_path
-from worker import ArchiveSetProgress, install, publish_directory, highball_recipe
+from worker import (ArchiveSetProgress, install, publish_directory, highball_recipe,
+                    prepare_workspace, validate_workspace_volume)
 from universal_setup import apply_universal_setup, recipe_catalog
 import universal_setup
 
@@ -50,6 +51,49 @@ class TemporaryTest(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
+
+
+class StorageWorkspaceTests(TemporaryTest):
+    def setUp(self):
+        super().setUp()
+        self.volume = self.root / "external-volume"
+        self.volume.mkdir()
+        self.job = {"id": "fixture-job", "installFolder": str(self.volume)}
+        self.workspace = self.volume / ".game-installer-jobs" / self.job["id"]
+
+    def test_external_target_uses_job_workspace_and_keeps_legacy_data(self):
+        legacy = self.root / "internal-support" / self.job["id"]
+        legacy.mkdir(parents=True)
+        (legacy / "main.part1.rar.part").write_bytes(b"resumable bytes")
+        validate_workspace_volume(self.job, self.workspace, minimum_free=0)
+        prepare_workspace(self.job, legacy, self.workspace)
+        self.assertEqual((self.workspace / "main.part1.rar.part").read_bytes(), b"resumable bytes")
+        self.assertEqual((legacy / "main.part1.rar.part").read_bytes(), b"resumable bytes")
+
+    def test_missing_selected_volume_fails_before_workspace_creation(self):
+        missing = self.root / "ejected-volume"
+        job = {"id": "gone", "installFolder": str(missing)}
+        with self.assertRaisesRegex(OSError, "unavailable"):
+            validate_workspace_volume(job, missing / ".game-installer-jobs" / "gone")
+        self.assertFalse(missing.exists())
+
+    def test_read_only_target_fails_clearly(self):
+        original_open = Path.open
+        def deny_probe(path, *args, **kwargs):
+            if ".game-installer-write-check-" in path.name:
+                raise PermissionError("read only")
+            return original_open(path, *args, **kwargs)
+        with patch.object(Path, "open", deny_probe):
+            with self.assertRaisesRegex(OSError, "not writable"):
+                validate_workspace_volume(self.job, self.workspace)
+
+    def test_low_space_target_fails_before_workspace_creation(self):
+        usage = shutil.disk_usage(self.volume)
+        low = shutil._ntuple_diskusage(usage.total, usage.used, 0)
+        with patch("worker.shutil.disk_usage", return_value=low):
+            with self.assertRaisesRegex(OSError, "Free at least 1 GB"):
+                validate_workspace_volume(self.job, self.workspace)
+        self.assertFalse(self.workspace.exists())
 
 
 class DownloadTests(TemporaryTest):

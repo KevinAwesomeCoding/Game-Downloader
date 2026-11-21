@@ -4,6 +4,7 @@ struct InstallJob: Codable, Identifiable {
     let id: String
     let game: Game
     let installFolder: String
+    var workspacePath: String?
     var status = "queued"
     var message = "Waiting in queue"
     var done: Int64 = 0

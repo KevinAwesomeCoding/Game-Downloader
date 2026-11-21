@@ -1186,8 +1186,12 @@ struct ContentView: View {
                                             .help("Remove verified archive copies; keep the installed game and its receipt.")
                                         }
                                     }
-                                    Button("Download files") { NSWorkspace.shared.open(AppModel.supportFolder.appending(path: job.id)) }
-                                        .disabled(!FileManager.default.fileExists(atPath: AppModel.supportFolder.appending(path: job.id).path))
+                                    let cacheFolder = job.workspacePath.map { URL(fileURLWithPath: $0, isDirectory: true) }
+                                        ?? URL(fileURLWithPath: job.installFolder, isDirectory: true)
+                                            .appending(path: ".game-installer-jobs", directoryHint: .isDirectory)
+                                            .appending(path: job.id, directoryHint: .isDirectory)
+                                    Button("Download files") { NSWorkspace.shared.open(cacheFolder) }
+                                        .disabled(!FileManager.default.fileExists(atPath: cacheFolder.path))
                                     if !job.isActive && job.status != "queued" {
                                         Button("Remove from list") { model.removeJob(job.id) }
                                             .disabled(model.activeJobID == job.id || model.operationBusy)

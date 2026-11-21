@@ -10,12 +10,74 @@ from unittest.mock import patch
 if sys.platform != 'win32':
     raise unittest.SkipTest('Windows installer tests')
 
-from main import Game, InstallWorker, UpdateDialog, game_launch_executable
+from main import (Game, InstallWorker, UpdateDialog, game_launch_executable,
+                  ensure_destination_volume, _cache_job_id, cache_set_dir)
 from update_support import UpdateRelease
 from PyQt6.QtWidgets import QApplication, QLabel
 
 
 class UpdateStageTests(unittest.TestCase):
+    def test_external_volume_cache_is_job_scoped_and_staging_is_local(self):
+        with tempfile.TemporaryDirectory() as root:
+            destination = Path(root) / 'external' / 'Games' / 'fixture'
+            destination.parent.mkdir(parents=True)
+            game = Game({'id': 'external-fixture', 'name': 'External fixture',
+                         'zipUrl': 'https://example.com/game.zip'})
+            worker = InstallWorker(game, str(destination))
+            def download(url, path, *args, **kwargs):
+                Path(path).write_bytes(b'archive')
+                return True
+            with patch.object(worker, '_download', side_effect=download):
+                archive = Path(worker._download_parts(game.zip_parts, 'Download',
+                                                       worker.download_progress))
+            staging = Path(worker._new_temp_dir())
+            workspace = destination.parent / '.gameinstaller-cache' / _cache_job_id(game.id, destination)
+            self.assertTrue(archive.is_relative_to(workspace))
+            self.assertTrue(staging.is_relative_to(workspace))
+            self.assertEqual(archive.read_bytes(), b'archive')
+            worker._cleanup_temp()
+            self.assertTrue(archive.exists())
+            worker._purge_cache()
+
+    def test_unavailable_volume_fails_without_internal_fallback(self):
+        import string
+        used = {Path.cwd().drive.upper(), Path(tempfile.gettempdir()).drive.upper()}
+        missing_drive = next((letter + ':' for letter in string.ascii_uppercase
+                              if letter + ':' not in used and not Path(letter + '\\').is_dir()), None)
+        if missing_drive is None:
+            self.skipTest('No disconnected drive letter is available for this fixture')
+        unavailable = Path(missing_drive + '\\Games\\fixture')
+        with self.assertRaisesRegex(OSError, 'unavailable'):
+            ensure_destination_volume(str(unavailable))
+
+    def test_legacy_cache_is_copied_and_verified_without_deleting_original(self):
+        with tempfile.TemporaryDirectory() as root:
+            destination = Path(root) / 'external' / 'game'
+            destination.parent.mkdir()
+            parts = [{'url': 'https://example.com/archive.zip'}]
+            urls = '|'.join(item['url'] for item in parts)
+            import hashlib
+            import os
+            identity = os.path.normcase(os.path.abspath(destination))
+            key = hashlib.sha1(f"fixture|main|{urls}|{identity}".encode('utf-8')).hexdigest()[:16]
+            legacy = destination.parent / '.gameinstaller-cache' / key
+            legacy.mkdir(parents=True)
+            (legacy / 'main.archive.part').write_bytes(b'resume me')
+            migrated = Path(cache_set_dir('fixture', 'main', parts, str(destination)))
+            self.assertEqual((migrated / 'main.archive.part').read_bytes(), b'resume me')
+            self.assertEqual((legacy / 'main.archive.part').read_bytes(), b'resume me')
+
+    def test_read_only_and_low_space_volumes_fail_clearly(self):
+        with tempfile.TemporaryDirectory() as root:
+            destination = Path(root) / 'game'
+            with patch('main.tempfile.mkstemp', side_effect=PermissionError('read only')):
+                with self.assertRaisesRegex(OSError, 'not writable'):
+                    ensure_destination_volume(str(destination))
+            with patch('main.shutil.disk_usage', return_value=type('Usage', (), {
+                    'free': 0, 'total': 100, 'used': 100})()):
+                with self.assertRaisesRegex(OSError, 'Free at least 1 GB'):
+                    ensure_destination_volume(str(destination))
+
     def test_cached_hosted_file_reports_verification(self):
         with tempfile.TemporaryDirectory() as root:
             archive = Path(root) / 'cached.rar'

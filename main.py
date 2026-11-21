@@ -347,11 +347,18 @@ def consume_update_status() -> str:
 CACHE_MAX_AGE_DAYS = 14  # stale partials older than this are swept on startup
 
 
-def _cache_root(dest_path=None) -> str:
+def _cache_job_id(game_id, dest_path):
+    identity = os.path.normcase(os.path.abspath(os.path.expanduser(dest_path)))
+    return hashlib.sha256(f"{game_id}|{identity}".encode("utf-8")).hexdigest()[:24]
+
+
+def _cache_root(dest_path=None, game_id="job") -> str:
     if dest_path:
-        # Keep large working files on the same volume as the selected game.
+        # Keep archives and extraction staging on the selected volume. Never
+        # let tempfile or a failed mkdir silently redirect work to app storage.
         d = os.path.join(os.path.dirname(os.path.abspath(dest_path)),
-                         ".gameinstaller-cache")
+                         ".gameinstaller-cache", _cache_job_id(game_id, dest_path))
+        ensure_destination_volume(dest_path)
         os.makedirs(d, exist_ok=True)
         return d
     base = (os.environ.get("LOCALAPPDATA")
@@ -365,6 +372,51 @@ def _cache_root(dest_path=None) -> str:
     return d
 
 
+MIN_INSTALL_FREE_BYTES = 1024 ** 3
+
+
+def ensure_destination_volume(dest_path, minimum_free=MIN_INSTALL_FREE_BYTES):
+    """Fail closed if the chosen destination volume is absent, read-only, or full."""
+    target = os.path.abspath(os.path.expanduser(dest_path))
+    drive, _ = os.path.splitdrive(target)
+    if os.name == "nt":
+        root = drive + os.sep if drive else os.path.abspath(os.sep)
+        if not os.path.isdir(root):
+            raise OSError(f"The selected install volume {root} is unavailable. Reconnect it and retry.")
+    else:
+        root = os.path.abspath(os.sep)
+        for candidate in (target, os.path.dirname(target), os.path.dirname(os.path.dirname(target))):
+            if os.path.ismount(candidate):
+                root = candidate
+                break
+    probe_dir = os.path.dirname(target)
+    while not os.path.isdir(probe_dir):
+        parent = os.path.dirname(probe_dir)
+        if parent == probe_dir:
+            raise OSError(f"The selected install volume for {target} is unavailable. Reconnect it and retry.")
+        probe_dir = parent
+    try:
+        fd, probe = tempfile.mkstemp(prefix=".gameinstaller-write-check-", dir=probe_dir)
+        os.close(fd)
+        os.remove(probe)
+    except OSError as exc:
+        raise OSError(f"The selected install volume is not writable ({probe_dir}). Check its connection and permissions, then retry. {exc}") from exc
+    try:
+        free = shutil.disk_usage(probe_dir).free
+    except OSError as exc:
+        raise OSError(f"Could not check free space on the selected install volume: {exc}") from exc
+    if free < minimum_free:
+        raise OSError(f"The selected install volume has only {free // (1024 ** 2)} MB free. Free at least {minimum_free // (1024 ** 3)} GB, then retry.")
+
+
+def _sha256_file(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
 def cache_set_dir(game_id: str, kind: str, parts, dest_path=None) -> str:
     """Return (creating if needed) the folder that holds every volume of one
     download set. Stable across retries for the same game+stage+URLs, so the
@@ -376,11 +428,33 @@ def cache_set_dir(game_id: str, kind: str, parts, dest_path=None) -> str:
     urls = "|".join((p.get("url") or "") for p in (parts or []))
     identity = os.path.normcase(os.path.abspath(dest_path)) if dest_path else ""
     key = hashlib.sha1(f"{game_id}|{kind}|{urls}|{identity}".encode("utf-8")).hexdigest()[:16]
-    d = os.path.join(_cache_root(dest_path), key)
-    try:
-        os.makedirs(d, exist_ok=True)
-    except OSError:
-        pass
+    d = os.path.join(_cache_root(dest_path, game_id), key)
+    os.makedirs(d, exist_ok=True)
+    if dest_path:
+        # Older builds stored set directories directly under the cache root.
+        # Copy without replacing anything, verify every file, and keep the old
+        # copy so a failed migration can always be retried safely.
+        legacy = os.path.join(os.path.dirname(os.path.abspath(dest_path)),
+                              ".gameinstaller-cache", key)
+        if os.path.abspath(legacy) != os.path.abspath(d) and os.path.isdir(legacy):
+            for root, dirs, files in os.walk(legacy):
+                relative_root = os.path.relpath(root, legacy)
+                target_root = d if relative_root == "." else os.path.join(d, relative_root)
+                os.makedirs(target_root, exist_ok=True)
+                for name in dirs:
+                    os.makedirs(os.path.join(target_root, name), exist_ok=True)
+                for name in files:
+                    old_file = os.path.join(root, name)
+                    new_file = os.path.join(target_root, name)
+                    if os.path.exists(new_file):
+                        if (os.path.getsize(old_file) != os.path.getsize(new_file)
+                                or _sha256_file(old_file) != _sha256_file(new_file)):
+                            raise OSError("Legacy and volume workspace files differ. Both were kept; review them before resuming.")
+                        continue
+                    shutil.copy2(old_file, new_file)
+                    if (os.path.getsize(old_file) != os.path.getsize(new_file)
+                            or _sha256_file(old_file) != _sha256_file(new_file)):
+                        raise OSError("Download workspace migration verification failed; the original files were kept.")
     return d
 
 
@@ -2021,7 +2095,7 @@ class InstallWorker(QObject):
 
     # -- temp bookkeeping ---------------------------------------------------
     def _new_temp_dir(self) -> str:
-        path = tempfile.mkdtemp(prefix="gamefix_", dir=_cache_root(self.dest_path))
+        path = tempfile.mkdtemp(prefix="gamefix_", dir=_cache_root(self.dest_path, self.game.id))
         self._temp_dirs.append(path)
         return path
 
@@ -2129,6 +2203,11 @@ class InstallWorker(QObject):
                 return
             if not self._prepare_destination():
                 return
+            try:
+                ensure_destination_volume(self.dest_path)
+            except OSError as exc:
+                self.error.emit(str(exc))
+                return
 
             # --- 1) Main game: download (one or more volumes) then extract ---
             self._stage_start = time.monotonic()
@@ -2139,6 +2218,11 @@ class InstallWorker(QObject):
             if main_archive is None:
                 return
             if self._cancelled():
+                return
+            try:
+                ensure_destination_volume(self.dest_path)
+            except OSError as exc:
+                self.error.emit(str(exc))
                 return
             self._stage_start = time.monotonic()
             # Extract to staging so wrapper-folder detection can run before any
@@ -2151,6 +2235,11 @@ class InstallWorker(QObject):
                 return
             self._remove_parts()
             if self._cancelled():
+                return
+            try:
+                ensure_destination_volume(self.dest_path)
+            except OSError as exc:
+                self.error.emit(str(exc))
                 return
             # Detect and skip a single outer wrapper folder (e.g. archive
             # contains GangBeasts/ → install to dest_path, not dest_path/GangBeasts/).
@@ -2609,6 +2698,11 @@ class InstallWorker(QObject):
         the common path behaves exactly as before.
         """
         fallback_parts = fallback_parts or []
+        try:
+            ensure_destination_volume(self.dest_path)
+        except OSError as exc:
+            self.error.emit(str(exc))
+            return None
         if fallback_parts and len(fallback_parts) != len(parts):
             self.error.emit(
                 "The backup links do not match the number of archive parts. "
@@ -3231,6 +3325,11 @@ class InstallWorker(QObject):
             return False
         if self._cancel.is_set():
             self._abort()
+            return False
+        try:
+            ensure_destination_volume(self.dest_path)
+        except OSError as exc:
+            self.error.emit(str(exc))
             return False
 
         # 2) Resolve the real patch root.
