@@ -3153,27 +3153,5 @@
       "confidence": "Low"
     },
     "cardColor": "#a65b36"
-  },
-  {
-    "id": "catalog-refresh-test",
-    "steamAppId": null,
-    "name": "Catalog Refresh Test",
-    "description": "A small test entry to see how quickly new catalog games appear in Game Installer.",
-    "version": "1.0-test-20261120",
-    "size": "Test entry",
-    "players": "Catalog refresh test",
-    "thumbnail": "",
-    "zipUrl": "",
-    "zipBackupUrl": "",
-    "fixZipUrl": "",
-    "fixBackupUrl": "",
-    "comment": "Temporary test entry for measuring catalog refresh propagation. No game download is attached.",
-    "macCompatibility": {
-      "tier": "Unverified",
-      "riskLevel": "Standard",
-      "reasoning": "This is a catalog refresh test entry with no game build to evaluate.",
-      "confidence": "Low"
-    },
-    "cardColor": "#45b7a5"
   }
 ]
