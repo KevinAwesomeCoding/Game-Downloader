@@ -16,6 +16,7 @@ struct InstallJob: Codable, Identifiable {
     var targetBottle: String?
     var prepareRecipes: [String]?
     var automaticAdd: Bool?
+    var autoRetryDownloads: Bool?
 
     var isInstalled: Bool { installPath != nil }
     var isActive: Bool { ["preparing", "downloading", "extracting", "repairing", "stopping"].contains(status) }

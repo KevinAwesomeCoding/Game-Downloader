@@ -16,7 +16,7 @@ import urllib.request
 from archives import (content_root, extract, extract_rar_volume_set, find_tool,
                       is_rar_volume_set, merge_archive_part, merge_repair, safe_path)
 from downloads import (Downloader, Stopped, atomic_json, checkpoint, download_host_name,
-                       fetch_with_backup, parts, sha256)
+                       fetch_with_backup, fetch_with_retry, parts, sha256)
 from host_resolver_client import provider_for, resolve_source
 from highball import Highball
 from itch_login import sign_in, token_destination
@@ -280,10 +280,16 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None, state=
                 status=lambda message: notify("downloading", message, done=0, total=0),
                 storage_check=lambda required_bytes=0: check_workspace(
                     workspace_job, required_free=required_bytes, probe_writable=False))
-            hashes.append(fetch_with_backup(
+            fetch_once = lambda: fetch_with_backup(
                 transfer, source["url"], backup_source, filename,
                 on_fallback=fallback,
-            ))
+            )
+            if job.get("autoRetryDownloads", True):
+                digest = fetch_with_retry(fetch_once, stop=stop,
+                                          status=lambda message: notify("downloading", message, done=0, total=0))
+            else:
+                digest = fetch_once()
+            hashes.append(digest)
             files.append(filename)
         all_hashes.append(hashes)
         all_records.append([{"bytes": archive.stat().st_size, "sha256": digest}

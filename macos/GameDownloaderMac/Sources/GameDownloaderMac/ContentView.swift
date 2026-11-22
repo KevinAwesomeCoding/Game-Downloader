@@ -47,6 +47,9 @@ final class AppModel: ObservableObject {
             }
         }
     }
+    @Published var autoRetryDownloads = (UserDefaults.standard.object(forKey: "autoRetryDownloads") as? Bool) ?? true {
+        didSet { UserDefaults.standard.set(autoRetryDownloads, forKey: "autoRetryDownloads") }
+    }
     @Published var catalogJSONDraft = ""
     @Published var localCatalogName: String?
     @Published var jobs: [InstallJob] = []
@@ -1295,6 +1298,13 @@ struct ContentView: View {
                         Text(model.installFolder).lineLimit(2).textSelection(.enabled)
                             .font(.callout.monospaced()).foregroundStyle(.secondary)
                         Button("Choose folder…", action: model.chooseInstallFolder)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }
+                GroupBox("Downloads") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Automatically retry failed downloads", isOn: $model.autoRetryDownloads)
+                        Text("Retries download errors with increasing waits and resumes from saved partial files. Stop the job at any time from Downloads.")
+                            .font(.caption).foregroundStyle(.secondary)
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }
                 GroupBox("Game catalog") {

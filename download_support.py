@@ -463,6 +463,33 @@ def fetch_with_backup(downloader, source, backup_source, destination, on_fallbac
             ) from backup_error
 
 
+def fetch_with_retry(fetch, stop=lambda: False, status=lambda message: None,
+                     initial_delay=2, maximum_delay=30):
+    """Retry a resumable archive fetch until it succeeds or the user stops.
+
+    The wrapped fetch owns its partial files, so each attempt can resume safely.
+    Delays grow to a cap to avoid hammering a server during a long outage.
+    """
+    attempt = 0
+    while True:
+        if attempt:
+            checkpoint(stop)
+        try:
+            return fetch()
+        except Stopped:
+            raise
+        except Exception as exc:
+            attempt += 1
+            delay = min(maximum_delay, initial_delay * (2 ** min(attempt - 1, 10)))
+            status(f"Download failed: {exc}. Retrying in {int(delay)}s; partial files are kept.")
+            remaining = delay
+            while remaining > 0:
+                checkpoint(stop)
+                interval = min(0.2, remaining)
+                time.sleep(interval)
+                remaining -= interval
+
+
 def parts(value):
     if not value:
         return []

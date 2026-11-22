@@ -202,6 +202,7 @@ extension AppModel {
         }
         var job = InstallJob(id: UUID().uuidString, game: game, installFolder: installFolder)
         job.workspacePath = Self.workspaceURL(installFolder: installFolder, jobID: job.id).path
+        job.autoRetryDownloads = autoRetryDownloads
         job.targetBottle = selectedBottle
         job.prepareRecipes = prepareRecipes
         job.automaticAdd = automaticAdd
@@ -320,7 +321,9 @@ extension AppModel {
             DownloadCompletionNotifier.shared.prepareForDownload()
             try FileManager.default.createDirectory(at: Self.supportFolder, withIntermediateDirectories: true)
             let jobFile = Self.supportFolder.appending(path: "\(job.id).json")
-            try JSONEncoder().encode(job).write(to: jobFile, options: .atomic)
+            var configuredJob = job
+            configuredJob.autoRetryDownloads = autoRetryDownloads
+            try JSONEncoder().encode(configuredJob).write(to: jobFile, options: .atomic)
             updateJob(job.id) { $0.status = "downloading"; $0.message = "Starting installation…" }
             installSession = try WorkerSession(arguments: ["install", "--job", jobFile.path]) { [weak self] event in
                 guard let self else { return }

@@ -4886,6 +4886,11 @@ class DownloadCard(QFrame):
         self.defender_worker = None
         self._installed_path = None
         self._main_done = False  # main game installed → a retry can be fix-only
+        self._retry_attempt = 0
+        self._last_error = ""
+        self._auto_retry_timer = QTimer(self)
+        self._auto_retry_timer.setSingleShot(True)
+        self._auto_retry_timer.timeout.connect(self._auto_retry)
 
         self.setObjectName("DownloadCard")
         root = QVBoxLayout(self)
@@ -5124,6 +5129,37 @@ class DownloadCard(QFrame):
         self.manager.on_state_changed()
 
     def _fail(self, message):
+        self._last_error = message
+        if load_prefs().get("auto_retry_downloads", True):
+            self._retry_attempt += 1
+            delay_ms = min(60_000, 2_000 * (2 ** min(self._retry_attempt - 1, 5)))
+            delay_seconds = delay_ms // 1000
+            self.state = "retrying"
+            self._set_chip("Retrying", "Running")
+            self.status_label.setText(
+                f"{message}\nRetrying automatically in {delay_seconds}s. "
+                "Partial download files are kept; choose Stop retries to pause."
+            )
+            self.speed_label.setText("")
+            self.eta_label.setText("")
+            self.retry_btn.setVisible(False)
+            self.action_btn.setText("Stop retries")
+            self.action_btn.setEnabled(True)
+            self._auto_retry_timer.start(delay_ms)
+            self.manager.on_state_changed()
+            return
+        self._show_failure(message)
+
+    def _auto_retry(self):
+        if self.state != "retrying":
+            return
+        if not load_prefs().get("auto_retry_downloads", True):
+            self._show_failure(self._last_error)
+            return
+        self.state = "error"
+        self._retry()
+
+    def _show_failure(self, message):
         self.state = "error"
         self._set_chip("Failed", "Error")
         self.status_label.setText(message)
@@ -5179,6 +5215,9 @@ class DownloadCard(QFrame):
                 self.action_btn.setEnabled(False)
                 self.worker.cancel()
             # else: mid-Defender elevation — cannot interrupt cleanly, ignore
+        elif self.state == "retrying":
+            self._auto_retry_timer.stop()
+            self._show_failure(self._last_error)
         elif self.state == "done":
             if self._installed_path and os.path.isdir(self._installed_path):
                 try:
@@ -5937,6 +5976,18 @@ class MainWindow(QMainWindow):
         lay.addWidget(subtitle)
         lay.addSpacing(12)
 
+        self.auto_retry_check = QCheckBox("Automatically retry failed downloads")
+        self.auto_retry_check.setChecked(bool(load_prefs().get("auto_retry_downloads", True)))
+        self.auto_retry_check.toggled.connect(self._on_auto_retry_toggled)
+        lay.addWidget(self.auto_retry_check)
+        retry_hint = QLabel(
+            "On by default. Failed jobs retry with increasing waits and resume from saved partial files. "
+            "Use Stop retries on a download to pause automatic retries."
+        )
+        retry_hint.setObjectName("SubInfo")
+        retry_hint.setWordWrap(True)
+        lay.addWidget(retry_hint)
+
         catalog_title = QLabel("Game catalog")
         catalog_title.setObjectName("SectionTitle")
         lay.addWidget(catalog_title)
@@ -6221,6 +6272,11 @@ class MainWindow(QMainWindow):
     def _on_defender_pref_toggled(self, checked):
         prefs = load_prefs()
         prefs["defender_exclusion_default"] = bool(checked)
+        save_prefs(prefs)
+
+    def _on_auto_retry_toggled(self, checked):
+        prefs = load_prefs()
+        prefs["auto_retry_downloads"] = bool(checked)
         save_prefs(prefs)
 
     def _on_shortcut_pref_toggled(self, checked):
