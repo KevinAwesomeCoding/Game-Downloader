@@ -34,4 +34,5 @@ struct WorkerEvent: Decodable {
     let recipeAvailable: Bool?
     let rarAvailable: Bool?
     let logPath: String?
+    let workspacePath: String?
 }

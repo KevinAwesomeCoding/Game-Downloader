@@ -142,13 +142,17 @@ immediate nonzero exit is reported; later startup failures require inspecting th
 log/window. Open log is shown after dispatch. Sending a request does not verify
 startup, gameplay, or any multiplayer behavior.
 
-Installation defaults to `~/Games/Game Installer/<Game Name>`. Queue snapshots,
-per-job downloads, checksums, and install/registration receipts live under
-`~/Library/Application Support/Game-Downloader/MacPreview/`. Download files opens
-that job's cache; Show in Finder opens the installed directory. Downloads offers
-an explicit Clean download files action after installation and Highball registration.
-It verifies the installed receipt and each archive hash before removing only those
-archive copies and their transfer metadata. Partial, failed, paused, and unregistered
+Installation defaults to `~/Games/Game Installer/<Game Name>`. Queue snapshots and
+small per-job metadata live under `~/Library/Application Support/Game-Downloader/MacPreview/`.
+Downloads, partials, completed archives, extraction staging, checksums, and receipts live
+in `.game-installer-jobs/<job ID>` inside each job's selected install folder. Download files
+opens that volume-local workspace; Show in Finder opens the installed directory. If an older
+job still uses the internal cache, choose Copy files to selected volume. Game Installer
+copies and verifies the files before switching the job paths, then removes the old
+internal archive cache while retaining its small receipt metadata.
+Downloads offers an explicit Clean download files action after installation and Highball
+registration. It verifies the installed receipt and each archive hash before removing only
+those archive copies and their transfer metadata. Partial, failed, paused, and unregistered
 jobs remain resumable; installed files and receipts are retained.
 Remove from list hides a completed/stopped queue entry without removing its
 installed files, archives or receipt. Existing install folders are still protected.

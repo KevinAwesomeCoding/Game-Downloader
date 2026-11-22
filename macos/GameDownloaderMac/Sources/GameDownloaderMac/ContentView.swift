@@ -643,6 +643,7 @@ struct ContentView: View {
     @AppStorage("librarySortOrder") private var librarySortOrder = LibrarySortOrder.newestFirst.rawValue
     @State private var selectedGame: Game?
     @State private var cleanupTarget: InstallJob?
+    @State private var migrationTarget: InstallJob?
     @State private var showingUpdateDetails = false
     @Namespace private var pageSelection
 
@@ -1164,6 +1165,10 @@ struct ContentView: View {
                                         Button("Cancel") { model.stopJob(job.id, cancel: true) }.disabled(job.status == "stopping")
                                     } else if !job.isInstalled {
                                         Button(job.status == "failed" ? "Retry" : "Resume") { model.retryJob(job.id) }
+                                        if job.workspacePath == nil && job.status != "queued" {
+                                            Button("Copy files to selected volume…") { migrationTarget = job }
+                                                .disabled(model.operationBusy || job.isActive)
+                                        }
                                     }
                                     if let path = job.installPath {
                                         Button("Show in Finder") { NSWorkspace.shared.open(URL(fileURLWithPath: path)) }
@@ -1220,6 +1225,16 @@ struct ContentView: View {
                 Button("Cancel", role: .cancel) { cleanupTarget = nil }
             } message: { job in
                 Text("For \(job.game.name), remove only archive files verified against the completed install receipt. The installed game, partial downloads, and receipt stay.")
+            }
+        .confirmationDialog("Move this job to the selected volume?", isPresented: Binding(
+            get: { migrationTarget != nil }, set: { if !$0 { migrationTarget = nil } }), presenting: migrationTarget) { job in
+                Button("Copy, verify, and move job files") {
+                    model.migrateWorkspace(job)
+                    migrationTarget = nil
+                }
+                Button("Cancel", role: .cancel) { migrationTarget = nil }
+            } message: { job in
+                Text("Game Installer will copy \(job.game.name)'s existing download data to \(job.installFolder), verify every copied file, then remove the old internal copy. Existing files on the selected volume will never be overwritten.")
             }
     }
 
