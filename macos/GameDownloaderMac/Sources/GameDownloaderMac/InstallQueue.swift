@@ -69,6 +69,17 @@ extension AppModel {
             .appending(path: jobID, directoryHint: .isDirectory)
     }
 
+    static func legacyWorkspaceURL(jobID: String) -> URL {
+        supportFolder.appending(path: jobID, directoryHint: .isDirectory)
+    }
+
+    func needsWorkspaceMigration(_ job: InstallJob) -> Bool {
+        guard !job.isInstalled else { return false }
+        guard let workspacePath = job.workspacePath else { return true }
+        return URL(fileURLWithPath: workspacePath, isDirectory: true).standardizedFileURL.path ==
+            Self.legacyWorkspaceURL(jobID: job.id).standardizedFileURL.path
+    }
+
     func restoreQueue() {
         let location = Self.supportFolder.appending(path: "queue.json")
         if FileManager.default.fileExists(atPath: location.path) {
@@ -422,6 +433,11 @@ extension AppModel {
             saveQueue()
             actionMessage = "This job's downloads are still in the old internal cache. Copy and verify them on the selected volume first."
             return
+        } else if needsWorkspaceMigration(existing) {
+            updateJob(id) { $0.status = "paused"; $0.message = "Copy this job's existing files to the selected volume before resuming." }
+            saveQueue()
+            actionMessage = "This job's downloads are still in the old internal cache. Copy and verify them on the selected volume first."
+            return
         }
         updateJob(id) { $0.status = "queued"; $0.message = "Queued to resume"; $0.done = 0; $0.total = 0 }
         saveQueue()
@@ -507,7 +523,7 @@ extension AppModel {
     }
 
     func migrateWorkspace(_ job: InstallJob) {
-        guard !job.isInstalled, job.workspacePath == nil, !job.isActive,
+        guard needsWorkspaceMigration(job), !job.isActive,
               job.status != "queued", !operationBusy else { return }
         do {
             try FileManager.default.createDirectory(at: Self.supportFolder, withIntermediateDirectories: true)

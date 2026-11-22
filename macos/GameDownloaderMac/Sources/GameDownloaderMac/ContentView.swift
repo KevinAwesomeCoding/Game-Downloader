@@ -1168,7 +1168,7 @@ struct ContentView: View {
                                         Button("Cancel") { model.stopJob(job.id, cancel: true) }.disabled(job.status == "stopping")
                                     } else if !job.isInstalled {
                                         Button(job.status == "failed" ? "Retry" : "Resume") { model.retryJob(job.id) }
-                                        if job.workspacePath == nil && job.status != "queued" {
+                                        if model.needsWorkspaceMigration(job) && job.status != "queued" {
                                             Button("Copy files to selected volume…") { migrationTarget = job }
                                                 .disabled(model.operationBusy || job.isActive)
                                         }

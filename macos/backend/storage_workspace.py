@@ -138,15 +138,17 @@ def migrate_legacy_workspace(job, job_file, legacy_workspace, notify):
     """Explicitly move legacy job files after verified copy; never replace a target."""
     from downloads import atomic_json
 
-    if job.get("workspacePath"):
-        raise WorkspaceError("This job already uses its volume-local workspace.")
     source = Path(legacy_workspace)
+    configured = job.get("workspacePath")
+    if configured and Path(configured).expanduser().absolute() != source.absolute():
+        raise WorkspaceError("The saved workspace is not the old internal job folder; it was left untouched.")
     if source.is_symlink():
         raise WorkspaceError("The old job workspace is a symbolic link; migration stopped without changing it.")
     target = expected_workspace(job)
+    target_job = dict(job, workspacePath=str(target))
     if target.exists():
         if source.exists() and verify_tree(source, target):
-            check_workspace(job, required_free=0)
+            check_workspace(target_job, required_free=0)
             job["workspacePath"] = str(target)
             atomic_json(job_file, job)
             remove_legacy_cache_preserving_receipt(source)
@@ -155,7 +157,7 @@ def migrate_legacy_workspace(job, job_file, legacy_workspace, notify):
             return
         raise WorkspaceError(f"The destination workspace already exists at {target}; no files were overwritten.")
     total = sum(path.stat().st_size for path in source.rglob("*") if path.is_file()) if source.exists() else 0
-    check_workspace(job, required_free=total + 1024 * 1024)
+    check_workspace(target_job, required_free=total + 1024 * 1024)
     target.parent.mkdir(parents=True, exist_ok=True)
     staging = target.with_name(target.name + ".migration-" + str(os.getpid()))
     if staging.exists():
@@ -165,7 +167,7 @@ def migrate_legacy_workspace(job, job_file, legacy_workspace, notify):
             shutil.copytree(source, staging, symlinks=True)
         else:
             staging.mkdir()
-        check_workspace(job, required_free=0)
+        check_workspace(target_job, required_free=0)
         if source.exists() and not verify_tree(source, staging):
             raise WorkspaceError("Copied job files did not pass verification. The original files were kept.")
         staging.rename(target)

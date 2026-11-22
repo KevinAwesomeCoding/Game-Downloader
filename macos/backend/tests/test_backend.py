@@ -144,6 +144,34 @@ class WorkspaceTests(TemporaryTest):
         self.assertEqual(json.loads(job_file.read_text())["workspacePath"], str(target))
         self.assertEqual(events[0][0][0], "migrated")
 
+    def test_migration_accepts_saved_path_to_old_internal_job_folder(self):
+        support = self.root / "Application Support/Game-Downloader/MacPreview"
+        legacy = support / self.job["id"]
+        legacy.mkdir(parents=True)
+        (legacy / "main.archive.part").write_bytes(b"resume this partial")
+        job = dict(self.job, workspacePath=str(legacy))
+        job_file = support / f"{self.job['id']}.json"
+
+        migrate_legacy_workspace(job, job_file, legacy, Mock())
+
+        target = expected_workspace(self.job)
+        self.assertEqual((target / "main.archive.part").read_bytes(), b"resume this partial")
+        self.assertFalse(legacy.exists())
+        self.assertEqual(job["workspacePath"], str(target))
+        self.assertEqual(json.loads(job_file.read_text())["workspacePath"], str(target))
+
+    def test_migration_keeps_unrecognized_saved_workspace_path(self):
+        support = self.root / "Application Support/Game-Downloader/MacPreview"
+        legacy = support / self.job["id"]
+        legacy.mkdir(parents=True)
+        elsewhere = self.root / "other-cache"
+        elsewhere.mkdir()
+        job = dict(self.job, workspacePath=str(elsewhere))
+        with self.assertRaisesRegex(WorkspaceError, "not the old internal job folder"):
+            migrate_legacy_workspace(job, support / f"{self.job['id']}.json", legacy, Mock())
+        self.assertTrue(legacy.exists())
+        self.assertTrue(elsewhere.exists())
+
     def test_migration_does_not_overwrite_existing_workspace(self):
         target = expected_workspace(self.job)
         target.mkdir(parents=True)
