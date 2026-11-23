@@ -1231,13 +1231,13 @@ struct ContentView: View {
             }
         .confirmationDialog("Move this job to the selected volume?", isPresented: Binding(
             get: { migrationTarget != nil }, set: { if !$0 { migrationTarget = nil } }), presenting: migrationTarget) { job in
-                Button("Copy, verify, and move job files") {
+                Button("Move or copy, verify, and resume") {
                     model.migrateWorkspace(job)
                     migrationTarget = nil
                 }
                 Button("Cancel", role: .cancel) { migrationTarget = nil }
             } message: { job in
-                Text("Game Installer will copy \(job.game.name)'s existing download data to \(job.installFolder), verify every copied file, then remove the old internal copy. Existing files on the selected volume will never be overwritten.")
+                Text("Game Installer will move \(job.game.name)'s files in place when both folders are on the same volume, or copy them first across volumes. It verifies every file before updating the job path. Existing destination files are never overwritten.")
             }
     }
 

@@ -123,6 +123,43 @@ def verify_tree(source, destination):
     return True
 
 
+def _tree_manifest(root):
+    """Hash a workspace tree so a same-volume move can be verified without a second copy."""
+    root = Path(root)
+    manifest = {}
+    for current, directories, files in os.walk(root, followlinks=False):
+        current_path = Path(current)
+        for name in directories + files:
+            path = current_path / name
+            if path.is_symlink():
+                raise WorkspaceError("The old job workspace contains a symbolic link; migration stopped without changing it.")
+        for name in files:
+            path = current_path / name
+            digest = hashlib.sha256()
+            with path.open("rb") as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(block)
+            manifest[str(path.relative_to(root))] = (path.stat().st_size, digest.digest())
+    return manifest
+
+
+def _matches_manifest(root, manifest):
+    root = Path(root)
+    found = {}
+    for current, directories, files in os.walk(root, followlinks=False):
+        current_path = Path(current)
+        if any((current_path / name).is_symlink() for name in directories + files):
+            return False
+        for name in files:
+            path = current_path / name
+            digest = hashlib.sha256()
+            with path.open("rb") as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(block)
+            found[str(path.relative_to(root))] = (path.stat().st_size, digest.digest())
+    return found == manifest
+
+
 def remove_legacy_cache_preserving_receipt(source):
     """Move a small job receipt back into internal metadata after archive migration."""
     source = Path(source)
@@ -157,11 +194,33 @@ def migrate_legacy_workspace(job, job_file, legacy_workspace, notify):
             return
         raise WorkspaceError(f"The destination workspace already exists at {target}; no files were overwritten.")
     total = sum(path.stat().st_size for path in source.rglob("*") if path.is_file()) if source.exists() else 0
-    check_workspace(target_job, required_free=total + 1024 * 1024)
+    check_workspace(target_job)
     target.parent.mkdir(parents=True, exist_ok=True)
     staging = target.with_name(target.name + ".migration-" + str(os.getpid()))
     if staging.exists():
         raise WorkspaceError(f"A previous migration staging folder exists at {staging}; it was left untouched.")
+    if source.exists() and source.stat().st_dev == target.parent.stat().st_dev:
+        manifest = _tree_manifest(source)
+        try:
+            source.rename(target)
+            if not _matches_manifest(target, manifest):
+                raise WorkspaceError("Moved job files did not pass verification. The original job path will be restored.")
+            job["workspacePath"] = str(target)
+            try:
+                atomic_json(job_file, job)
+            except Exception:
+                job.pop("workspacePath", None)
+                raise
+        except Exception:
+            if target.exists() and not source.exists():
+                source.parent.mkdir(parents=True, exist_ok=True)
+                target.rename(source)
+            raise
+        notify("migrated", "Existing job files were moved on the same volume and verified before updating the job path.",
+               workspacePath=str(target))
+        return
+
+    check_workspace(target_job, required_free=total + 1024 * 1024)
     try:
         if source.exists():
             shutil.copytree(source, staging, symlinks=True)
