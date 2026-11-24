@@ -3153,5 +3153,376 @@
       "confidence": "Low"
     },
     "cardColor": "#a65b36"
+  },
+  {
+    "id": "farming-simulator-25",
+    "steamAppId": "2300320",
+    "name": "Farming Simulator 25",
+    "source": "https://online-fix.me/games/officialservers/17628-farming-simulator-25-po-seti.html",
+    "description": "Run a farm, grow crops, raise animals, and manage agricultural machinery alone or with friends.",
+    "version": "1.25.1.0",
+    "size": "50 GB available space",
+    "players": "Single-player and online multiplayer",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2300320/c2a205133d23cd24faf3c152d972a1d0177661b8/header.jpg?t=1793106374",
+    "zipUrl": [
+      {
+        "url": "https://gofile.io/d/x7OwDbEa",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part01.rar"
+      },
+      {
+        "url": "https://gofile.io/d/aT1lfnZ8",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part02.rar"
+      },
+      {
+        "url": "https://gofile.io/d/Ny9fzpUg",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part03.rar"
+      },
+      {
+        "url": "https://gofile.io/d/hNVf4HNg",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part04.rar"
+      },
+      {
+        "url": "https://gofile.io/d/oArSoikX",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part05.rar"
+      },
+      {
+        "url": "https://gofile.io/d/svgYVVBo",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part06.rar"
+      },
+      {
+        "url": "https://gofile.io/d/1xZmoSAg",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part07.rar"
+      },
+      {
+        "url": "https://gofile.io/d/NVGUz0Ly",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part08.rar"
+      }
+    ],
+    "zipBackupUrl": [
+      {
+        "url": "https://filekeeper.net/ni9no31z7r29/Farming.Simulator.25.v1.25.1.0-OFME.part01.rar",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part01.rar"
+      },
+      {
+        "url": "https://filekeeper.net/pk7pmymf0ndh/Farming.Simulator.25.v1.25.1.0-OFME.part02.rar",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part02.rar"
+      },
+      {
+        "url": "https://filekeeper.net/x8l6bbxcv97e/Farming.Simulator.25.v1.25.1.0-OFME.part03.rar",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part03.rar"
+      },
+      {
+        "url": "https://filekeeper.net/fexzx8fpivrr/Farming.Simulator.25.v1.25.1.0-OFME.part04.rar",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part04.rar"
+      },
+      {
+        "url": "https://filekeeper.net/xa0znr4ucr49/Farming.Simulator.25.v1.25.1.0-OFME.part05.rar",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part05.rar"
+      },
+      {
+        "url": "https://filekeeper.net/tg3z0e2gspah/Farming.Simulator.25.v1.25.1.0-OFME.part06.rar",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part06.rar"
+      },
+      {
+        "url": "https://filekeeper.net/4doqrxxn4ygl/Farming.Simulator.25.v1.25.1.0-OFME.part07.rar",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part07.rar"
+      },
+      {
+        "url": "https://filekeeper.net/pejgciclz8fm/Farming.Simulator.25.v1.25.1.0-OFME.part08.rar",
+        "name": "Farming.Simulator.25.v1.25.1.0-OFME.part08.rar"
+      }
+    ],
+    "fixZipUrl": "https://gofile.io/d/GaeFZNp6",
+    "fixBackupUrl": "https://filekeeper.net/ergeyh1osdwh/FarmingSimulator25_Fix_Repair_Steam_V2_Generic.rar",
+    "requirements": {
+      "os": "Windows 10 64bit",
+      "cpu": "Intel Core i5-6400, AMD Ryzen 5 1400, or better",
+      "ram": "8 GB RAM",
+      "gpu": "Nvidia GeForce GTX 1050Ti, AMD Radeon RX 470 graphics card or better (min 3GB VRAM, DX12 support)",
+      "directx": "Version 12",
+      "storage": "50 GB available space",
+      "additionalNotes": "These system requirements can´t cover all possible system configurations so issues could occur that avoid or influence the functionality in some cases."
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Native",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists native macOS support; this Windows archive and multiplayer have not been tested on Mac.",
+      "confidence": "High",
+      "classifiedAt": "2026-11-24T00:07:27.692285+00:00"
+    },
+    "macRequirements": {
+      "os": "MacOS 11.3 or newer",
+      "cpu": "Intel Core i5-6400, Apple M1, or better",
+      "ram": "8 GB RAM",
+      "gpu": "AMD Radeon RX 470 or Apple M1 or better (min. 3 GB VRAM, DX12 support)",
+      "storage": "50 GB available space",
+      "additionalNotes": "These system requirements can´t cover all possible system configurations so issues could occur that avoid or influence the functionality in some cases."
+    },
+    "cardColor": "#8A9A36"
+  },
+  {
+    "id": "euro-truck-simulator-2",
+    "steamAppId": "227300",
+    "name": "Euro Truck Simulator 2",
+    "source": "https://online-fix.me/games/simulator/16645-euro-truck-simulator-2-po-seti.html",
+    "description": "Drive deliveries across Europe and build a trucking business.",
+    "version": "1.60.1.7s",
+    "size": "25 GB available space (Euro Truck Simulator 2 base game)",
+    "players": "Single-player and online multiplayer",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/227300/9a81dc3126c56637297b654f9dcac057cfd79b77/header.jpg?t=1794502925",
+    "zipUrl": [
+      {
+        "url": "https://gofile.io/d/PiYwqP2c",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part1.rar"
+      },
+      {
+        "url": "https://gofile.io/d/6jEuSTZr",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part2.rar"
+      },
+      {
+        "url": "https://gofile.io/d/UmKm4Cjm",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part3.rar"
+      },
+      {
+        "url": "https://gofile.io/d/IKgAhMoy",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part4.rar"
+      },
+      {
+        "url": "https://gofile.io/d/RR1Oj6bt",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part5.rar"
+      },
+      {
+        "url": "https://gofile.io/d/XXCKaUhT",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part6.rar"
+      },
+      {
+        "url": "https://gofile.io/d/K6SSDl9r",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part7.rar"
+      },
+      {
+        "url": "https://gofile.io/d/H4KflVnt",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part8.rar"
+      }
+    ],
+    "zipBackupUrl": [
+      {
+        "url": "https://filekeeper.net/asx0jmwa2y36/Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part1.rar",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part1.rar"
+      },
+      {
+        "url": "https://filekeeper.net/3ieop0ho5m17/Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part2.rar",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part2.rar"
+      },
+      {
+        "url": "https://filekeeper.net/tv9usa5hc1qc/Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part3.rar",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part3.rar"
+      },
+      {
+        "url": "https://filekeeper.net/5v0ncmm5bmku/Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part4.rar",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part4.rar"
+      },
+      {
+        "url": "https://filekeeper.net/mk4cdhlcih5g/Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part5.rar",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part5.rar"
+      },
+      {
+        "url": "https://filekeeper.net/14uw438z4ke5/Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part6.rar",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part6.rar"
+      },
+      {
+        "url": "https://filekeeper.net/1ffiowhwwhej/Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part7.rar",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part7.rar"
+      },
+      {
+        "url": "https://filekeeper.net/ymyw698zjukq/Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part8.rar",
+        "name": "Euro.Truck.Simulator.2.v1.60.1.7s-OFME.part8.rar"
+      }
+    ],
+    "fixZipUrl": "https://gofile.io/d/MukIIL",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 10 64-bit",
+      "cpu": "Intel Core i5-6400 or AMD Ryzen 3 1200 or similar",
+      "ram": "8 GB RAM",
+      "gpu": "NVIDIA GeForce GTX 660 or AMD Radeon RX 460 or Intel HD 630 (2GB VRAM)",
+      "storage": "25 GB available space (Euro Truck Simulator 2 base game)"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Native",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists native macOS support; this Windows archive and multiplayer have not been tested on Mac.",
+      "confidence": "High",
+      "classifiedAt": "2026-11-24T00:07:29.367315+00:00"
+    },
+    "macRequirements": {
+      "os": "macOS 11 (Big Sur)",
+      "cpu": "Quad core CPU 3.3 GHz",
+      "ram": "8 GB RAM",
+      "gpu": "Intel HD 630 or similar (2GB VRAM)",
+      "storage": "25 GB available space (Euro Truck Simulator 2 base game)"
+    },
+    "cardColor": "#B7863C"
+  },
+  {
+    "id": "american-truck-simulator",
+    "steamAppId": "270880",
+    "name": "American Truck Simulator",
+    "source": "https://online-fix.me/games/simulator/16642-american-truck-simulator-po-seti.html",
+    "description": "Drive freight across the United States and manage a trucking business.",
+    "version": "1.56.1.10s",
+    "size": "25 GB available space",
+    "players": "Single-player and online multiplayer",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/270880/a80e5a18363259677ca96c2a39503ea595d2a45f/header.jpg?t=1794418935",
+    "zipUrl": [
+      {
+        "url": "https://gofile.io/d/G5GrPz",
+        "name": "American.Truck.Simulator.v1.56.1.10s-OFME.part1.rar"
+      },
+      {
+        "url": "https://gofile.io/d/Bt7DWM",
+        "name": "American.Truck.Simulator.v1.56.1.10s-OFME.part2.rar"
+      },
+      {
+        "url": "https://gofile.io/d/0A5nnQ",
+        "name": "American.Truck.Simulator.v1.56.1.10s-OFME.part3.rar"
+      },
+      {
+        "url": "https://gofile.io/d/zOMR41",
+        "name": "American.Truck.Simulator.v1.56.1.10s-OFME.part4.rar"
+      },
+      {
+        "url": "https://gofile.io/d/wtE4CA",
+        "name": "American.Truck.Simulator.v1.56.1.10s-OFME.part5.rar"
+      }
+    ],
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/sWKp7l",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows  10 64-bit",
+      "cpu": "Intel Core i5-6400 or AMD Ryzen 3 1200 or similar",
+      "ram": "8 GB RAM",
+      "gpu": "NVIDIA GeForce GTX 660 or AMD Radeon RX 460 or Intel HD 630 (2GB VRAM)",
+      "storage": "25 GB available space",
+      "additionalNotes": "Disk Space for American Truck Simulator base game"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Native",
+      "riskLevel": "Standard",
+      "reasoning": "Steam lists native macOS support; this Windows archive and multiplayer have not been tested on Mac.",
+      "confidence": "High",
+      "classifiedAt": "2026-11-24T00:07:30.638697+00:00"
+    },
+    "macRequirements": {
+      "os": "macOS 11 (Big Sur)",
+      "cpu": "Quad core CPU 3.3 GHz",
+      "ram": "8 GB RAM",
+      "gpu": "Intel HD 630 or similar (2GB VRAM)",
+      "storage": "25 GB available space",
+      "additionalNotes": "Disk Space for American Truck Simulator base game"
+    },
+    "cardColor": "#B34D32"
+  },
+  {
+    "id": "raft",
+    "steamAppId": "648800",
+    "name": "Raft",
+    "source": "https://online-fix.me/games/survival/16179-raft-po-seti.html",
+    "description": "Survive at sea, expand a raft, gather supplies, and explore islands with friends.",
+    "version": "1.1.07",
+    "size": "10 GB available space",
+    "players": "Single-player and online multiplayer",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/648800/header.jpg?t=1727184011",
+    "zipUrl": "https://gofile.io/d/u7RdXG",
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/0qdCCX",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 7 or later",
+      "cpu": "Intel Core i5 2.6GHz or similar",
+      "ram": "6 GB RAM",
+      "gpu": "GeForce GTX 700 series or similar",
+      "directx": "Version 11",
+      "storage": "10 GB available space",
+      "additionalNotes": "64-bit operating system is required"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows archive and multiplayer have not been tested on Mac.",
+      "confidence": "Low",
+      "classifiedAt": "2026-11-24T00:07:32.014523+00:00"
+    },
+    "cardColor": "#329BC0"
+  },
+  {
+    "id": "content-warning",
+    "steamAppId": "2881650",
+    "name": "Content Warning",
+    "source": "https://online-fix.me/games/sandbox/17484-content-warning-po-seti.html",
+    "description": "Film frightening encounters with friends and upload footage to become famous.",
+    "version": "1.24.0",
+    "size": "4 GB available space",
+    "players": "Single-player and online multiplayer",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2881650/header.jpg?t=1785137321",
+    "zipUrl": "https://gofile.io/d/x8gZ0y",
+    "zipBackupUrl": "",
+    "fixZipUrl": "https://gofile.io/d/lH7gbD",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Win 10",
+      "cpu": "Intel Core i5 @ 2.5 GHz or equivalent",
+      "ram": "8 GB RAM",
+      "gpu": "NVIDIA GeForce GTX 1050 ti or AMD R9 380",
+      "directx": "Version 11",
+      "storage": "4 GB available space",
+      "additionalNotes": "Only runs on 64 bit systems"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows archive and multiplayer have not been tested on Mac.",
+      "confidence": "Low",
+      "classifiedAt": "2026-11-24T00:07:33.317628+00:00"
+    },
+    "cardColor": "#C6A12B"
+  },
+  {
+    "id": "rv-there-yet",
+    "steamAppId": "3949040",
+    "name": "RV There Yet?",
+    "source": "https://online-fix.me/games/adventures/17913-rv-there-yet-po-seti.html",
+    "description": "Work together to drive an RV through hazards and find a way home.",
+    "version": "1.3.20488",
+    "size": "3200 MB available space",
+    "players": "Single-player and online multiplayer",
+    "thumbnail": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3949040/cae24b4ed7f4531be51f0d63f785b7d253f92dc3/header.jpg?t=1789134289",
+    "zipUrl": "https://gofile.io/d/S0gUYAJz",
+    "zipBackupUrl": "https://filekeeper.net/8de833csbfix/RV.There.Yet.v1.3.20488-OFME.rar",
+    "fixZipUrl": "https://gofile.io/d/xHVjsW",
+    "fixBackupUrl": "",
+    "requirements": {
+      "os": "Windows 10",
+      "cpu": "Core i7-3820 or equivalent",
+      "ram": "8 GB RAM",
+      "gpu": "NVidia 970 or equivalent",
+      "directx": "Version 11",
+      "storage": "3200 MB available space",
+      "additionalNotes": "Friends to play with"
+    },
+    "requirementsPlatform": "Windows",
+    "macCompatibility": {
+      "tier": "Unverified",
+      "riskLevel": "Standard",
+      "reasoning": "This Windows archive and multiplayer have not been tested on Mac.",
+      "confidence": "Low",
+      "classifiedAt": "2026-11-24T00:07:34.959396+00:00"
+    },
+    "cardColor": "#3E8D65"
   }
 ]
