@@ -151,7 +151,7 @@ def canonical_source(url):
 
 class Downloader:
     def __init__(self, opener=None, stop=lambda: False, progress=lambda done, total: None,
-                 status=lambda message: None, resolver=resolve_source):
+                 status=lambda message: None, resolver=resolve_source, storage_check=None):
         self.injected_opener = opener is not None
         self.opener = opener or urllib.request.build_opener(
             HTTPSRedirect(), urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
@@ -159,6 +159,7 @@ class Downloader:
         self.progress = progress
         self.status = status
         self.resolver = resolver
+        self.storage_check = storage_check or (lambda required_bytes=0: None)
 
     def measure_speed(self, source, sample_bytes=256 * 1024, timeout=8):
         """Estimate a link's throughput from a small ranged sample.
@@ -231,6 +232,8 @@ class Downloader:
         destination.parent.mkdir(parents=True, exist_ok=True)
         part = destination.with_name(destination.name + ".part")
         record = destination.with_name(destination.name + ".json")
+        if any(path.is_symlink() for path in (destination, part, record)):
+            raise ValueError("A cached archive path is a symbolic link; no files were changed.")
         source = canonical_source(source)
         metadata = {}
         try:
@@ -345,6 +348,8 @@ class Downloader:
                 if total and total != expected_size:
                     raise ValueError("The download size changed; partial files were preserved.")
                 total = expected_size
+            # Reject a known transfer that cannot fit before creating or extending its part file.
+            self.storage_check(max(0, total - offset) if total else 1)
             identity = {"content_id": resolved["content_id"], "expected_size": expected_size} if resolved else {}
             atomic_json(record, {"source": source, "etag": response.headers.get("ETag"),
                                  "modified": response.headers.get("Last-Modified"), "total": total, **identity})
@@ -354,6 +359,7 @@ class Downloader:
                 chunk = first
                 while chunk:
                     checkpoint(self.stop)
+                    self.storage_check(max(0, total - done) if total else len(chunk))
                     stream.write(chunk)
                     done += len(chunk)
                     if total and done > total:
@@ -455,6 +461,33 @@ def fetch_with_backup(downloader, source, backup_source, destination, on_fallbac
                 "The primary download failed and the backup link also failed. "
                 f"Primary: {primary_error}; backup: {backup_error}"
             ) from backup_error
+
+
+def fetch_with_retry(fetch, stop=lambda: False, status=lambda message: None,
+                     initial_delay=2, maximum_delay=30):
+    """Retry a resumable archive fetch until it succeeds or the user stops.
+
+    The wrapped fetch owns its partial files, so each attempt can resume safely.
+    Delays grow to a cap to avoid hammering a server during a long outage.
+    """
+    attempt = 0
+    while True:
+        if attempt:
+            checkpoint(stop)
+        try:
+            return fetch()
+        except Stopped:
+            raise
+        except Exception as exc:
+            attempt += 1
+            delay = min(maximum_delay, initial_delay * (2 ** min(attempt - 1, 10)))
+            status(f"Download failed: {exc}. Retrying in {int(delay)}s; partial files are kept.")
+            remaining = delay
+            while remaining > 0:
+                checkpoint(stop)
+                interval = min(0.2, remaining)
+                time.sleep(interval)
+                remaining -= interval
 
 
 def parts(value):

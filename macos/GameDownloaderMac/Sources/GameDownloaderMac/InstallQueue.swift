@@ -63,11 +63,42 @@ extension AppModel {
             .appending(path: "Game-Downloader/MacPreview", directoryHint: .isDirectory)
     }
 
+    static func workspaceURL(installFolder: String, jobID: String) -> URL {
+        URL(fileURLWithPath: installFolder, isDirectory: true)
+            .appending(path: ".game-installer-jobs", directoryHint: .isDirectory)
+            .appending(path: jobID, directoryHint: .isDirectory)
+    }
+
+    static func legacyWorkspaceURL(jobID: String) -> URL {
+        supportFolder.appending(path: jobID, directoryHint: .isDirectory)
+    }
+
+    func needsWorkspaceMigration(_ job: InstallJob) -> Bool {
+        guard !job.isInstalled else { return false }
+        guard let workspacePath = job.workspacePath else { return true }
+        return URL(fileURLWithPath: workspacePath, isDirectory: true).standardizedFileURL.path ==
+            Self.legacyWorkspaceURL(jobID: job.id).standardizedFileURL.path
+    }
+
     func restoreQueue() {
         let location = Self.supportFolder.appending(path: "queue.json")
         if FileManager.default.fileExists(atPath: location.path) {
             do {
                 jobs = try JSONDecoder().decode([InstallJob].self, from: Data(contentsOf: location))
+                // Reconcile a verified migration if the app closed before its queue event was saved.
+                for index in jobs.indices where jobs[index].workspacePath == nil && !jobs[index].isInstalled {
+                    let jobFile = Self.supportFolder.appending(path: "\(jobs[index].id).json")
+                    guard let saved = try? JSONDecoder().decode(InstallJob.self, from: Data(contentsOf: jobFile)),
+                          saved.id == jobs[index].id,
+                          saved.game.id == jobs[index].game.id,
+                          saved.installFolder == jobs[index].installFolder,
+                          let workspacePath = saved.workspacePath,
+                          URL(fileURLWithPath: workspacePath).standardizedFileURL.path ==
+                            Self.workspaceURL(installFolder: saved.installFolder, jobID: saved.id).standardizedFileURL.path else { continue }
+                    jobs[index].workspacePath = workspacePath
+                    jobs[index].status = "paused"
+                    jobs[index].message = "Copied job files were verified on the selected volume. Resume to continue."
+                }
                 for index in jobs.indices where jobs[index].isActive || jobs[index].status == "queued" {
                     jobs[index].status = "paused"
                     jobs[index].message = "Previous session ended. Resume keeps existing download data."
@@ -181,6 +212,8 @@ extension AppModel {
             }
         }
         var job = InstallJob(id: UUID().uuidString, game: game, installFolder: installFolder)
+        job.workspacePath = Self.workspaceURL(installFolder: installFolder, jobID: job.id).path
+        job.autoRetryDownloads = autoRetryDownloads
         job.targetBottle = selectedBottle
         job.prepareRecipes = prepareRecipes
         job.automaticAdd = automaticAdd
@@ -299,7 +332,9 @@ extension AppModel {
             DownloadCompletionNotifier.shared.prepareForDownload()
             try FileManager.default.createDirectory(at: Self.supportFolder, withIntermediateDirectories: true)
             let jobFile = Self.supportFolder.appending(path: "\(job.id).json")
-            try JSONEncoder().encode(job).write(to: jobFile, options: .atomic)
+            var configuredJob = job
+            configuredJob.autoRetryDownloads = autoRetryDownloads
+            try JSONEncoder().encode(configuredJob).write(to: jobFile, options: .atomic)
             updateJob(job.id) { $0.status = "downloading"; $0.message = "Starting installation…" }
             installSession = try WorkerSession(arguments: ["install", "--job", jobFile.path]) { [weak self] event in
                 guard let self else { return }
@@ -391,6 +426,18 @@ extension AppModel {
                 chooseForzaCacheFolder(for: existing)
                 return
             }
+            updateJob(id) { $0.workspacePath = defaultWorkspace.standardizedFileURL.path }
+            saveQueue()
+        } else if existing.workspacePath == nil {
+            updateJob(id) { $0.status = "paused"; $0.message = "Copy this job's existing files to the selected volume before resuming." }
+            saveQueue()
+            actionMessage = "This job's downloads are still in the old internal cache. Copy and verify them on the selected volume first."
+            return
+        } else if needsWorkspaceMigration(existing) {
+            updateJob(id) { $0.status = "paused"; $0.message = "Copy this job's existing files to the selected volume before resuming." }
+            saveQueue()
+            actionMessage = "This job's downloads are still in the old internal cache. Copy and verify them on the selected volume first."
+            return
         }
         updateJob(id) { $0.status = "queued"; $0.message = "Queued to resume"; $0.done = 0; $0.total = 0 }
         saveQueue()
@@ -400,7 +447,7 @@ extension AppModel {
     private func chooseForzaCacheFolder(for job: InstallJob) {
         let panel = NSOpenPanel()
         panel.title = "Continue Forza Horizon 6 from Cached Files?"
-        panel.message = "Choose the Forza Horizon 6 cache folder you moved to Storage. Game Installer will verify the cached archive parts and resume from that folder without deleting or replacing them."
+        panel.message = "Choose the Forza Horizon 6 job folder you moved to Storage at .game-installer-jobs/\(job.id). Game Installer will verify it is on the selected volume before resuming."
         panel.prompt = "Continue from Cache"
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
@@ -410,6 +457,12 @@ extension AppModel {
 
         guard Self.hasCachedArchiveParts(selected) else {
             actionMessage = "That folder does not contain Forza Horizon 6 archive parts or resumable partial files. Choose the moved job cache folder; its files were left untouched."
+            return
+        }
+        guard selected.standardizedFileURL.path == Self.workspaceURL(
+            installFolder: job.installFolder, jobID: job.id
+        ).standardizedFileURL.path else {
+            actionMessage = "Move the cache to the selected folder .game-installer-jobs/\(job.id), then choose it again. The selected files were not changed."
             return
         }
         do {
@@ -442,7 +495,8 @@ extension AppModel {
         ) else { return false }
         return entries.contains { file in
             let name = file.lastPathComponent
-            let isArchive = name == "main.archive" || name.range(
+            let isArchive = ["main.archive", "main.archive.part", "update.archive", "update.archive.part",
+                             "repair.archive", "repair.archive.part"].contains(name) || name.range(
                 of: #"^main\.part\d+\.rar(?:\.part)?$"#, options: .regularExpression
             ) != nil
             guard isArchive,
@@ -466,6 +520,22 @@ extension AppModel {
         }
         let jobFile = Self.supportFolder.appending(path: "\(job.id).json")
         beginOperation(["cleanup", "--job", jobFile.path, "--registered"], jobID: job.id, bottle: selectedBottle)
+    }
+
+    func migrateWorkspace(_ job: InstallJob) {
+        guard needsWorkspaceMigration(job), !job.isActive,
+              job.status != "queued", !operationBusy else { return }
+        do {
+            try FileManager.default.createDirectory(at: Self.supportFolder, withIntermediateDirectories: true)
+            try JSONEncoder().encode(job).write(
+                to: Self.supportFolder.appending(path: "\(job.id).json"), options: .atomic
+            )
+        } catch {
+            actionMessage = "Could not prepare the saved job metadata for migration: \(error.localizedDescription)"
+            return
+        }
+        let jobFile = Self.supportFolder.appending(path: "\(job.id).json")
+        beginOperation(["migrate", "--job", jobFile.path], jobID: job.id, bottle: job.targetBottle ?? selectedBottle)
     }
 
     func playOwnedGame(_ installation: OwnedGameInstallation) {
@@ -703,7 +773,19 @@ extension AppModel {
                     self.saveQueue()
                     self.scanOwnedGames()
                 } else if event.status == "failed", let id = jobID {
-                    self.updateJob(id) { $0.status = "installed"; $0.message = event.message }
+                    if arguments.first == "migrate" {
+                        self.updateJob(id) { $0.status = "paused"; $0.message = event.message }
+                        self.saveQueue()
+                    } else {
+                        self.updateJob(id) { $0.status = "installed"; $0.message = event.message }
+                    }
+                } else if event.status == "migrated", let id = jobID, let workspacePath = event.workspacePath {
+                    self.updateJob(id) {
+                        $0.workspacePath = workspacePath
+                        $0.status = "paused"
+                        $0.message = "Existing files were verified on the selected volume. Resume to continue."
+                    }
+                    self.saveQueue()
                 }
                 if event.status == "tools" { self.rarAvailable = event.rarAvailable ?? false }
                 if event.status == "installed", let id = jobID {

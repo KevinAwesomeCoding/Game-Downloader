@@ -18,8 +18,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from downloads import Downloader, Stopped, atomic_json, canonical_source, drive_confirmation, parts, sha256
 from archives import extract, merge_repair, safe_path, validate_entries, find_tool
 from highball import Highball, parse_pins, same_external_path
-from worker import (ArchiveSetProgress, install, publish_directory, highball_recipe,
-                    prepare_workspace, validate_workspace_volume)
+from worker import (ArchiveSetProgress, JobStaging, cleanup_staging_after_success,
+                    install, publish_directory, highball_recipe)
+from storage_workspace import WorkspaceError, _mounted_volume, check_workspace, expected_workspace, migrate_legacy_workspace
 from universal_setup import apply_universal_setup, recipe_catalog
 import universal_setup
 
@@ -52,49 +53,172 @@ class TemporaryTest(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
 
+    def volume_job(self, job):
+        Path(job["installFolder"]).mkdir(parents=True, exist_ok=True)
+        job["workspacePath"] = str(expected_workspace(job))
+        return job
 
-class StorageWorkspaceTests(TemporaryTest):
+
+class WorkspaceTests(TemporaryTest):
     def setUp(self):
         super().setUp()
-        self.volume = self.root / "external-volume"
-        self.volume.mkdir()
-        self.job = {"id": "fixture-job", "installFolder": str(self.volume)}
-        self.workspace = self.volume / ".game-installer-jobs" / self.job["id"]
+        self.volume = self.root / "Volumes" / "Storage"
+        self.volume.mkdir(parents=True)
+        self.job = {
+            "id": "fh6-job",
+            "installFolder": str(self.volume),
+            "workspacePath": str(self.volume / ".game-installer-jobs/fh6-job"),
+            "game": {"id": "fh6", "name": "Forza Horizon 6", "zipUrl": "https://fixture/fh6"},
+        }
 
-    def test_external_target_uses_job_workspace_and_keeps_legacy_data(self):
-        legacy = self.root / "internal-support" / self.job["id"]
-        legacy.mkdir(parents=True)
-        (legacy / "main.part1.rar.part").write_bytes(b"resumable bytes")
-        validate_workspace_volume(self.job, self.workspace, minimum_free=0)
-        prepare_workspace(self.job, legacy, self.workspace)
-        self.assertEqual((self.workspace / "main.part1.rar.part").read_bytes(), b"resumable bytes")
-        self.assertEqual((legacy / "main.part1.rar.part").read_bytes(), b"resumable bytes")
+    def test_external_target_uses_job_workspace_on_selected_volume(self):
+        workspace = check_workspace(self.job, create=True)
+        part = workspace / "main.archive.part"
+        archive = workspace / "main.archive"
+        part.write_bytes(b"partial")
+        part.replace(archive)
+        self.assertEqual(archive.read_bytes(), b"partial")
+        self.assertTrue(archive.resolve().is_relative_to(self.volume.resolve()))
+        self.assertFalse((self.root / "Library/Application Support/Game-Downloader/MacPreview/fh6-job").exists())
 
-    @unittest.skipUnless(sys.platform == "darwin", "requires macOS volume mount semantics")
-    def test_missing_selected_volume_fails_before_workspace_creation(self):
-        missing = Path("/Volumes/GameInstaller-Test-Volume-Not-Mounted")
-        job = {"id": "gone", "installFolder": str(missing)}
-        with self.assertRaisesRegex(OSError, "unavailable"):
-            validate_workspace_volume(job, missing / ".game-installer-jobs" / "gone")
+    def test_missing_volume_fails_clearly_before_workspace_creation(self):
+        missing = Path("/Volumes/Game-Installer-Disconnected-Test-7f7e2c")
+        job = dict(self.job, installFolder=str(missing),
+                   workspacePath=str(missing / ".game-installer-jobs/fh6-job"))
+        with self.assertRaisesRegex(WorkspaceError, "not mounted"):
+            check_workspace(job, create=True)
         self.assertFalse(missing.exists())
 
-    def test_read_only_target_fails_clearly(self):
-        original_open = Path.open
-        def deny_probe(path, *args, **kwargs):
-            if ".game-installer-write-check-" in path.name:
-                raise PermissionError("read only")
-            return original_open(path, *args, **kwargs)
-        with patch.object(Path, "open", deny_probe):
-            with self.assertRaisesRegex(OSError, "not writable"):
-                validate_workspace_volume(self.job, self.workspace)
+    def test_install_does_not_fall_back_to_the_old_internal_cache(self):
+        missing = Path("/Volumes/Game-Installer-No-Fallback-Test-29c12a")
+        job = dict(self.job, installFolder=str(missing),
+                   workspacePath=str(missing / ".game-installer-jobs/fh6-job"))
+        internal_cache = self.root / "Library/Application Support/Game-Downloader/MacPreview/fh6-job"
+        with self.assertRaisesRegex(WorkspaceError, "not mounted"):
+            install(job, internal_cache, notify=Mock(), downloader=Mock())
+        self.assertFalse(internal_cache.exists())
 
-    def test_low_space_target_fails_before_workspace_creation(self):
-        usage = shutil.disk_usage(self.volume)
-        low = shutil._ntuple_diskusage(usage.total, usage.used, 0)
-        with patch("worker.shutil.disk_usage", return_value=low):
-            with self.assertRaisesRegex(OSError, "Free at least 1 GB"):
-                validate_workspace_volume(self.job, self.workspace)
-        self.assertFalse(self.workspace.exists())
+    def test_unmounted_volume_path_never_treats_boot_disk_as_destination(self):
+        with patch("storage_workspace.os.path.ismount", return_value=False):
+            with self.assertRaisesRegex(WorkspaceError, "not mounted"):
+                _mounted_volume(Path("/Volumes/Storage/Games"))
+
+    def test_read_only_volume_fails_before_job_files_are_created(self):
+        with patch("storage_workspace.tempfile.mkstemp", side_effect=PermissionError("read-only volume")):
+            with self.assertRaisesRegex(WorkspaceError, "not writable"):
+                check_workspace(self.job, create=True)
+        self.assertFalse(expected_workspace(self.job).exists())
+
+    def test_workspace_symlink_cannot_redirect_job_data_to_internal_storage(self):
+        internal = self.root / "internal-cache"
+        internal.mkdir()
+        (self.volume / ".game-installer-jobs").symlink_to(internal, target_is_directory=True)
+        with self.assertRaisesRegex(WorkspaceError, "symbolic link"):
+            check_workspace(self.job, create=True)
+        self.assertEqual(list(internal.iterdir()), [])
+
+    def test_low_space_fails_before_job_files_are_created(self):
+        usage = shutil._ntuple_diskusage(total=100, used=99, free=1)
+        with patch("storage_workspace.shutil.disk_usage", return_value=usage):
+            with self.assertRaisesRegex(WorkspaceError, "Not enough space"):
+                check_workspace(self.job, create=True, required_free=2)
+        self.assertFalse(expected_workspace(self.job).exists())
+
+    def test_legacy_migration_verifies_then_switches_job_paths(self):
+        support = self.root / "Application Support/Game-Downloader/MacPreview"
+        legacy = support / self.job["id"]
+        legacy.mkdir(parents=True)
+        (legacy / "main.archive.part").write_bytes(b"large-part-data")
+        (legacy / "main.archive.json").write_text('{"etag":"v1"}')
+        job = dict(self.job)
+        job.pop("workspacePath")
+        job_file = support / f"{self.job['id']}.json"
+        job_file.write_text(json.dumps(job))
+        events = []
+        migrate_legacy_workspace(job, job_file, legacy,
+                                 lambda *args, **kwargs: events.append((args, kwargs)))
+        target = expected_workspace(self.job)
+        self.assertEqual((target / "main.archive.part").read_bytes(), b"large-part-data")
+        self.assertFalse(legacy.exists())
+        self.assertEqual(job["workspacePath"], str(target))
+        self.assertEqual(json.loads(job_file.read_text())["workspacePath"], str(target))
+        self.assertEqual(events[0][0][0], "migrated")
+
+    def test_migration_accepts_saved_path_to_old_internal_job_folder(self):
+        support = self.root / "Application Support/Game-Downloader/MacPreview"
+        legacy = support / self.job["id"]
+        legacy.mkdir(parents=True)
+        (legacy / "main.archive.part").write_bytes(b"resume this partial")
+        job = dict(self.job, workspacePath=str(legacy))
+        job_file = support / f"{self.job['id']}.json"
+
+        migrate_legacy_workspace(job, job_file, legacy, Mock())
+
+        target = expected_workspace(self.job)
+        self.assertEqual((target / "main.archive.part").read_bytes(), b"resume this partial")
+        self.assertFalse(legacy.exists())
+        self.assertEqual(job["workspacePath"], str(target))
+        self.assertEqual(json.loads(job_file.read_text())["workspacePath"], str(target))
+
+    def test_migration_keeps_unrecognized_saved_workspace_path(self):
+        support = self.root / "Application Support/Game-Downloader/MacPreview"
+        legacy = support / self.job["id"]
+        legacy.mkdir(parents=True)
+        elsewhere = self.root / "other-cache"
+        elsewhere.mkdir()
+        job = dict(self.job, workspacePath=str(elsewhere))
+        with self.assertRaisesRegex(WorkspaceError, "not the old internal job folder"):
+            migrate_legacy_workspace(job, support / f"{self.job['id']}.json", legacy, Mock())
+        self.assertTrue(legacy.exists())
+        self.assertTrue(elsewhere.exists())
+
+    def test_migration_does_not_overwrite_existing_workspace(self):
+        target = expected_workspace(self.job)
+        target.mkdir(parents=True)
+        existing = target / "main.archive.part"
+        existing.write_bytes(b"keep")
+        legacy = self.root / "legacy"
+        legacy.mkdir()
+        (legacy / "main.archive.part").write_bytes(b"old")
+        job = dict(self.job)
+        job.pop("workspacePath")
+        with self.assertRaisesRegex(WorkspaceError, "already exists"):
+            migrate_legacy_workspace(job, self.root / "job.json", legacy, Mock())
+        self.assertEqual(existing.read_bytes(), b"keep")
+        self.assertEqual((legacy / "main.archive.part").read_bytes(), b"old")
+
+    def test_migration_retry_recovers_verified_copy_without_overwriting(self):
+        support = self.root / "Application Support/Game-Downloader/MacPreview"
+        legacy = support / self.job["id"]
+        legacy.mkdir(parents=True)
+        (legacy / "main.archive.part").write_bytes(b"recover me")
+        target = expected_workspace(self.job)
+        target.mkdir(parents=True)
+        (target / "main.archive.part").write_bytes(b"recover me")
+        job = dict(self.job)
+        job.pop("workspacePath")
+        job_file = support / f"{self.job['id']}.json"
+        events = []
+        migrate_legacy_workspace(job, job_file, legacy,
+                                 lambda *args, **kwargs: events.append((args, kwargs)))
+        self.assertFalse(legacy.exists())
+        self.assertEqual(job["workspacePath"], str(target))
+        self.assertEqual(events[0][0][0], "migrated")
+
+    def test_staging_is_kept_on_failure_and_removed_after_success(self):
+        parent = self.root / "workspace/.staging"
+        with self.assertRaises(RuntimeError):
+            with JobStaging(parent) as staging:
+                (Path(staging) / "partial-extraction").write_text("keep")
+                raise RuntimeError("simulated disconnect")
+        attempts = list(parent.iterdir())
+        self.assertEqual(len(attempts), 1)
+        self.assertEqual((attempts[0] / "partial-extraction").read_text(), "keep")
+        with JobStaging(parent) as staging:
+            (Path(staging) / "complete").write_text("ready")
+        self.assertEqual(list(parent.iterdir()), attempts)
+        cleanup_staging_after_success(parent)
+        self.assertFalse(parent.exists())
 
 
 class DownloadTests(TemporaryTest):
@@ -145,6 +269,34 @@ class DownloadTests(TemporaryTest):
         self.assertEqual(digest, hashlib.sha256(self.payload).hexdigest())
         self.assertEqual(opener.requests[0].get_header("Range"), f"bytes={offset}-")
         self.assertEqual(opener.requests[0].get_header("If-range"), '"build1"')
+
+    def test_volume_disconnect_during_transfer_keeps_part_for_resume(self):
+        destination = self.root / "volume-local" / "main.archive"
+        destination.parent.mkdir()
+        checks = 0
+        def volume_check(required_bytes=0):
+            nonlocal checks
+            checks += 1
+            if checks > 2:
+                raise WorkspaceError("The selected volume is unavailable. Reconnect it, then resume.")
+        response = Response(self.payload, headers={"ETag": '"build1"', "Content-Length": str(len(self.payload))})
+        with self.assertRaisesRegex(WorkspaceError, "Reconnect it"):
+            Downloader(Opener(response), storage_check=volume_check).fetch(self.url, destination)
+        partial = destination.with_name(destination.name + ".part")
+        self.assertTrue(partial.is_file())
+        self.assertGreater(partial.stat().st_size, 0)
+        self.assertFalse(destination.exists())
+
+    def test_insufficient_volume_space_stops_before_writing_part(self):
+        destination = self.root / "volume-local" / "main.archive"
+        destination.parent.mkdir()
+        def no_space(required_bytes=0):
+            raise WorkspaceError("Not enough space on the selected volume. Free space, then resume.")
+        response = Response(self.payload, headers={"Content-Length": str(len(self.payload))})
+        with self.assertRaisesRegex(WorkspaceError, "Not enough space"):
+            Downloader(Opener(response), storage_check=no_space).fetch(self.url, destination)
+        self.assertFalse(destination.exists())
+        self.assertFalse(destination.with_name(destination.name + ".part").exists())
 
     def test_ignored_range_restarts_without_appending_and_keeps_old_partial(self):
         destination, partial = self.partial()
@@ -348,8 +500,8 @@ class ArchiveTests(TemporaryTest):
 
     def test_cancellation_does_not_publish_install_or_touch_existing_folder(self):
         archive = self.zipped("main", {"Game.exe": b"exe"})
-        job = {"id": "fixture-job", "game": {"id": "fixture", "name": "Fixture", "zipUrl": "https://fixture/main"},
-               "installFolder": str(self.root / "Games")}
+        job = self.volume_job({"id": "fixture-job", "game": {"id": "fixture", "name": "Fixture", "zipUrl": "https://fixture/main"},
+               "installFolder": str(self.root / "Games")})
         downloader = Mock()
         def fetch(url, destination):
             shutil.copyfile(archive, destination)
@@ -363,7 +515,7 @@ class ArchiveTests(TemporaryTest):
         with self.assertRaises(Stopped):
             install(job, self.root / "cache", stop, notify=Mock(), downloader=downloader)
         self.assertFalse((self.root / "Games/Fixture").exists())
-        self.assertTrue((self.root / "cache/main.archive").exists())
+        self.assertTrue((Path(job["workspacePath"]) / "main.archive").exists())
 
     def test_install_applies_only_catalog_repair_and_refuses_existing_target(self):
         main = self.zipped("base.zip", {"wrap/Game.exe": b"exe", "wrap/runtime.dll": b"old"})
@@ -378,10 +530,10 @@ class ArchiveTests(TemporaryTest):
         downloader.fetch.side_effect = fetch
         steamapps = self.root / "Steam/steamapps"
         steamapps.mkdir(parents=True)
-        job = {"id": "fixture", "game": {"id": "fixture", "name": "Fixture",
+        job = self.volume_job({"id": "fixture", "game": {"id": "fixture", "name": "Fixture",
                "steamAppId": "12345", "zipUrl": "https://fixture/main, https://fixture/main-extra",
                "fixZipUrl": "https://fixture/repair"},
-               "installFolder": str(self.root / "Games")}
+               "installFolder": str(self.root / "Games")})
         with patch.dict(os.environ, {"HIGHBALL_STEAMAPPS": str(steamapps)}):
             receipt = install(job, self.root / "cache", notify=Mock(), downloader=downloader)
         self.assertEqual((Path(receipt["installPath"]) / "runtime.dll").read_bytes(), b"new")
@@ -390,7 +542,8 @@ class ArchiveTests(TemporaryTest):
         self.assertFalse(receipt["recordedRecipeAvailable"])
         # A new job cannot overwrite a prior game or borrow its ownership.
         with self.assertRaisesRegex(ValueError, "already exists"):
-            install(dict(job, id="other"), self.root / "other-cache", notify=Mock(), downloader=downloader)
+            other = self.volume_job(dict(job, id="other", workspacePath=None))
+            install(other, Path(other["workspacePath"]), notify=Mock(), downloader=downloader)
 
     def test_normal_and_more_players_install_independently(self):
         normal = self.zipped("normal.zip", {"Game/Game.exe": b"normal"})
@@ -404,11 +557,11 @@ class ArchiveTests(TemporaryTest):
             return sha256(destination)
         downloader.fetch.side_effect = fetch
         base = str(self.root / "Games")
-        original = {"id": "normal-job", "game": {"id": "fixture", "name": "Fixture",
+        original = self.volume_job({"id": "normal-job", "game": {"id": "fixture", "name": "Fixture",
                     "zipUrl": "https://fixture/normal", "fixZipUrl": "https://fixture/repair"},
-                    "installFolder": base}
-        more = {"id": "more-job", "game": {"id": "fixture--more-players", "name": "Fixture (More Players)",
-                "zipUrl": "https://fixture/more"}, "installFolder": base}
+                    "installFolder": base})
+        more = self.volume_job({"id": "more-job", "game": {"id": "fixture--more-players", "name": "Fixture (More Players)",
+                "zipUrl": "https://fixture/more"}, "installFolder": base})
         first = install(original, self.root / "normal-cache", notify=Mock(), downloader=downloader)
         second = install(more, self.root / "more-cache", notify=Mock(), downloader=downloader)
         original_path, more_path = Path(first["installPath"]), Path(second["installPath"])
@@ -426,8 +579,8 @@ class ArchiveTests(TemporaryTest):
         error = urllib.error.HTTPError(primary, 503, "offline", {}, io.BytesIO(b""))
         opener = Opener(error, Response(data, headers={"Content-Length": str(len(data))}))
         notify = Mock()
-        job = {"id": "host-label", "game": {"id": "fixture", "name": "Fixture",
-               "zipUrl": primary, "zipBackupUrl": backup}, "installFolder": str(self.root / "Games")}
+        job = self.volume_job({"id": "host-label", "game": {"id": "fixture", "name": "Fixture",
+               "zipUrl": primary, "zipBackupUrl": backup}, "installFolder": str(self.root / "Games")})
         with patch("worker.Downloader", side_effect=lambda **kwargs: Downloader(opener, **kwargs)):
             install(job, self.root / "cache", notify=notify)
         messages = [call.args[1] for call in notify.call_args_list if call.args[0] == "downloading"]
@@ -453,9 +606,9 @@ class ArchiveTests(TemporaryTest):
         downloader.fetch.side_effect = fetch
         steamapps = self.root / "Highball/Test/drive_c/Program Files (x86)/Steam/steamapps"
         steamapps.mkdir(parents=True)
-        job = {"id": "fixture-e2e", "game": {"id": "fixture", "name": "Fixture",
+        job = self.volume_job({"id": "fixture-e2e", "game": {"id": "fixture", "name": "Fixture",
                "steamAppId": "987654", "zipUrl": "https://fixture/main", "fixZipUrl": "https://fixture/fix"},
-               "installFolder": str(self.root / "Games")}
+               "installFolder": str(self.root / "Games")})
         notifications = []
         with patch.object(universal_setup, "recipe_catalog", return_value=catalog), \
                 patch.dict(os.environ, {"HIGHBALL_STEAMAPPS": str(steamapps)}):
@@ -504,10 +657,11 @@ class ArchiveTests(TemporaryTest):
 
     def test_real_worker_process_installs_cached_fixtures_and_recovers_receipt(self):
         state = self.root / "state"
-        cache = state / "fixture-process"
-        cache.mkdir(parents=True)
+        state.mkdir()
         game = {"id": "fixture", "name": "Process Fixture", "zipUrl": "https://fixture/main", "updateZipUrl": "https://fixture/update", "fixZipUrl": "https://fixture/repair"}
-        job = {"id": "fixture-process", "game": game, "installFolder": str(self.root / "Games")}
+        job = self.volume_job({"id": "fixture-process", "game": game, "installFolder": str(self.root / "Games")})
+        cache = Path(job["workspacePath"])
+        cache.mkdir(parents=True)
         atomic_json(state / "fixture-process.json", job)
         for label, url, entries in [("main", game["zipUrl"], {"Game.exe": b"fixture never executed", "runtime.dll": b"old"}),
                                     ("update", game["updateZipUrl"], {"update-only.txt": b"updated", "runtime.dll": b"update"}),
@@ -536,6 +690,8 @@ class ArchiveTests(TemporaryTest):
         self.assertEqual((self.root / "Games/Process Fixture/runtime.dll").read_bytes(), b"new")
         self.assertEqual((self.root / "Games/Process Fixture/update-only.txt").read_bytes(), b"updated")
         self.assertTrue((cache / "main.archive").exists())
+        self.assertTrue(cache.resolve().is_relative_to((self.root / "Games").resolve()))
+        self.assertFalse((state / "fixture-process/main.archive").exists())
 
     @unittest.skipUnless(Path("/usr/bin/zip").exists(), "requires macOS zip")
     def test_password_protected_zip_fixture(self):

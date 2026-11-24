@@ -12,15 +12,17 @@ import threading
 import time
 import urllib.parse
 import urllib.request
-import hashlib
 
 from archives import (content_root, extract, extract_rar_volume_set, find_tool,
                       is_rar_volume_set, merge_archive_part, merge_repair, safe_path)
 from downloads import (Downloader, Stopped, atomic_json, checkpoint, download_host_name,
-                       fetch_with_backup, parts, sha256)
+                       fetch_with_backup, fetch_with_retry, parts, sha256)
 from host_resolver_client import provider_for, resolve_source
 from highball import Highball
 from itch_login import sign_in, token_destination
+from storage_workspace import (MIN_INSTALL_FREE_BYTES, WorkspaceError,
+                               check_workspace, expected_workspace,
+                               migrate_legacy_workspace)
 from universal_setup import apply_universal_setup, recipe_catalog, report_lines
 
 
@@ -79,75 +81,32 @@ def publish_directory(source, destination):
         raise OSError(error, "Could not publish installation without replacing an existing path", str(destination))
 
 
-MIN_INSTALL_FREE_BYTES = 1024 ** 3
-
-
 def validate_workspace_volume(job, workspace, minimum_free=MIN_INSTALL_FREE_BYTES):
-    selected = Path(job["installFolder"]).expanduser().absolute()
-    workspace = Path(workspace).expanduser()
-    # A stale /Volumes/<name> directory can exist after ejecting a disk. It is
-    # not the selected volume and must never become a cache on the boot disk.
-    if str(selected).startswith("/Volumes/"):
-        mount = Path("/Volumes") / selected.parts[2]
-        if not mount.is_mount():
-            raise OSError(f"The selected volume {mount} is unavailable. Reconnect it, then resume this job.")
-    if workspace.is_symlink():
-        raise OSError("The selected job workspace is a symbolic link. Choose the original cache folder on the install volume, then resume.")
-    volume_anchor = selected
-    while not volume_anchor.exists():
-        parent = volume_anchor.parent
-        if parent == volume_anchor:
-            raise OSError(f"The selected install volume {selected} is unavailable. Reconnect it, then resume this job.")
-        volume_anchor = parent
-    if not volume_anchor.is_dir():
-        raise OSError(f"The selected install volume {selected} is unavailable. Reconnect it, then resume this job.")
-    if workspace.exists() and workspace.stat().st_dev != volume_anchor.stat().st_dev:
-        raise OSError("The job workspace is on a different volume from the install destination. Choose the cache folder on the selected volume, then resume.")
-    try:
-        probe = volume_anchor / f".game-installer-write-check-{job['id']}"
-        with probe.open("xb"):
-            pass
-        probe.unlink()
-    except OSError as exc:
-        raise OSError(f"The selected volume is not writable. Check its connection and permissions, then resume. {exc}") from exc
-    try:
-        free = shutil.disk_usage(volume_anchor).free
-    except OSError as exc:
-        raise OSError(f"Could not check free space on the selected volume: {exc}") from exc
-    if free < minimum_free:
-        raise OSError(f"The selected volume has only {free // (1024 ** 2)} MB free. Free at least 1 GB, then resume.")
-    selected.mkdir(parents=True, exist_ok=True)
-    workspace.mkdir(parents=True, exist_ok=True)
+    return check_workspace(dict(job, workspacePath=str(workspace)), create=True,
+                           required_free=minimum_free)
 
 
-def prepare_workspace(job, legacy, workspace):
-    """Copy legacy internal job data without deleting it; verify before use."""
-    if not legacy.exists() or legacy.resolve() == workspace.resolve():
-        workspace.mkdir(parents=True, exist_ok=True)
-        return
-    for source in legacy.rglob("*"):
-        relative = source.relative_to(legacy)
-        copied = workspace / relative
-        if source.is_dir():
-            copied.mkdir(parents=True, exist_ok=True)
-        elif source.is_file():
-            copied.parent.mkdir(parents=True, exist_ok=True)
-            if copied.exists():
-                if (not copied.is_file() or source.stat().st_size != copied.stat().st_size
-                        or file_digest(source) != file_digest(copied)):
-                    raise ValueError(f"Legacy and volume workspace files differ at {relative}. Both were kept; review them before resuming.")
-            else:
-                shutil.copy2(source, copied)
-                if source.stat().st_size != copied.stat().st_size or file_digest(source) != file_digest(copied):
-                    raise OSError(f"Workspace migration verification failed at {relative}; the original files were kept.")
+class JobStaging:
+    """Keep extraction staging after failures; remove the attempt only after success."""
+    def __init__(self, parent):
+        self.parent = Path(parent)
+        self.path = None
+
+    def __enter__(self):
+        if self.parent.is_symlink():
+            raise WorkspaceError("The job staging folder is a symbolic link; no files were written.")
+        self.parent.mkdir(parents=True, exist_ok=True)
+        self.path = Path(tempfile.mkdtemp(prefix="attempt-", dir=self.parent))
+        return str(self.path)
+
+    def __exit__(self, exc_type, exc, traceback):
+        if exc_type is None and self.path is not None:
+            shutil.rmtree(self.path, ignore_errors=True)
+        return False
 
 
-def file_digest(path):
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for block in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.digest()
+def cleanup_staging_after_success(parent):
+    shutil.rmtree(parent, ignore_errors=True)
 
 
 class ArchiveSetProgress:
@@ -253,8 +212,10 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None, state=
     folder = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", game["name"]).strip().rstrip(".")
     if not folder or folder in {".", ".."}:
         raise ValueError("Invalid game folder name.")
+    workspace = Path(job.get("workspacePath") or expected_workspace(job)).expanduser()
+    workspace_job = dict(job, workspacePath=str(workspace))
+    cache = check_workspace(workspace_job, create=True)
     base = Path(job["installFolder"]).expanduser().resolve()
-    validate_workspace_volume(job, cache)
     base.mkdir(parents=True, exist_ok=True)
     destination = base / folder
     receipt_path = Path(state or cache) / "receipt.json"
@@ -281,10 +242,9 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None, state=
                 message = "Existing completed installation recovered."
                 message += "\n" + "\n".join(report_lines(setup["report"]))
                 notify("installed", message, installPath=str(destination), recipeAvailable=matched)
+                cleanup_staging_after_success(Path(cache) / ".staging")
                 return receipt
         raise ValueError("Destination already exists. Choose another install folder; no existing files were overwritten.")
-    cache = Path(cache)
-    cache.mkdir(parents=True, exist_ok=True)
     all_hashes = []
     all_records = []
     archives = []
@@ -310,28 +270,38 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None, state=
                        done=0, total=0)
 
             def report_progress(done, total, part=index):
-                validate_workspace_volume(job, cache)
+                check_workspace(workspace_job, required_free=1, probe_writable=False)
                 notify("downloading", f"Downloading {label} {part + 1}/{len(sources)} via {active_host['name']}",
                        done=done, total=total, **progress.fields(part, done, total))
 
             notify("downloading", f"Downloading {label} archive {index + 1} of {len(sources)} via {active_host['name']}…",
                    done=0, total=0, **progress.fields(index, 0, 0))
             transfer = downloader or Downloader(stop=stop, progress=report_progress,
-                status=lambda message: notify("downloading", message, done=0, total=0))
-            hashes.append(fetch_with_backup(
+                status=lambda message: notify("downloading", message, done=0, total=0),
+                storage_check=lambda required_bytes=0: check_workspace(
+                    workspace_job, required_free=required_bytes, probe_writable=False))
+            fetch_once = lambda: fetch_with_backup(
                 transfer, source["url"], backup_source, filename,
                 on_fallback=fallback,
-            ))
+            )
+            if job.get("autoRetryDownloads", True):
+                digest = fetch_with_retry(fetch_once, stop=stop,
+                                          status=lambda message: notify("downloading", message, done=0, total=0))
+            else:
+                digest = fetch_once()
+            hashes.append(digest)
             files.append(filename)
         all_hashes.append(hashes)
         all_records.append([{"bytes": archive.stat().st_size, "sha256": digest}
                             for archive, digest in zip(files, hashes)])
         archives.append(files)
     checkpoint(stop)
-    validate_workspace_volume(job, cache)
+    check_workspace(workspace_job, required_free=1)
     # All install/repair changes happen in a private sibling directory; publish only on success.
-    with tempfile.TemporaryDirectory(prefix=".game-installer-", dir=cache) as temporary:
+    staging_parent = cache / ".staging"
+    with JobStaging(staging_parent) as temporary:
         staging = Path(temporary)
+        check_workspace(workspace_job, required_free=1)
         main_parts = archives[0]
         root = None
         if is_rar_volume_set(main_parts, stop):
@@ -366,7 +336,7 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None, state=
             extract(archives[2][0], staging / "repair", stop)
             merge_repair(staging / "repair", root, stop)
         checkpoint(stop)
-        validate_workspace_volume(job, cache)
+        check_workspace(workspace_job, required_free=1)
         setup = apply_universal_setup({
             "gameID": game["id"], "installPath": root,
             "mainArchives": all_records[0], "repairArchives": all_records[2],
@@ -379,9 +349,11 @@ def install(job, cache, stop=lambda: False, notify=emit, downloader=None, state=
                    "recordedRecipeAvailable": matched, "universalSetup": setup}
         atomic_json(root / ".game-installer-receipt.json", receipt)
         atomic_json(receipt_path, receipt)  # Allows recovery if app exits just after the directory rename.
+        check_workspace(workspace_job, required_free=1)
         if destination.exists() or destination.is_symlink():
             raise ValueError("Destination appeared during installation; existing files were not overwritten.")
         publish_directory(root, destination)
+    cleanup_staging_after_success(staging_parent)
     message = "Installed. Add to Highball when ready; multiplayer compatibility is not established by installation."
     message += "\n" + "\n".join(report_lines(setup["report"]))
     notify("installed", message,
@@ -400,6 +372,8 @@ def prepare_highball(bottle, recipe_ids, stop=lambda: False, notify=emit):
 
 def cleanup_downloads(job, cache, notify=emit, state=None):
     """Remove only source archives verified against this job's completed receipt."""
+    if job.get("workspacePath"):
+        check_workspace(job, required_free=0)
     cache = Path(cache).resolve()
     receipt = json.loads(((Path(state) if state else cache) / "receipt.json").read_text())
     if receipt.get("jobID") != job["id"] or receipt.get("gameID") != job["game"]["id"]:
@@ -447,7 +421,7 @@ def cleanup_downloads(job, cache, notify=emit, state=None):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["install", "prepare", "register", "launch", "steam", "tools", "cleanup", "bettercrewlink", "itch-login"])
+    parser.add_argument("action", choices=["install", "prepare", "register", "launch", "steam", "tools", "cleanup", "migrate", "bettercrewlink", "itch-login"])
     parser.add_argument("--job", type=Path)
     parser.add_argument("--bottle")
     parser.add_argument("--uri")
@@ -491,26 +465,38 @@ def main():
         if not re.fullmatch(r"[A-Za-z0-9-]{1,80}", job["id"]):
             raise ValueError("Invalid install job identifier.")
         state = args.job.parent / job["id"]
+        legacy_cache_has_files = state.exists() and any(
+            item.name not in {".worker.lock", "receipt.json"} for item in state.iterdir()
+        )
         state.mkdir(parents=True, exist_ok=True)
-        lock = (state / ".worker.lock").open("w")
+        lock = (args.job.parent / f".{job['id']}.worker.lock").open("w")
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise ValueError("This install job is already running in another process.") from exc
         workspace = None
         if args.action == "install":
-            workspace = Path(job.get("workspacePath") or (Path(job["installFolder"]).expanduser() / ".game-installer-jobs" / job["id"])).expanduser()
-            validate_workspace_volume(job, workspace)
-            prepare_workspace(job, state, workspace)
+            if not job.get("workspacePath") and legacy_cache_has_files:
+                raise WorkspaceError("This saved job still has files in the old internal cache. Use ‘Copy files to selected volume’ before resuming.")
+            workspace = Path(job.get("workspacePath") or expected_workspace(job)).expanduser()
+            job["workspacePath"] = str(workspace)
+            check_workspace(job, create=True)
+            atomic_json(args.job, job)
             install(job, workspace, stopped.is_set, state=state)
+            return 0
+        if args.action == "migrate":
+            migrate_legacy_workspace(job, args.job, state, emit)
             return 0
         path = state / "receipt.json"
         if args.action == "cleanup":
             if not args.registered:
                 raise ValueError("Add the installed game to Highball before cleaning its download files.")
-            workspace = Path(job.get("workspacePath") or (Path(job["installFolder"]).expanduser() / ".game-installer-jobs" / job["id"])).expanduser()
-            validate_workspace_volume(job, workspace)
-            prepare_workspace(job, state, workspace)
+            if job.get("workspacePath"):
+                workspace = Path(job["workspacePath"]).expanduser()
+                check_workspace(job, required_free=0)
+            else:
+                # Legacy installed jobs can still use the explicit, receipt-verified cleanup action.
+                workspace = state
             cleanup_downloads(job, workspace, state=state)
             return 0
         receipt = json.loads(path.read_text())
