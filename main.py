@@ -6415,13 +6415,13 @@ class MainWindow(QMainWindow):
             return
         self.load_manifest(background=True)
 
-    def load_manifest(self, manual: bool = False, background: bool = False):
+    def load_manifest(self, manual: bool = False, background: bool = False, cached_only: bool = False):
         if self.manifest_thread is not None:
             if manual:
                 self._manual_catalog_refresh_requested = True
             return
         prefs = load_prefs()
-        mode = prefs.get("catalog_mode", "url")
+        mode = "cached" if cached_only else prefs.get("catalog_mode", "url")
         url = prefs.get("catalog_url", CONFIG["manifest_url"])
         if mode == "url" and not manual and not prefs.get("catalog_auto_update", True):
             mode = "cached"
@@ -6476,6 +6476,11 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def _on_manifest_unchanged(self):
         self._teardown_manifest_thread()
+        # A 304 only means the server copy is unchanged. On a fresh launch the
+        # loading page still needs actual game data, so resolve it from disk.
+        if not self._current_games:
+            self.load_manifest(cached_only=True)
+            return
         self._run_queued_manual_catalog_refresh()
 
     @pyqtSlot(str)
