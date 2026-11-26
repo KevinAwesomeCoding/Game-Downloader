@@ -54,6 +54,7 @@ from update_support import (UpdateNoticeState, UpdateRelease, compatible_release
 from search_support import matches_game_search
 from macos.backend.itch_login import sign_in as itch_sign_in
 from desktop_profile import desktop_profile
+from gdk_support import find_gdk_helper, run_gdk_helper, registered_gdk_app
 try:
     from PyQt6.QtCore import (
         Qt, QObject, QThread, QThreadPool, QRunnable, QSize, QRect, QPoint,
@@ -5095,6 +5096,10 @@ class DownloadCard(QFrame):
             return
         try:
             exe = game_launch_executable(install_dir, self.game)
+            if find_gdk_helper(install_dir, exe):
+                _log.debug('shortcut: GDK game must be launched through Game Installer setup')
+                self.status_label.setText(f'Installed to {install_dir}  ·  Launch from Owned to complete GDK setup')
+                return
             if not exe:
                 _log.debug("shortcut: no .exe found under %s", install_dir)
                 return
@@ -5606,6 +5611,26 @@ class UpdateDialog(QDialog):
 # ---------------------------------------------------------------------------
 # Main window
 # ---------------------------------------------------------------------------
+class GdkSetupWorker(QThread):
+    result_ready = pyqtSignal(str, str)
+
+    def __init__(self, helper, parent=None):
+        super().__init__(parent)
+        self.helper = helper
+
+    def run(self):
+        try:
+            game_dir = os.path.dirname(str(self.helper))
+            try:
+                app_id = registered_gdk_app(game_dir)
+            except RuntimeError:
+                run_gdk_helper(self.helper)
+                app_id = registered_gdk_app(game_dir)
+            self.result_ready.emit(app_id, '')
+        except Exception as exc:
+            self.result_ready.emit('', str(exc))
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -5675,6 +5700,10 @@ class MainWindow(QMainWindow):
         self._update_timer.start()
 
     def closeEvent(self, event):
+        if getattr(self, '_gdk_worker', None) is not None:
+            QMessageBox.information(self, 'GDK setup in progress', 'Close the GDK helper and wait for setup to finish before closing Game Installer.')
+            event.ignore()
+            return
         # Stop any in-flight downloads so no QThread is left running at exit.
         try:
             self.download_manager.shutdown()
@@ -6806,6 +6835,10 @@ class MainWindow(QMainWindow):
         root = os.path.abspath(os.path.join(default_game_directory(), game.safe_folder_name))
         choice = load_prefs().get("owned_game_executables", {}).get(game.safe_folder_name)
         path = os.path.abspath(os.path.join(root, choice)) if choice else game_launch_executable(root, game)
+        helper = find_gdk_helper(root, path)
+        if helper:
+            self._start_gdk_game(game, helper)
+            return
         if path and not choice and _NON_GAME_EXE_RE.search(os.path.basename(path)):
             path = None
         if not path or not os.path.isfile(path):
@@ -6817,6 +6850,31 @@ class MainWindow(QMainWindow):
                 subprocess.Popen([path], cwd=os.path.dirname(path))
             except OSError as exc:
                 QMessageBox.warning(self, "Could not launch game", str(exc))
+
+    def _start_gdk_game(self, game, helper):
+        if getattr(self, '_gdk_worker', None) is not None:
+            QMessageBox.information(self, 'GDK setup in progress', 'Finish the open setup before starting another GDK game.')
+            return
+        worker = GdkSetupWorker(helper, self)
+        self._gdk_worker = worker
+        worker.result_ready.connect(self._gdk_setup_result)
+        worker.finished.connect(self._gdk_setup_finished)
+        worker.start()
+
+    def _gdk_setup_result(self, app_id, error):
+        if error:
+            QMessageBox.warning(self, 'GDK setup did not finish', error)
+            return
+        try:
+            os.startfile('shell:AppsFolder\\' + app_id)
+        except OSError as exc:
+            QMessageBox.warning(self, 'Could not launch registered game', str(exc))
+
+    def _gdk_setup_finished(self):
+        worker = self._gdk_worker
+        self._gdk_worker = None
+        if worker:
+            worker.deleteLater()
 
     def _open_install(self, game: Game):
         _log.debug(

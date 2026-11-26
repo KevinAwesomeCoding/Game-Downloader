@@ -12,7 +12,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtWidgets import QApplication, QMessageBox, QGraphicsBlurEffect
 from PyQt6.QtCore import QEvent, QPointF
 from PyQt6.QtGui import QEnterEvent, QImage, QColor
-from main import Game, GameCard, MainWindow, artwork_accent
+from main import Game, GameCard, GdkSetupWorker, MainWindow, artwork_accent
 
 
 class OwnedGamesTests(unittest.TestCase):
@@ -112,6 +112,59 @@ class OwnedGamesTests(unittest.TestCase):
              patch("main.load_prefs", return_value={}), patch("main.subprocess.Popen") as launch:
             self.window._launch_owned_game(self.game)
         launch.assert_called_once_with([str(self.folder / "game.exe")], cwd=str(self.folder))
+
+    def test_gdk_game_opens_helper_instead_of_executable(self):
+        helper = self.folder / 'GDK_Helper.bat'
+        helper.touch()
+        with patch('main.default_game_directory', return_value=str(self.source)), \
+             patch('main.load_prefs', return_value={}), \
+             patch.object(self.window, '_start_gdk_game') as setup, \
+             patch('main.subprocess.Popen') as launch:
+            self.window._launch_owned_game(self.game)
+        setup.assert_called_once_with(self.game, helper.resolve())
+        launch.assert_not_called()
+
+    def test_gdk_worker_does_not_launch_when_helper_fails(self):
+        events = []
+        worker = GdkSetupWorker(str(self.folder / 'GDK_Helper.bat'))
+        worker.result_ready.connect(lambda app_id, error: events.append((app_id, error)))
+        with patch('main.run_gdk_helper', side_effect=RuntimeError('setup cancelled')), \
+             patch('main.registered_gdk_app', side_effect=RuntimeError('not registered')) as query:
+            worker.run()
+        query.assert_called_once()
+        self.assertEqual(events, [('', 'setup cancelled')])
+
+    def test_gdk_worker_verifies_registration_after_helper(self):
+        events = []
+        worker = GdkSetupWorker(str(self.folder / 'GDK_Helper.bat'))
+        worker.result_ready.connect(lambda app_id, error: events.append((app_id, error)))
+        with patch('main.run_gdk_helper') as run, \
+             patch('main.registered_gdk_app', side_effect=[RuntimeError('not registered'), 'Example_family!Game']) as query:
+            worker.run()
+        run.assert_called_once()
+        self.assertEqual(query.call_count, 2)
+        self.assertEqual(events, [('Example_family!Game', '')])
+
+    def test_already_registered_gdk_game_does_not_repeat_setup(self):
+        events = []
+        worker = GdkSetupWorker(str(self.folder / 'GDK_Helper.bat'))
+        worker.result_ready.connect(lambda app_id, error: events.append((app_id, error)))
+        with patch('main.run_gdk_helper') as setup, \
+             patch('main.registered_gdk_app', return_value='Example_family!Game'):
+            worker.run()
+        setup.assert_not_called()
+        self.assertEqual(events, [('Example_family!Game', '')])
+
+    def test_gdk_result_launches_registered_windows_app(self):
+        with patch('main.os.startfile') as start:
+            self.window._gdk_setup_result('Example_family!Game', '')
+        start.assert_called_once_with(r'shell:AppsFolder\Example_family!Game')
+
+    def test_gdk_error_does_not_launch_anything(self):
+        with patch('main.os.startfile') as start, patch('main.QMessageBox.warning') as warning:
+            self.window._gdk_setup_result('', 'registration failed')
+        start.assert_not_called()
+        warning.assert_called_once()
 
     def test_missing_executable_can_be_cancelled(self):
         (self.folder / "game.exe").unlink()
